@@ -7,6 +7,7 @@ import type {
     Field,
     FieldOption,
     PricingRole,
+    ServiceFallback, ServiceIdRef
 } from '../schema';
 
 export type NormaliseOptions = {
@@ -96,6 +97,12 @@ export function normalise(input: unknown, opts: NormaliseOptions = {}): ServiceP
         ...(isNonEmpty(excludes_for_options) && {excludes_for_options}),
         schema_version: typeof (obj as any).schema_version === 'string' ? (obj as any).schema_version : '1.0',
     };
+
+    // 6b) Fallbacks: accept legacy shapes and coerce to { nodes, global }
+    const fallbacks = coerceFallbacks(obj?.fallbacks);
+    if (fallbacks && (isNonEmpty(fallbacks.nodes) || isNonEmpty(fallbacks.global))) {
+        out.fallbacks = fallbacks;
+    }
 
     propagateConstraints(out);
 
@@ -370,4 +377,47 @@ function dedupe<T>(arr: T[]): T[] {
 
 function isNonEmpty(obj: Record<string, any> | undefined): obj is Record<string, any> {
     return !!obj && Object.keys(obj).length > 0;
+}
+
+
+/* ───────────────────────── fallbacks normaliser ───────────────────────── */
+function coerceFallbacks(src: any): ServiceFallback | undefined {
+    if (!src || typeof src !== 'object') return undefined;
+
+    // Legacy sample shape: { [node_id:number]: Array<string|number>, global: { [service_id]: Array<string|number> } }
+    // Canonical: { nodes?: Record<string, ServiceIdRef[]>, global?: Record<ServiceIdRef, ServiceIdRef[]> }
+    const out: ServiceFallback = {};
+
+    // Global
+    const g = (src as any).global;
+    if (g && typeof g === 'object') {
+        const rg: Record<string, ServiceIdRef[]> = {};
+        for (const [k, v] of Object.entries(g)) {
+            const key = String(k);
+            const arr = toServiceIdArray(v);
+            const clean = dedupe(arr.filter(x => String(x) !== key)); // drop self references
+            if (clean.length) rg[key] = clean;
+        }
+        if (Object.keys(rg).length) out.global = rg;
+    }
+
+    // Nodes: everything except 'global' treated as node-scoped in legacy shape
+    const rn: Record<string, ServiceIdRef[]> = {};
+    for (const [k, v] of Object.entries(src)) {
+        if (k === 'global') continue;
+        const nodeId = String(k);
+        const arr = toServiceIdArray(v);
+        const clean = dedupe(arr.filter(x => String(x) !== nodeId)); // drop self references against nodeId string
+        if (clean.length) rn[nodeId] = clean;
+    }
+    if (Object.keys(rn).length) out.nodes = rn;
+
+    return (out.nodes || out.global) ? out : undefined;
+}
+
+function toServiceIdArray(v: any): ServiceIdRef[] {
+    if (!Array.isArray(v)) return [];
+    return v
+        .map(x => (typeof x === 'number' || typeof x === 'string') ? x : String(x))
+        .filter(x => x !== '' && x !== null && x !== undefined) as ServiceIdRef[];
 }

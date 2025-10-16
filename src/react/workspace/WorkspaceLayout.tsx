@@ -1,15 +1,15 @@
 // src/react/workspace/WorkspaceLayout.tsx
 import React from 'react';
-import type {ReactNode} from 'react';
-import {useUi} from './ui-bridge';
+import type { ReactNode } from 'react';
+import { useUi } from './ui-bridge';
 
 // ⚠️ These are your built-ins (we’ll implement them next):
-import {StructurePanel} from './panels/StructurePanel';          // left
-import {CommentsPanel} from './panels/CommentsPanel';            // right → “Comments”
+import { StructurePanel } from './panels/StructurePanel';          // left
+import { CommentsPanel } from './panels/CommentsPanel';            // right → “Comments”
 import FlowCanvas from '../adapters/reactflow';
-import {CanvasProvider, useCanvasOwned} from "../canvas/context";
-import {LeftPanel} from "./panels/LeftPanel";
-import {initialProps, serviceMap} from "./data";         // middle (React Flow adapter)
+import { CanvasProvider, useCanvasOwned } from "../canvas/context";
+import { LeftPanel } from "./panels/LeftPanel";
+import { initialProps, serviceMap } from "./data";         // middle (React Flow adapter)
 
 export type WorkspaceLayoutProps = {
     /** Addons rendered in the CANVAS toolbar row (right side on desktop, in top bar on mobile). */
@@ -35,17 +35,17 @@ export type WorkspaceLayoutProps = {
 };
 
 export function WorkspaceLayout({
-                                    canvasToolbarAddon,
-                                    canvasOverlayAddon,
-                                    rightCustom,
-                                    initialSizes = {left: 22, middle: 56, right: 22},
-                                    minSizes = {left: 16, right: 18},
-                                    className,
-                                    leftClassName,
-                                    canvasClassName,
-                                    rightClassName,
-                                    showRight = true,
-                                }: WorkspaceLayoutProps) {
+    canvasToolbarAddon,
+    canvasOverlayAddon,
+    rightCustom,
+    initialSizes = { left: 22, middle: 56, right: 22 },
+    minSizes = { left: 16, right: 18 },
+    className,
+    leftClassName,
+    canvasClassName,
+    rightClassName,
+    showRight = true,
+}: WorkspaceLayoutProps) {
     const {
         ResizablePanelGroup, ResizablePanel, ResizableHandle,
         Tabs, TabsList, TabsTrigger, TabsContent,
@@ -58,7 +58,7 @@ export function WorkspaceLayout({
 
     const hasCustom = !!rightCustom;
 
-    const {api} = useCanvasOwned(initialProps, undefined, {serviceMap});
+    const { api } = useCanvasOwned(initialProps, undefined, { serviceMap });
 
     return (
         <CanvasProvider api={api}>
@@ -73,16 +73,16 @@ export function WorkspaceLayout({
                             <DrawerHeader className="pb-2">
                                 <DrawerTitle>Workspace panels</DrawerTitle>
                             </DrawerHeader>
-                            <div className="px-2 pb-2"><Separator/></div>
+                            <div className="px-2 pb-2"><Separator /></div>
                             <div className="px-3 pb-6 overflow-auto h-full">
-                                <StructurePanel/>
+                                <StructurePanel />
                             </div>
                             <div className="px-3 pb-3 flex justify-end">
                                 <DrawerClose asChild><Button variant="secondary">Close</Button></DrawerClose>
                             </div>
                         </DrawerContent>
                     </Drawer>
-                    <div className="flex-1"/>
+                    <div className="flex-1" />
                     {canvasToolbarAddon ? <div className="flex items-center gap-2">{canvasToolbarAddon}</div> : null}
                 </div>
 
@@ -99,11 +99,11 @@ export function WorkspaceLayout({
                         </div>
                         <div className="h-full overflow-auto">
                             {/*<StructurePanel/>*/}
-                            <LeftPanel/>
+                            <LeftPanel />
                         </div>
                     </ResizablePanel>
 
-                    <ResizableHandle className="hidden md:flex"/>
+                    <ResizableHandle className="hidden md:flex" />
 
                     {/* MIDDLE (built-in canvas) */}
                     <ResizablePanel defaultSize={initialSizes.middle} className={cn('flex flex-col', canvasClassName)}>
@@ -117,7 +117,7 @@ export function WorkspaceLayout({
                         <div className="relative flex-1 overflow-hidden">
                             {/* Canvas fills the space */}
                             <div className="absolute inset-0">
-                                <FlowCanvas/>
+                                <FlowCanvas />
                             </div>
 
                             {/* Optional overlay slot inside canvas */}
@@ -129,7 +129,7 @@ export function WorkspaceLayout({
 
                     {showRight && (
                         <>
-                            <ResizableHandle className="hidden md:flex"/>
+                            <ResizableHandle className="hidden md:flex" />
                             {/* RIGHT (built-in tabs: Comments + optional Custom) */}
                             <ResizablePanel
                                 defaultSize={initialSizes.right}
@@ -137,7 +137,7 @@ export function WorkspaceLayout({
                                 className={cn('hidden md:flex flex-col overflow-hidden border-l', rightClassName)}
                             >
                                 <Tabs value={rightTab} onValueChange={(v: any) => setRightTab(v as any)}
-                                      className="flex-1 flex flex-col">
+                                    className="flex-1 flex flex-col">
                                     <div className="px-3 pt-2 border-b">
                                         <TabsList>
                                             <TabsTrigger value="comments">Comments</TabsTrigger>
@@ -146,7 +146,7 @@ export function WorkspaceLayout({
                                     </div>
                                     <div className="flex-1 overflow-auto">
                                         <TabsContent value="comments" className="m-0">
-                                            <CommentsPanel/>
+                                            <CommentsPanel />
                                         </TabsContent>
                                         {hasCustom && (
                                             <TabsContent value="custom" className="m-0">

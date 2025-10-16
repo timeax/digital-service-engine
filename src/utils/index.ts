@@ -6,6 +6,6 @@ import {Field} from "../schema";
  */
 export function isMultiField(f: Field): boolean {
     const t = (f.type || '').toLowerCase();
-    const metaMulti = !!(f as any).meta?.multi;
+    const metaMulti = !!f.meta?.multi;
     return t === 'multiselect' || t === 'checkbox' || metaMulti;
 }

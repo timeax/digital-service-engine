@@ -1,4 +1,4 @@
-export type NodeKind = 'tag' | 'field' | 'comment';
+export type NodeKind = 'tag' | 'field' | 'comment' | 'option';
 export type EdgeKind = 'child' | 'bind' | 'include' | 'exclude' | 'error' | 'anchor';
 
 export type GraphNode = {

@@ -1,7 +1,7 @@
 import {EventBus} from './events';
 import type {CanvasEvents, CanvasOptions, CanvasState, NodePositions, Viewport, DraftWire} from './types';
 import type {Builder} from '../../core';
-import type {GraphSnapshot} from '../../schema/graph';
+import type {EdgeKind, GraphSnapshot} from '../../schema/graph';
 import {CommentsAPI} from "./comments";
 import {CanvasBackendOptions} from "./backend";
 import {Editor} from "./editor";
@@ -188,6 +188,17 @@ export class CanvasAPI {
 
     undo() {
         this.builder.undo();
+        this.refreshGraph();
+    }
+
+    private edgeRel: EdgeKind = 'bind';
+    getEdgeRel(): EdgeKind {
+        return this.edgeRel
+    }
+
+    public setEdgeRel(rel: EdgeKind) {
+        if(this.edgeRel !== rel) return;
+        this.edgeRel = rel;
         this.refreshGraph();
     }
 }

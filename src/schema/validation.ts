@@ -29,7 +29,15 @@ export type ValidationCode =
     | 'field_unbound'
     | 'constraint_overridden'
     | 'unsupported_constraint_option' // option's service can't meet T's effective constraint
-    | 'custom_component_unresolvable';
+    | 'custom_component_unresolvable'
+    // fallbacks
+    | 'fallback_bad_node'
+    | 'fallback_unknown_service'
+    | 'fallback_cycle'
+    | 'fallback_no_primary'
+    | 'fallback_rate_violation'
+    | 'fallback_constraint_mismatch'
+    | 'fallback_no_tag_context';
 
 export type ValidationError = {
     code: ValidationCode;
@@ -61,4 +69,19 @@ export type ValidatorOptions = {
     selectedOptionKeys?: string[];
     globalUtilityGuard?: boolean;
     policies?: DynamicRule[];          // ← dynamic rules from super admin
+    fallbackSettings?: FallbackSettings
+};
+
+export type FallbackSettings = {
+    /** Require fallbacks to satisfy tag constraints (dripfeed/refill/cancel) when a tag context is known. Default: true */
+    requireConstraintFit?: boolean;
+    /** Rate rule policy. Default: { kind: 'lte_primary' } i.e. candidate.rate <= primary.rate */
+    ratePolicy?: { kind: 'lte_primary' } | { kind: 'within_pct'; pct: number } | {
+        kind: 'at_least_pct_lower';
+        pct: number
+    };
+    /** When multiple candidates remain, choose first (priority) or cheapest. Default: 'priority' */
+    selectionStrategy?: 'priority' | 'cheapest';
+    /** Validation mode: 'strict' → node-scoped violations reported as ValidationError; 'dev' → only collect diagnostics. Default: 'strict' */
+    mode?: 'strict' | 'dev';
 };

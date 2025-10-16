@@ -130,7 +130,8 @@ export function useReactFlowAdapter(api: CanvasAPI) {
         // Let host decide what a connection means (bind/include). We just emit via wire API.
         const from = params.source!;
         const to = params.target!;
-        api.startWire(from, 'bind' as any);
+        const kind = api.getEdgeRel();
+        api.startWire(from, kind ?? 'bind' as any);
         api.commitWire(to);
     };
 

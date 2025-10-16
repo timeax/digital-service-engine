@@ -21,7 +21,7 @@ export type FieldOption = {
     value?: string | number;
     service_id?: number;
     pricing_role?: PricingRole;
-    meta?: Record<string, unknown>;
+    meta?: Record<string, unknown> & { multi?: boolean };
 };
 
 export type Field = BaseFieldUI & {
@@ -68,4 +68,17 @@ export type ServiceProps = {
     includes_for_options?: Record<string, string[]>;
     excludes_for_options?: Record<string, string[]>;
     schema_version?: string;
+    fallbacks?: ServiceFallback;
+};
+
+
+// Ids
+export type ServiceIdRef = number | string;   // provider service id
+export type NodeIdRef = string;               // tag.id or option.id
+
+export type ServiceFallback = {
+    /** Node-scoped fallbacks: prefer these when that node’s primary service fails */
+    nodes?: Record<NodeIdRef, ServiceIdRef[]>;
+    /** Primary→fallback list used when no node-scoped entry is present */
+    global?: Record<ServiceIdRef, ServiceIdRef[]>;
 };

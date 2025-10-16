@@ -14,6 +14,7 @@ import type {
     ValidatorOptions,
 } from '../schema/validation';
 import {isMultiField} from "../utils";
+import {collectFailedFallbacks} from "./fallback";
 
 const FLAG_KEYS = ['refill', 'cancel', 'dripfeed'] as const;
 type FlagKey = typeof FLAG_KEYS[number];
@@ -362,20 +363,7 @@ export function validate(
      * 7) CONSTRAINTS vs CAPABILITIES + INHERITANCE
      * ──────────────────────────────────────────────────────────────── */
     // Build ancestor chain resolver
-    const parentOf = (id: string | undefined): string | undefined => (id ? tagById.get(id)?.bind_id : undefined);
-    const ancestorsOf = (id: string): string[] => {
-        const out: string[] = [];
-        let cur = tagById.get(id)?.bind_id;
-        const guard = new Set<string>();
-        while (cur && !guard.has(cur)) {
-            out.push(cur);
-            guard.add(cur);
-            cur = parentOf(cur);
-        }
-        return out;
-    };
-
-    // Inheritance contradiction (nearest ancestor wins; descendants cannot contradict)
+// Inheritance contradiction (nearest ancestor wins; descendants cannot contradict)
     // effective constraint resolution (nearest ancestor wins)
     const flags: Array<keyof NonNullable<Tag['constraints']>> = ['refill', 'cancel', 'dripfeed'];
 
@@ -525,6 +513,44 @@ export function validate(
                 !includedByOption.has(f.id)
             ) {
                 errors.push({code: 'field_unbound', nodeId: f.id});
+            }
+        }
+    }
+
+    // ── Fallback validation ────────────────────────────────────────────────
+    const mode = ctx.fallbackSettings?.mode ?? 'strict';
+    if (props.fallbacks) {
+        const diags = collectFailedFallbacks(
+            props,
+            ctx.serviceMap ?? {},
+            {...ctx.fallbackSettings, mode: 'dev'} // collect non-fatal diagnostics
+        );
+
+        if (mode === 'strict') {
+            // Convert node-scoped violations into ValidationError; global stays soft
+            for (const d of diags) {
+                if (d.scope === 'global') continue;
+                // Only report when the candidate failed in all of its contexts. We approximate:
+                // group by (nodeId,candidate) and check if we only saw failing reasons.
+                // For simplicity, we emit per-failing context; editor may prune accordingly.
+                const code =
+                    d.reason === 'unknown_service' ? 'fallback_unknown_service' :
+                        d.reason === 'no_primary' ? 'fallback_no_primary' :
+                            d.reason === 'rate_violation' ? 'fallback_rate_violation' :
+                                d.reason === 'constraint_mismatch' ? 'fallback_constraint_mismatch' :
+                                    d.reason === 'cycle' ? 'fallback_cycle' :
+                                        'fallback_bad_node';
+
+                errors.push({
+                    code: code as any,
+                    nodeId: d.nodeId,
+                    details: {
+                        primary: d.primary,
+                        candidate: d.candidate,
+                        tagContext: d.tagContext,
+                        scope: d.scope,
+                    },
+                });
             }
         }
     }

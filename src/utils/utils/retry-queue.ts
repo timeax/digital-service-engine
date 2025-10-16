@@ -8,6 +8,8 @@ export type RetryOptions = {
     baseDelayMs?: number;       // default 800
     maxDelayMs?: number;        // default 20_000
     jitter?: boolean;           // default true
+    /** Run the first attempt immediately (no initial delay) */
+    immediateFirst?: boolean;
 };
 
 export type RetryJob = {
@@ -30,6 +32,7 @@ export class RetryQueue {
             baseDelayMs: opts.baseDelayMs ?? 800,
             maxDelayMs: opts.maxDelayMs ?? 20_000,
             jitter: opts.jitter ?? true,
+            immediateFirst: opts.immediateFirst ?? false,
         };
     }
 
@@ -74,6 +77,23 @@ export class RetryQueue {
 
     pendingIds(): string[] {
         return Array.from(this.jobs.keys());
+    }
+
+    size(): number {
+        return this.jobs.size;
+    }
+
+    isQueued(id: string): boolean {
+        return this.jobs.has(id);
+    }
+
+    drain(): void {
+        for (const [id, rec] of this.jobs.entries()) {
+            if (rec.timer) clearTimeout(rec.timer);
+            rec.cancelled = true;
+            rec.job.onStatus?.('cancelled', {attempt: rec.attempt});
+            this.jobs.delete(id);
+        }
     }
 
     private flush() {
@@ -124,8 +144,9 @@ export class RetryQueue {
 
         if (immediate) await run();
         else {
-            // First attempt uses base delay for consistency (but you can make it 0 if you want)
-            const delay = attempt === 1 ? this.delayFor(1) : 0;
+            // First attempt: respect immediateFirst option; otherwise, schedule immediately
+            const delay = this.opts.immediateFirst && attempt === 1 ? 0 : this.delayFor(attempt);
+
             if (delay) {
                 rec.job.onStatus?.('scheduled', {attempt: 0, nextDelayMs: delay});
                 rec.timer = setTimeout(run, delay);
