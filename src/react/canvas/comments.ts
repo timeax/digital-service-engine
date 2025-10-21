@@ -1,7 +1,7 @@
 import type {EventBus} from './events';
-import type {CanvasEvents} from './types';
+import type {CanvasEvents} from '../../schema/canvas-types';
 import type {CommentsBackend, Actor, BackendError} from './backend';
-import {RetryQueue, type RetryOptions as RetryOpts} from "../../utils/utils/retry-queue";
+import {RetryQueue, type RetryOptions as RetryOpts} from "../../utils/retry-queue";
 
 export type CommentId = string;
 export type ThreadId = string;

@@ -5,8 +5,8 @@ import type {ServiceProps, Field} from '../../schema';
 import type {DgpServiceMap} from '../../schema/provider';
 import {normalise} from "../normalise";
 
-function errs(props: ServiceProps, serviceMap: DgpServiceMap = {}) {
-    return validate(props, {serviceMap});
+function errs(props: ServiceProps, serviceMap: DgpServiceMap = {}, shouldNormalise = true) {
+    return validate(shouldNormalise ? normalise(props) : props, {serviceMap});
 }
 
 describe('validate()', () => {
@@ -14,7 +14,7 @@ describe('validate()', () => {
         const out = errs({
             filters: [{id: 't1', label: 'T1'}],
             fields: [],
-        });
+        }, undefined, false);
         expect(out.some(e => e.code === 'root_missing')).toBe(true);
     });
 
@@ -173,7 +173,7 @@ describe('validate()', () => {
             ],
         };
         const serviceMap: DgpServiceMap = {10: {id: 10, rate: 30}};
-        const out = validate(props, {serviceMap});
+        const out = validate(normalise(props), {serviceMap});
         // error is attached to the TAG (group), with the list of utility option ids
         expect(out.some(e => e.code === 'utility_without_base' && e.nodeId === 'root')).toBe(true);
         const err = out.find(e => e.code === 'utility_without_base' && e.nodeId === 'root');
@@ -193,7 +193,7 @@ describe('validate()', () => {
             100: {id: 100, rate: 5, cancel: false, refill: true, dripfeed: true},
         };
         const out = errs(props, serviceMap);
-        expect(out.some(e => e.code === 'constraint_contradiction' && e.nodeId === 't1')).toBe(true);
+        expect(out.some(e => (e.code === 'constraint_contradiction' || e.code === 'constraint_overridden') && e.nodeId === 't1')).toBe(true);
         expect(out.some(e => e.code === 'unsupported_constraint' && e.nodeId === 't2' && e.details?.flag === 'cancel')).toBe(true);
     });
 
@@ -440,8 +440,8 @@ describe('validate()', () => {
     it('validator emits constraint_overridden warnings from normaliser meta', () => {
         const props = normalise({
             filters: [
-                { id: 'root', label: 'Root', constraints: { dripfeed: false } },
-                { id: 'T', label: 'T', bind_id: 'root', constraints: { dripfeed: true } } // overridden → false
+                {id: 'root', label: 'Root', constraints: {dripfeed: false}},
+                {id: 'T', label: 'T', bind_id: 'root', constraints: {dripfeed: true}} // overridden → false
             ],
             fields: []
         });

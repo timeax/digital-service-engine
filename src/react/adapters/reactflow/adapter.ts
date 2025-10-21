@@ -9,7 +9,7 @@ import type {
     Viewport as RFViewport
 } from 'reactflow';
 import type {CanvasAPI} from '../../canvas/api';
-import type {CanvasState} from '../../canvas/types';
+import type {CanvasState} from '../../../schema/canvas-types';
 import {CommentThread} from "../../canvas/comments";
 
 // Map graph → RF nodes/edges

@@ -252,6 +252,25 @@ export function validate(
         }
     }
 
+    /* ── Quantity marker rule: at most one marker per visible group (tag) ── */
+    {
+        for (const t of tags) {
+            const visible = fieldsVisibleUnder(t.id);
+            const markers: string[] = [];
+            for (const f of visible) {
+                const q = (f.meta as any)?.quantity;
+                if (q) markers.push(f.id);
+            }
+            if (markers.length > 1) {
+                errors.push({
+                    code: 'quantity_multiple_markers',
+                    nodeId: t.id,
+                    details: {tagId: t.id, markers},
+                });
+            }
+        }
+    }
+
     /* ───────── utility_without_base per visible tag group (selection-aware) ───────── */
     for (const t of tags) {
         const visible = fieldsVisibleUnder(t.id);
@@ -301,6 +320,68 @@ export function validate(
             // user-input → options must not carry service_id
             if (anySvc) {
                 errors.push({code: 'user_input_field_has_service_option', nodeId: f.id});
+            }
+        }
+    }
+
+    // Utility rules — option-level (conflicts and marker validity)
+    {
+        const ALLOWED_UTILITY_MODES = new Set(['flat', 'per_quantity', 'per_value', 'percent']);
+        for (const f of fields) {
+            const optsArr = Array.isArray(f.options) ? f.options : [];
+            for (const o of optsArr) {
+                const role = o.pricing_role ?? f.pricing_role ?? 'base';
+                const hasService = isFiniteNumber(o.service_id);
+                const util = (o.meta as any)?.utility;
+
+                if (role === 'utility' && hasService) {
+                    errors.push({
+                        code: 'utility_with_service_id',
+                        nodeId: o.id,
+                        details: {fieldId: f.id, optionId: o.id, service_id: o.service_id},
+                    });
+                }
+
+                if (util) {
+                    const mode = util.mode;
+                    const rate = util.rate;
+                    if (!isFiniteNumber(rate)) {
+                        errors.push({
+                            code: 'utility_missing_rate',
+                            nodeId: o.id,
+                            details: {fieldId: f.id, optionId: o.id},
+                        });
+                    }
+                    if (!ALLOWED_UTILITY_MODES.has(mode)) {
+                        errors.push({
+                            code: 'utility_invalid_mode',
+                            nodeId: o.id,
+                            details: {fieldId: f.id, optionId: o.id, mode},
+                        });
+                    }
+                }
+            }
+        }
+
+        // Field-level utility marker validity
+        for (const f of fields) {
+            const util = (f.meta as any)?.utility;
+            if (!util) continue;
+            const mode = util.mode;
+            const rate = util.rate;
+            if (!isFiniteNumber(rate)) {
+                errors.push({
+                    code: 'utility_missing_rate',
+                    nodeId: f.id,
+                    details: {fieldId: f.id},
+                });
+            }
+            if (!ALLOWED_UTILITY_MODES.has(mode)) {
+                errors.push({
+                    code: 'utility_invalid_mode',
+                    nodeId: f.id,
+                    details: {fieldId: f.id, mode},
+                });
             }
         }
     }

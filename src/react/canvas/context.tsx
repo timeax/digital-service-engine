@@ -2,7 +2,7 @@ import React, {createContext, useContext, useEffect, useMemo, useRef} from 'reac
 import type {ReactNode} from 'react';
 import {CanvasAPI} from './api';
 import {Builder, BuilderOptions, createBuilder} from '../../core';
-import type {CanvasOptions} from './types';
+import type {CanvasOptions} from '../../schema/canvas-types';
 import type {CanvasBackendOptions} from './backend';
 import {ServiceProps} from "../../schema";
 

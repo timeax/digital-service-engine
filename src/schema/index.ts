@@ -2,6 +2,29 @@
 export type PricingRole = 'base' | 'utility';
 export type FieldType = 'custom' | (string & {});
 
+/** ── Marker types (live inside meta; non-breaking) ───────────────────── */
+export type QuantityMark = {
+  quantity?: {
+    valueBy: 'value' | 'length' | 'eval';
+    code?: string;
+    multiply?: number;
+    clamp?: { min?: number; max?: number };
+    fallback?: number;
+  };
+};
+
+export type UtilityMark = {
+  utility?: {
+    rate: number;
+    mode: 'flat' | 'per_quantity' | 'per_value' | 'percent';
+    valueBy?: 'value' | 'length'; // only for per_value; default 'value'
+    percentBase?: 'service_total' | 'base_service' | 'all';
+    label?: string;
+  };
+};
+
+type WithQuantityDefault = { quantityDefault?: number };
+
 export interface BaseFieldUI {
     helperText?: string;
     helperTextPos?: string;
@@ -21,7 +44,7 @@ export type FieldOption = {
     value?: string | number;
     service_id?: number;
     pricing_role?: PricingRole;
-    meta?: Record<string, unknown> & { multi?: boolean };
+    meta?: (Record<string, unknown> & UtilityMark & WithQuantityDefault);
 };
 
 export type Field = BaseFieldUI & {
@@ -32,7 +55,7 @@ export type Field = BaseFieldUI & {
     options?: FieldOption[];
     component?: string;              // required if type === 'custom'
     pricing_role?: PricingRole;      // default 'base'
-    meta?: Record<string, unknown>;
+    meta?: (Record<string, unknown> & QuantityMark & UtilityMark);
 };
 
 export type FlagKey = 'refill' | 'cancel' | 'dripfeed';
@@ -43,7 +66,7 @@ export type Tag = {
     service_id?: number;
     includes?: string[];
     excludes?: string[];
-    meta?: Record<string, unknown>;
+    meta?: (Record<string, unknown> & WithQuantityDefault);
     /**
      * Which flags are set for this tag. If a flag is not set, it's inherited from the nearest ancestor with a value set.
      */

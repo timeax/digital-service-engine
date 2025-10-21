@@ -1,6 +1,6 @@
 // src/react/canvas/selection.ts
-import type {Builder} from 'digital-service-ui-builder/core';
-import type {ServiceProps, Tag, Field} from 'digital-service-ui-builder/schema';
+import type {Builder} from '../../core';
+import type {ServiceProps, Tag, Field} from '../../schema';
 import {DgpServiceCapability} from "../../schema/provider";
 
 export type Env = 'client' | 'workspace';

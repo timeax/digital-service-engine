@@ -1,5 +1,5 @@
-import type {ServiceProps, Tag, Field} from '../../schema';
-import type {CanvasState} from './types';
+import type {ServiceProps, Tag, Field} from './index';
+import type {CanvasState} from './canvas-types';
 
 export type EditorEvents = {
     'editor:command': { name: string; payload?: any };

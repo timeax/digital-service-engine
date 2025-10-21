@@ -128,7 +128,7 @@ function propagateConstraints(props: ServiceProps): void {
     const tags = Array.isArray(props.filters) ? props.filters : [];
     if (!tags.length) return;
 
-    // Build indices and children map
+    // Index + children map
     const byId = new Map(tags.map(t => [t.id, t]));
     const children = new Map<string, Tag[]>();
     for (const t of tags) {
@@ -138,51 +138,77 @@ function propagateConstraints(props: ServiceProps): void {
         children.get(pid)!.push(t);
     }
 
-    // Roots: no valid parent
+    // Roots (fallback: if none due to a cycle, start from all tags)
     const roots = tags.filter(t => !t.bind_id || !byId.has(t.bind_id));
+    const starts = roots.length ? roots : tags;
 
     type Inherited = Partial<Record<FlagKey, { val: boolean; origin: string }>>;
+    const visited = new Set<string>();
 
     const visit = (tag: Tag, inherited: Inherited) => {
+        if (visited.has(tag.id)) return;
+        visited.add(tag.id);
+
         const local = tag.constraints ?? {};
-        const next: Partial<Record<FlagKey, boolean>> = {...local}; // effective values (after override)
-        const origin: Partial<Record<FlagKey, string>> = {};          // nearest origin for each effective flag
+        const next: Partial<Record<FlagKey, boolean>> = {};
+        const origin: Partial<Record<FlagKey, string>> = {};
         const overrides: NonNullable<Tag['constraints_overrides']> = {};
 
-        // Apply inherited values first (override child's local if different) and record provenance/overrides
         for (const k of FLAG_KEYS) {
             const inh = inherited[k];
+            const prev = local[k];
+
             if (inh) {
-                const prev = local[k];
-                next[k] = inh.val;
-                origin[k] = inh.origin;
-                if (prev !== undefined && prev !== inh.val) {
+                // Inherited exists
+                if (prev === undefined) {
+                    // No local → fully inherit (keep ancestor origin)
+                    next[k] = inh.val;
+                    origin[k] = inh.origin;
+                } else if (prev === inh.val) {
+                    // Local equals inherited → effective same, but nearest origin is the CHILD
+                    next[k] = inh.val;
+                    origin[k] = tag.id;
+                } else {
+                    // Local contradicts inherited → ancestor overrides child; record override
+                    next[k] = inh.val;
+                    origin[k] = inh.origin;
                     overrides[k] = {from: prev as boolean, to: inh.val, origin: inh.origin};
                 }
-            } else if (local[k] !== undefined) {
-                // No inherited value; a local explicit becomes its own origin
+            } else if (prev !== undefined) {
+                // No inherited; local explicit becomes effective and its own origin
+                next[k] = prev as boolean;
                 origin[k] = tag.id;
             }
+            // else: neither inherited nor local → leave undefined
         }
 
-        // Persist only when something is defined (keep JSON lean)
-        tag.constraints = FLAG_KEYS.some(k => next[k] !== undefined) ? next : undefined;
-        tag.constraints_origin = Object.keys(origin).length ? origin : undefined;
-        tag.constraints_overrides = Object.keys(overrides).length ? overrides : undefined;
+        // Persist only defined keys (keep JSON lean)
+        const definedConstraints: Partial<Record<FlagKey, boolean>> = {};
+        const definedOrigin: Partial<Record<FlagKey, string>> = {};
+        const definedOverrides: NonNullable<Tag['constraints_overrides']> = {};
 
-        // Children should inherit the **effective** values from this tag
+        for (const k of FLAG_KEYS) {
+            if (next[k] !== undefined) definedConstraints[k] = next[k] as boolean;
+            if (origin[k] !== undefined) definedOrigin[k] = origin[k] as string;
+            if (overrides[k] !== undefined) definedOverrides[k] = overrides[k]!;
+        }
+
+        tag.constraints = Object.keys(definedConstraints).length ? definedConstraints : undefined;
+        tag.constraints_origin = Object.keys(definedOrigin).length ? definedOrigin : undefined;
+        tag.constraints_overrides = Object.keys(definedOverrides).length ? definedOverrides : undefined;
+
+        // Children inherit the **effective** values (and nearest origin) from this tag
         const passDown: Inherited = {...inherited};
         for (const k of FLAG_KEYS) {
-            if (origin[k] !== undefined && next[k] !== undefined) {
+            if (next[k] !== undefined && origin[k] !== undefined) {
                 passDown[k] = {val: next[k] as boolean, origin: origin[k]!};
             }
         }
 
-        // Recurse
         for (const c of children.get(tag.id) ?? []) visit(c, passDown);
     };
 
-    for (const r of roots) visit(r, {});
+    for (const r of starts) visit(r, {});
 }
 
 /* ───────────────────────────── helpers ───────────────────────────── */

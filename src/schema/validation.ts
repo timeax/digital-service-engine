@@ -30,6 +30,11 @@ export type ValidationCode =
     | 'constraint_overridden'
     | 'unsupported_constraint_option' // option's service can't meet T's effective constraint
     | 'custom_component_unresolvable'
+    // utilities / quantity markers
+    | 'quantity_multiple_markers'
+    | 'utility_with_service_id'
+    | 'utility_missing_rate'
+    | 'utility_invalid_mode'
     // fallbacks
     | 'fallback_bad_node'
     | 'fallback_unknown_service'
@@ -69,7 +74,7 @@ export type ValidatorOptions = {
     selectedOptionKeys?: string[];
     globalUtilityGuard?: boolean;
     policies?: DynamicRule[];          // ← dynamic rules from super admin
-    fallbackSettings?: FallbackSettings
+    fallbackSettings?: FallbackSettings;
 };
 
 export type FallbackSettings = {

@@ -3,7 +3,7 @@ import type {Builder} from '../../core';
 import type {ServiceProps, Tag, Field} from '../../schema';
 import {normalise} from '../../core';
 import type {CanvasAPI} from './api';
-import type {Command, EditorEvents, EditorOptions, EditorSnapshot} from './editor.types';
+import type {Command, EditorEvents, EditorOptions, EditorSnapshot} from '../../schema/editor.types';
 
 const MAX_LIMIT = 100;
 type WireKind = 'bind' | 'include' | 'exclude' | 'service';
@@ -601,14 +601,27 @@ export class Editor {
         this.exec({
             name: 'setService',
             do: () => this.patchProps(p => {
-                const validId = typeof input.service_id === 'number' && Number.isFinite(input.service_id);
+                // detect whether caller *provided* the key (so we don't delete accidentally)
+                const hasSidKey = Object.prototype.hasOwnProperty.call(input, 'service_id');
+
+                const validId =
+                    hasSidKey &&
+                    typeof input.service_id === 'number' &&
+                    Number.isFinite(input.service_id);
+
                 const sid: number | undefined = validId ? Number(input.service_id) : undefined;
+                const nextRole = input.pricing_role;
 
                 if (isTagId(id)) {
                     const t = (p.filters ?? []).find(x => x.id === id);
                     if (!t) return;
-                    if (sid === undefined) delete t.service_id;
-                    else t.service_id = sid;
+
+                    // Only touch tag.service_id if caller provided the key
+                    if (hasSidKey) {
+                        if (sid === undefined) delete t.service_id;
+                        else t.service_id = sid;
+                    }
+                    // pricing_role is not applicable to tags (ignored)
                     return;
                 }
 
@@ -619,11 +632,31 @@ export class Editor {
                     const o = f?.options?.find(x => x.id === id);
                     if (!o) return;
 
-                    if (sid === undefined) delete o.service_id;
-                    else o.service_id = sid;
+                    const currentRole = (o.pricing_role ?? 'base') as 'base' | 'utility';
+                    const role = (nextRole ?? currentRole);
 
-                    if (input.pricing_role) {
-                        o.pricing_role = input.pricing_role; // override if caller wants
+                    if (role === 'utility') {
+                        // Hard guard: utilities cannot have service_id
+                        if (hasSidKey && sid !== undefined) {
+                            this.api.emit('error', {
+                                message: 'Utilities cannot have service_id',
+                                code: 'utility_service_conflict',
+                                meta: {id, service_id: sid}
+                            });
+                        }
+                        // Ensure role and strip any existing service_id
+                        o.pricing_role = 'utility';
+                        if ('service_id' in o) delete (o as any).service_id;
+                        return;
+                    }
+
+                    // role === 'base' here
+                    if (nextRole) o.pricing_role = 'base';
+
+                    // Only set/clear service_id when the key is explicitly provided
+                    if (hasSidKey) {
+                        if (sid === undefined) delete (o as any).service_id;
+                        else o.service_id = sid;
                     }
                     return;
                 }
@@ -842,6 +875,57 @@ export class Editor {
         }
         // you can extend for service lookup if desired
         return {kind: 'option', data: undefined, owners: {}};
+    }
+
+
+    getFieldQuantityRule(id: string): QuantityRule | undefined {
+        const props = this.builder.getProps();
+        const f = (props.fields ?? []).find(x => x.id === id);
+        if (!f) return undefined;
+        return normalizeQuantityRule((f as any).meta?.quantity);
+    }
+
+    setFieldQuantityRule(id: string, rule: unknown): void {
+        this.exec({
+            name: 'setFieldQuantityRule',
+            do: () => this.patchProps(p => {
+                const f = (p.fields ?? []).find(x => x.id === id);
+                if (!f) return;
+
+                const normalized = normalizeQuantityRule(rule);
+
+                if (!normalized) {
+                    // Drop invalid shapes entirely
+                    if ((f as any).meta?.quantity !== undefined) {
+                        delete (f as any).meta.quantity;
+                        // Clean up empty meta object
+                        if ((f as any).meta && Object.keys((f as any).meta).length === 0) {
+                            delete (f as any).meta;
+                        }
+                    }
+                    return;
+                }
+
+                // Keep other meta keys intact
+                (f as any).meta = {...(f as any).meta, quantity: normalized};
+            }),
+            undo: () => this.api.undo(),
+        });
+    }
+
+    clearFieldQuantityRule(id: string): void {
+        this.exec({
+            name: 'clearFieldQuantityRule',
+            do: () => this.patchProps(p => {
+                const f = (p.fields ?? []).find(x => x.id === id);
+                if (!f || !(f as any).meta?.quantity) return;
+                delete (f as any).meta.quantity;
+                if ((f as any).meta && Object.keys((f as any).meta).length === 0) {
+                    delete (f as any).meta;
+                }
+            }),
+            undo: () => this.api.undo(),
+        });
     }
 
     /** Walk ancestors for a tag and detect if parent→child would create a cycle */
@@ -1233,4 +1317,21 @@ function bumpSuffix(old: string): string {
     if (!m) return `${old}2`;
     const stem = m[1];
     return `${stem}${parseInt(m[2], 10) + 1}`;
+}
+
+// Accept only these shapes; drop everything else.
+type QuantityRule = { valueBy: 'value' | 'length' | 'eval'; code?: string };
+
+function normalizeQuantityRule(input: unknown): QuantityRule | undefined {
+    if (!input || typeof input !== 'object') return undefined;
+    const v = input as any;
+    const vb = v.valueBy;
+    if (vb !== 'value' && vb !== 'length' && vb !== 'eval') return undefined;
+
+    const out: QuantityRule = {valueBy: vb};
+    if (vb === 'eval' && typeof v.code === 'string' && v.code.trim()) {
+        out.code = v.code;
+    }
+    // For non-eval, any provided code is dropped.
+    return out;
 }

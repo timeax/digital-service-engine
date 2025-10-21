@@ -1,5 +1,5 @@
 import {EventBus} from './events';
-import type {CanvasEvents, CanvasOptions, CanvasState, NodePositions, Viewport, DraftWire} from './types';
+import type {CanvasEvents, CanvasOptions, CanvasState, NodePositions, Viewport, DraftWire} from '../../schema/canvas-types';
 import type {Builder} from '../../core';
 import type {EdgeKind, GraphSnapshot} from '../../schema/graph';
 import {CommentsAPI} from "./comments";
