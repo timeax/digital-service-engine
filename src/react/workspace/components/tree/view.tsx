@@ -1,7 +1,7 @@
-import React from 'react';
-import type {ReactNode} from 'react';
-import {useUi} from '../ui-bridge';
-import {TreeNode} from './TreeNode';
+import React from "react";
+import type { ReactNode } from "react";
+import { Node } from "./node";
+import { cn } from "@/lib/utils";
 
 export type TreeViewProps<T> = {
     /** Data source: flat or nested */
@@ -17,14 +17,14 @@ export type TreeViewProps<T> = {
 
     /** Expansion (controlled or uncontrolled) */
     expandedIds?: string[];
-    defaultOpen?: 'roots' | 'all' | 'none';
+    defaultOpen?: "roots" | "all" | "none";
     onExpandedChange?: (ids: string[]) => void;
 
     /** Selection (controlled or uncontrolled) */
     selectedIds?: string[];
     onSelectionChange?: (ids: string[], primary?: string) => void;
     /** 'single' = replace on click; 'multi-modifier' = toggle with Ctrl/Cmd/Shift; 'multi' = always toggle */
-    selectionMode?: 'single' | 'multi-modifier' | 'multi';
+    selectionMode?: "single" | "multi-modifier" | "multi";
 
     /** Row hooks */
     onRowClick?: (node: T, id: string, ev: React.MouseEvent) => void;
@@ -33,7 +33,10 @@ export type TreeViewProps<T> = {
     /** Row decorations */
     renderRight?: (node: T, ctx: { depth: number }) => ReactNode;
     renderLeftAdornment?: (node: T, ctx: { depth: number }) => ReactNode;
-    rowClassName?: (node: T, ctx: { depth: number; selected: boolean }) => string | undefined;
+    rowClassName?: (
+        node: T,
+        ctx: { depth: number; selected: boolean },
+    ) => string | undefined;
 
     /** Appearance */
     indentStep?: number;
@@ -47,19 +50,23 @@ type NodeRef<T> = { item: T; depth: number; children: NodeRef<T>[] };
 function buildForestFromNested<T>(
     roots: T[],
     getChildren: (n: T) => T[] | undefined,
-    depth = 0
+    depth = 0,
 ): NodeRef<T>[] {
-    return roots.map(item => ({
+    return roots.map((item) => ({
         item,
         depth,
-        children: buildForestFromNested(getChildren(item) ?? [], getChildren, depth + 1),
+        children: buildForestFromNested(
+            getChildren(item) ?? [],
+            getChildren,
+            depth + 1,
+        ),
     }));
 }
 
 function buildForestFromFlat<T>(
     data: T[],
     getId: (n: T) => string,
-    getParentId: (n: T) => string | null | undefined
+    getParentId: (n: T) => string | null | undefined,
 ): NodeRef<T>[] {
     const byId = new Map<string, T>();
     const children = new Map<string, T[]>();
@@ -67,7 +74,7 @@ function buildForestFromFlat<T>(
         byId.set(getId(n), n);
     }
     for (const n of data) {
-        const pid = getParentId(n) ?? '';
+        const pid = getParentId(n) ?? "";
         if (!children.has(pid)) children.set(pid, []);
         children.get(pid)!.push(n);
     }
@@ -75,7 +82,7 @@ function buildForestFromFlat<T>(
     const make = (n: T, depth: number): NodeRef<T> => ({
         item: n,
         depth,
-        children: (children.get(getId(n)) ?? []).map(c => make(c, depth + 1)),
+        children: (children.get(getId(n)) ?? []).map((c) => make(c, depth + 1)),
     });
 
     // roots: parent missing/falsy OR not present in set
@@ -84,37 +91,35 @@ function buildForestFromFlat<T>(
         const pid = getParentId(n);
         if (!pid || !byId.has(pid)) roots.push(n);
     }
-    return roots.map(r => make(r, 0));
+    return roots.map((r) => make(r, 0));
 }
 
-export function TreeView<T>({
-                                data,
-                                getId,
-                                getLabel,
-                                getChildren,
-                                getParentId,
+export function View<T>({
+    data,
+    getId,
+    getLabel,
+    getChildren,
+    getParentId,
 
-                                expandedIds,
-                                defaultOpen = 'roots',
-                                onExpandedChange,
+    expandedIds,
+    defaultOpen = "roots",
+    onExpandedChange,
 
-                                selectedIds,
-                                onSelectionChange,
-                                selectionMode = 'single',
+    selectedIds,
+    onSelectionChange,
+    selectionMode = "single",
 
-                                onRowClick,
-                                onToggleExpand,
+    onRowClick,
+    onToggleExpand,
 
-                                renderRight,
-                                renderLeftAdornment,
-                                rowClassName,
+    renderRight,
+    renderLeftAdornment,
+    rowClassName,
 
-                                indentStep = 12,
-                                className,
-                                listClassName,
-                            }: TreeViewProps<T>) {
-    const {cn} = useUi();
-
+    indentStep = 12,
+    className,
+    listClassName,
+}: TreeViewProps<T>) {
     // Build a stable forest representation
     const forest = React.useMemo<NodeRef<T>[]>(() => {
         if (getChildren) {
@@ -124,7 +129,7 @@ export function TreeView<T>({
             return buildForestFromFlat(data, getId, getParentId);
         }
         // default: flat → every node is a root with no children
-        return data.map(item => ({item, depth: 0, children: []}));
+        return data.map((item) => ({ item, depth: 0, children: [] }));
     }, [data, getChildren, getParentId, getId]);
 
     // Index for quick lookups
@@ -144,8 +149,8 @@ export function TreeView<T>({
     const [open, setOpen] = React.useState<Set<string>>(() => {
         if (expandedIds) return new Set(expandedIds);
         const s = new Set<string>();
-        if (defaultOpen === 'all') return allIds;
-        if (defaultOpen === 'roots') {
+        if (defaultOpen === "all") return allIds;
+        if (defaultOpen === "roots") {
             for (const n of forest) {
                 s.add(getId(n.item));
                 for (const c of n.children) s.add(getId(c.item));
@@ -157,7 +162,7 @@ export function TreeView<T>({
     // Keep controlled expansion in sync
     React.useEffect(() => {
         if (!expandedIds) return;
-        setOpen(new Set(expandedIds.filter(id => allIds.has(id))));
+        setOpen(new Set(expandedIds.filter((id) => allIds.has(id))));
     }, [expandedIds, allIds]);
 
     const setOpenAndNotify = (next: Set<string>) => {
@@ -176,10 +181,11 @@ export function TreeView<T>({
 
     // Selection (uncontrolled fallback)
     const [sel, setSel] = React.useState<Set<string>>(
-        () => new Set((selectedIds ?? []).filter(id => allIds.has(id)))
+        () => new Set((selectedIds ?? []).filter((id) => allIds.has(id))),
     );
     React.useEffect(() => {
-        if (selectedIds) setSel(new Set(selectedIds.filter(id => allIds.has(id))));
+        if (selectedIds)
+            setSel(new Set(selectedIds.filter((id) => allIds.has(id))));
     }, [selectedIds, allIds]);
 
     const setSelAndNotify = (next: Set<string>, primary?: string) => {
@@ -201,9 +207,9 @@ export function TreeView<T>({
             cur.add(id);
         };
 
-        if (selectionMode === 'single') {
+        if (selectionMode === "single") {
             replace();
-        } else if (selectionMode === 'multi') {
+        } else if (selectionMode === "multi") {
             toggle();
         } else {
             // multi-modifier
@@ -216,8 +222,8 @@ export function TreeView<T>({
     };
 
     const render = (nodes: NodeRef<T>[]) => (
-        <ul role="group" className={cn('space-y-0.5', listClassName)}>
-            {nodes.map(node => {
+        <ul role="group" className={cn("space-y-0.5", listClassName)}>
+            {nodes.map((node) => {
                 const id = getId(node.item);
                 const expanded = open.has(id);
                 const selected = sel.has(id);
@@ -225,8 +231,12 @@ export function TreeView<T>({
                 const hasChildren = children.length > 0;
 
                 return (
-                    <li key={id} role="treeitem" aria-expanded={hasChildren ? expanded : undefined}>
-                        <TreeNode
+                    <li
+                        key={id}
+                        role="treeitem"
+                        aria-expanded={hasChildren ? expanded : undefined}
+                    >
+                        <Node
                             id={id}
                             label={getLabel(node.item)}
                             depth={node.depth}
@@ -234,11 +244,18 @@ export function TreeView<T>({
                             expanded={expanded}
                             selected={selected}
                             indentStep={indentStep}
-                            right={renderRight?.(node.item, {depth: node.depth})}
-                            leftAdornment={renderLeftAdornment?.(node.item, {depth: node.depth})}
+                            right={renderRight?.(node.item, {
+                                depth: node.depth,
+                            })}
+                            leftAdornment={renderLeftAdornment?.(node.item, {
+                                depth: node.depth,
+                            })}
                             onToggle={() => toggleExpand(node)}
                             onSelect={(_, ev) => clickRow(node)(ev as any)}
-                            className={rowClassName?.(node.item, {depth: node.depth, selected})}
+                            className={rowClassName?.(node.item, {
+                                depth: node.depth,
+                                selected,
+                            })}
                         />
                         {hasChildren && expanded ? render(children) : null}
                     </li>
@@ -248,7 +265,7 @@ export function TreeView<T>({
     );
 
     return (
-        <div role="tree" className={cn('h-full overflow-auto', className)}>
+        <div role="tree" className={cn("h-full overflow-auto", className)}>
             {render(forest)}
         </div>
     );

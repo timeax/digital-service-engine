@@ -25,6 +25,9 @@ export type EditorOptions = {
 
     /** Optional local index; used if serviceExists is not provided. */
     serviceMap?: Record<number, unknown>;
+
+    /** Raw policies JSON; will be compiled on demand by filterServicesForVisibleGroup. */
+    policiesRaw?: unknown;
 };
 
 export type ConnectKind = 'bind' | 'include' | 'exclude';

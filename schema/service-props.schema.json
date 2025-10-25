@@ -5,6 +5,15 @@
     "ServiceProps": {
       "type": "object",
       "properties": {
+        "order_for_tags": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
         "filters": {
           "type": "array",
           "items": {
@@ -37,6 +46,9 @@
         },
         "schema_version": {
           "type": "string"
+        },
+        "fallbacks": {
+          "$ref": "#/definitions/ServiceFallback"
         }
       },
       "required": [
@@ -59,20 +71,6 @@
         "service_id": {
           "type": "number"
         },
-        "constraints": {
-          "type": "object",
-          "properties": {
-            "refill": {
-              "type": "boolean"
-            },
-            "cancel": {
-              "type": "boolean"
-            },
-            "dripfeed": {
-              "type": "boolean"
-            }
-          }
-        },
         "includes": {
           "type": "array",
           "items": {
@@ -87,7 +85,104 @@
         },
         "meta": {
           "type": "object",
-          "additionalProperties": {}
+          "properties": {
+            "quantityDefault": {
+              "type": "number"
+            }
+          }
+        },
+        "constraints": {
+          "type": "object",
+          "properties": {
+            "refill": {
+              "type": "boolean"
+            },
+            "cancel": {
+              "type": "boolean"
+            },
+            "dripfeed": {
+              "type": "boolean"
+            }
+          },
+          "description": "Which flags are set for this tag. If a flag is not set, it's inherited from the nearest ancestor with a value set."
+        },
+        "constraints_origin": {
+          "type": "object",
+          "properties": {
+            "refill": {
+              "type": "string"
+            },
+            "cancel": {
+              "type": "string"
+            },
+            "dripfeed": {
+              "type": "string"
+            }
+          },
+          "description": "Which ancestor defined the *effective* value for each flag (nearest source)."
+        },
+        "constraints_overrides": {
+          "type": "object",
+          "properties": {
+            "refill": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "boolean"
+                },
+                "to": {
+                  "type": "boolean"
+                },
+                "origin": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "from",
+                "to",
+                "origin"
+              ]
+            },
+            "cancel": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "boolean"
+                },
+                "to": {
+                  "type": "boolean"
+                },
+                "origin": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "from",
+                "to",
+                "origin"
+              ]
+            },
+            "dripfeed": {
+              "type": "object",
+              "properties": {
+                "from": {
+                  "type": "boolean"
+                },
+                "to": {
+                  "type": "boolean"
+                },
+                "origin": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "from",
+                "to",
+                "origin"
+              ]
+            }
+          },
+          "description": "Present only when a child explicitly set a different value but was overridden by an ancestor during normalisation."
         }
       },
       "required": [
@@ -134,7 +229,83 @@
         },
         "meta": {
           "type": "object",
-          "additionalProperties": {}
+          "properties": {
+            "utility": {
+              "type": "object",
+              "properties": {
+                "rate": {
+                  "type": "number"
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "flat",
+                    "per_quantity",
+                    "per_value",
+                    "percent"
+                  ]
+                },
+                "valueBy": {
+                  "type": "string",
+                  "enum": [
+                    "value",
+                    "length"
+                  ]
+                },
+                "percentBase": {
+                  "type": "string",
+                  "enum": [
+                    "service_total",
+                    "base_service",
+                    "all"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "rate",
+                "mode"
+              ]
+            },
+            "quantity": {
+              "type": "object",
+              "properties": {
+                "valueBy": {
+                  "type": "string",
+                  "enum": [
+                    "value",
+                    "length",
+                    "eval"
+                  ]
+                },
+                "code": {
+                  "type": "string"
+                },
+                "multiply": {
+                  "type": "number"
+                },
+                "clamp": {
+                  "type": "object",
+                  "properties": {
+                    "min": {
+                      "type": "number"
+                    },
+                    "max": {
+                      "type": "number"
+                    }
+                  }
+                },
+                "fallback": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "valueBy"
+              ]
+            }
+          }
         },
         "helperText": {
           "type": "string"
@@ -202,7 +373,50 @@
         },
         "meta": {
           "type": "object",
-          "additionalProperties": {}
+          "properties": {
+            "quantityDefault": {
+              "type": "number"
+            },
+            "utility": {
+              "type": "object",
+              "properties": {
+                "rate": {
+                  "type": "number"
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "flat",
+                    "per_quantity",
+                    "per_value",
+                    "percent"
+                  ]
+                },
+                "valueBy": {
+                  "type": "string",
+                  "enum": [
+                    "value",
+                    "length"
+                  ]
+                },
+                "percentBase": {
+                  "type": "string",
+                  "enum": [
+                    "service_total",
+                    "base_service",
+                    "all"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "rate",
+                "mode"
+              ]
+            }
+          }
         }
       },
       "required": [
@@ -215,6 +429,37 @@
       "enum": [
         "base",
         "utility"
+      ]
+    },
+    "ServiceFallback": {
+      "type": "object",
+      "properties": {
+        "nodes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/ServiceIdRef"
+            }
+          },
+          "description": "Node-scoped fallbacks: prefer these when that node’s primary service fails"
+        },
+        "global": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/ServiceIdRef"
+            }
+          },
+          "description": "Primary→fallback list used when no node-scoped entry is present"
+        }
+      }
+    },
+    "ServiceIdRef": {
+      "type": [
+        "number",
+        "string"
       ]
     }
   }

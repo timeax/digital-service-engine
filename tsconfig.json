@@ -15,8 +15,21 @@
     "outDir": "dist",
     "allowSyntheticDefaultImports": true,
     "isolatedModules": true,
-    "types": ["react", "react-dom"]
+    "types": [
+      "react",
+      "react-dom"
+    ],
+    "paths": {
+      "@/*": [
+        "./src/react/workspace/*"
+      ]
+    }
   },
-  "include": ["src"],
-  "exclude": ["dist", "node_modules"]
+  "include": [
+    "src"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules"
+  ]
 }

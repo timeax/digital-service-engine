@@ -1,6 +1,6 @@
-import React from 'react';
-import type {ReactNode, KeyboardEvent, MouseEvent} from 'react';
-import {useUi} from '../ui-bridge';
+import React from "react";
+import type { ReactNode, KeyboardEvent, MouseEvent } from "react";
+import { cn } from "@/lib/utils";
 
 export type TreeNodeProps = {
     id: string;
@@ -48,38 +48,36 @@ export type TreeNodeProps = {
  * - No data coupling; parent renders its children when `expanded` is true.
  * - Accessible: role=treeitem, ArrowLeft/Right to collapse/expand, Enter/Space to select.
  */
-export function TreeNode({
-                             id,
-                             label,
-                             depth = 0,
-                             hasChildren = false,
-                             expanded = false,
-                             selected = false,
-                             disabled = false,
-                             right,
-                             leftAdornment,
-                             onToggle,
-                             onSelect,
-                             className,
-                             indentStep = 12,
-                             title,
-                         }: TreeNodeProps) {
-    const {cn} = useUi();
-
+export function Node({
+    id,
+    label,
+    depth = 0,
+    hasChildren = false,
+    expanded = false,
+    selected = false,
+    disabled = false,
+    right,
+    leftAdornment,
+    onToggle,
+    onSelect,
+    className,
+    indentStep = 12,
+    title,
+}: TreeNodeProps) {
     const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
         if (disabled) return;
 
-        if (e.key === 'ArrowRight' && hasChildren) {
+        if (e.key === "ArrowRight" && hasChildren) {
             if (!expanded) onToggle?.(id);
             else onSelect?.(id, e);
             e.preventDefault();
-        } else if (e.key === 'ArrowLeft' && hasChildren) {
+        } else if (e.key === "ArrowLeft" && hasChildren) {
             if (expanded) onToggle?.(id);
             else {
                 // optional: bubble to parent in your tree impl
             }
             e.preventDefault();
-        } else if (e.key === 'Enter' || e.key === ' ') {
+        } else if (e.key === "Enter" || e.key === " ") {
             onSelect?.(id, e);
             e.preventDefault();
         }
@@ -109,12 +107,15 @@ export function TreeNode({
             onClick={handleRowClick}
             title={title}
             className={cn(
-                'group flex items-center justify-between rounded px-2 py-1.5 cursor-pointer select-none',
-                disabled ? 'opacity-60 cursor-not-allowed' :
-                    selected ? 'bg-accent text-accent-foreground' : 'hover:bg-muted',
-                className
+                "group flex items-center justify-between rounded px-2 py-1.5 cursor-pointer select-none",
+                disabled
+                    ? "opacity-60 cursor-not-allowed"
+                    : selected
+                      ? "bg-accent text-accent-foreground"
+                      : "hover:bg-muted",
+                className,
             )}
-            style={{paddingLeft: padLeft}}
+            style={{ paddingLeft: padLeft }}
             data-node-id={id}
         >
             <div className="flex items-center gap-2 min-w-0">
@@ -122,14 +123,14 @@ export function TreeNode({
                 {hasChildren ? (
                     <button
                         type="button"
-                        aria-label={expanded ? 'Collapse' : 'Expand'}
+                        aria-label={expanded ? "Collapse" : "Expand"}
                         onClick={handleCaretClick}
                         className="h-5 w-5 grid place-items-center rounded hover:bg-muted-foreground/10 focus:outline-none"
                     >
-                        <span className="text-xs">{expanded ? '▾' : '▸'}</span>
+                        <span className="text-xs">{expanded ? "▾" : "▸"}</span>
                     </button>
                 ) : (
-                    <span className="h-5 w-5"/>
+                    <span className="h-5 w-5" />
                 )}
 
                 {/* Optional left adornment (icon/avatar) */}
@@ -140,9 +141,7 @@ export function TreeNode({
             </div>
 
             {/* Right slot (badges, counters, etc.) */}
-            <div className="flex items-center gap-2 shrink-0">
-                {right}
-            </div>
+            <div className="flex items-center gap-2 shrink-0">{right}</div>
         </div>
     );
 }

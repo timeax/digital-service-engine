@@ -13,6 +13,7 @@ export default defineConfig({
                 replacement: path.resolve(__dirname, '../src/react/$1')
             },
             {find: 'digital-service-ui-builder/react', replacement: path.resolve(__dirname, '../src/react/index.ts')},
+            {find: 'digital-service-ui-builder/workspace', replacement: path.resolve(__dirname, '../dist/workspace/index.js')},
 
             // core/
             {find: /^digital-service-ui-builder\/core\/(.*)$/, replacement: path.resolve(__dirname, '../src/core/$1')},

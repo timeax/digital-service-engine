@@ -13,6 +13,9 @@
       "digital-service-ui-builder/react/*": [
         "../src/react/*"
       ],
+      "digital-service-ui-builder/workspace": [
+        "../src/react/workspace/index.ts"
+      ],
       "digital-service-ui-builder/core": [
         "../src/core/index.ts"
       ],
