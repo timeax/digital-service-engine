@@ -24,8 +24,8 @@ import type {
     TemplatesListParams,
     WorkspaceBackend,
 } from "./backend";
-import type { EditorSnapshot } from "../../../schema/editor";
-import type { DgpServiceCapability, DgpServiceMap } from "../../../schema/provider";
+import type { EditorSnapshot } from "@/schema/editor";
+import type { DgpServiceCapability, DgpServiceMap } from "@/schema/provider";
 
 /* ---------------- utilities ---------------- */
 

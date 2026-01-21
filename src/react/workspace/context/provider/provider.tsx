@@ -112,7 +112,7 @@ export function WorkspaceProvider(
         runtime,
     });
 
-    const branchCache = useBranchCache();
+    const branchCache = useBranchCache(workspaceId);
 
     const refresh = useWorkspaceRefresh({
         runtime,
@@ -241,6 +241,7 @@ export function WorkspaceProvider(
             const prevId: string | undefined = branchesSlice.branches.currentId;
 
             branchCache.switchBranch({
+                workspaceId: workspaceId,
                 nextId: id,
                 prevId,
 
