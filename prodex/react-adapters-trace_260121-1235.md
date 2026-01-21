@@ -36,9 +36,9 @@ import type {
     OnConnectEnd,
 } from "reactflow";
 import { applyNodeChanges, applyEdgeChanges } from "reactflow";
-import type { CanvasAPI } from "../../canvas/api";
-import type { CanvasState } from "../../../schema/canvas-types";
-import type { EdgeKind } from "../../../schema/graph";
+import type { CanvasAPI } from "@/react";
+import type { CanvasState } from "@/schema/canvas-types";
+import type { EdgeKind } from "@/schema/graph";
 import { CommentThread } from "../../canvas/comments";
 
 /* ───────────────────────────── Types & options ───────────────────────────── */
@@ -528,10 +528,10 @@ export function useReactFlowAdapter(
 ```tsx
 // src/react/adapters/reactflow/index.tsx
 import React from "react";
-import { Canvas } from "@/components/canvas";
-import { useCanvasAPI } from "@/context/context";
 import type { AdapterOptions } from "./adapter";
 import type { ToolsConfig, LabelPlacement } from "./toolbar/types";
+import { useCanvasAPI } from "@/react/workspace/context/context";
+import { Canvas } from "@/react/workspace/components/canvas";
 
 export type FlowCanvasProps = {
     tools?: ToolsConfig;
@@ -598,7 +598,7 @@ export type { ToolsConfig, LabelPlacement, AdapterOptions };
 ```tsx
 import React, { useMemo, useState, useCallback } from "react";
 import { useReactFlow } from "reactflow";
-import type { CanvasAPI } from "../../canvas/api";
+import type { CanvasAPI } from "@/react";
 import { resolveTools } from "./toolbar/merge";
 import type {
     ResolvedTools,
@@ -1193,7 +1193,7 @@ function sortWithAnchors(list: ToolDescriptor[]): ToolDescriptor[] {
 ` File: src/react/adapters/reactflow/toolbar/types.ts`  [↑ Back to top](#index)
 
 ```ts
-import type {CanvasAPI} from "../../../canvas/api";
+import type {CanvasAPI} from "@/react";
 import type React from "react";
 
 export type ToolKind = 'command' | 'toggle' | 'mode' | 'menu';
@@ -1274,4 +1274,4 @@ export type ResolvedTools = ToolDescriptor[];
 
 ---
 *Generated with [Prodex](https://github.com/emxhive/prodex) — Codebase decoded.*
-<!-- PRODEx v1.4.11 | 2026-01-20T14:32:20.260Z -->
+<!-- PRODEx v1.4.11 | 2026-01-21T11:35:04.482Z -->

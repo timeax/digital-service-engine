@@ -30,14 +30,14 @@ import React, {
     useMemo,
 } from 'react';
 
-import type {Builder} from '../../core';
+import type {Builder} from "@/core";
 import type {Selection} from '../canvas/selection';
 
-import {Provider} from '../inputs/provider';
+import {Provider} from "@/react";
 import {Registry as InputRegistryConfig} from '../inputs/registry';
 
-import {FormProvider, useFormApi} from '../inputs/FormContext';
-import type {Scalar} from '../../schema/order';
+import {FormProvider, useFormApi} from "@/react";
+import type {Scalar} from "@/schema/order";
 
 /* ───────────────────────── Types ───────────────────────── */
 
@@ -170,15 +170,15 @@ export const OrderFlowProvider = forwardRef<OrderFlowHandle, OrderFlowProviderPr
 ```ts
 import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 
-import type {Builder} from '../../core';
-import type {ServiceProps, Field, Tag} from '../../schema';
-import type {DgpServiceCapability, DgpServiceMap} from '../../schema/provider';
-import type {OrderSnapshot, Scalar} from '../../schema/order';
-import type {FallbackSettings} from '../../schema/validation';
+import type {Builder} from "@/core";
+import type {ServiceProps, Field, Tag} from "@/schema";
+import type {DgpServiceCapability, DgpServiceMap} from "@/schema/provider";
+import type {OrderSnapshot, Scalar} from "@/schema/order";
+import type {FallbackSettings} from "@/schema/validation";
 
 import {Selection} from '../canvas/selection';
-import {buildOrderSnapshot} from '../../utils/build-order-snapshot';
-import {useOptionalFormApi} from '../inputs/FormContext';
+import {buildOrderSnapshot} from "@/utils/build-order-snapshot";
+import {useOptionalFormApi} from "@/react";
 
 /* ───────────────────────── public API ───────────────────────── */
 
@@ -506,4 +506,4 @@ function findDefaultTagId(tags: Tag[]): string | undefined {
 
 ---
 *Generated with [Prodex](https://github.com/emxhive/prodex) — Codebase decoded.*
-<!-- PRODEx v1.4.11 | 2026-01-20T14:32:20.260Z -->
+<!-- PRODEx v1.4.11 | 2026-01-21T11:35:04.482Z -->

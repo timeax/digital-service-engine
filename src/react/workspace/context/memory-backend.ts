@@ -1,4 +1,3 @@
-//@ts-nocheck
 // src/react/workspace/memory-backend.ts
 // In-memory WorkspaceBackend with Field Templates (plus a deprecated assets shim).
 // noinspection JSConstantReassignment,JSDeprecatedSymbols

@@ -43,8 +43,8 @@ describe('Selection.visibleGroup()', () => {
                 {id: 'f:optIn', label: 'OptIn'},                    // will be included by option
             ],
             // Option-level mapping: selecting 'o:show' includes f:optIn; 'o:hide' excludes f:bound1
-            includes_for_options: {'o:show': ['f:optIn']},
-            excludes_for_options: {'o:hide': ['f:bound1']},
+            includes_for_buttons: {'o:show': ['f:optIn']},
+            excludes_for_buttons: {'o:hide': ['f:bound1']},
             // Explicit order for Web: f:extra, f:bound1, (others afterward)
             order_for_tags: {'t:Web': ['f:extra', 'f:bound1']},
         };
@@ -81,7 +81,7 @@ describe('Selection.visibleGroup()', () => {
                 }
             ]
         };
-        const resolveService = (id: any) => ({id});
+        const resolveService = (id: any) => ({id} as any);
         const builder = mkBuilder(props);
         const sel = new Selection(builder, {env: 'client', rootTagId: 't:root', resolveService});
 

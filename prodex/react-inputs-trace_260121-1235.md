@@ -23,8 +23,8 @@
 ```ts
 import {describe, it, expect} from 'vitest';
 import React from 'react';
-import {createInputRegistry, resolveInputDescriptor} from '../registry';
-import type {InputDescriptor} from '../registry';
+import {createInputRegistry, resolveInputDescriptor} from "@/react";
+import type {InputDescriptor} from "@/react";
 
 function StubA(_: Record<string, unknown>) { return React.createElement('div'); }
 function StubB(_: Record<string, unknown>) { return React.createElement('div'); }
@@ -100,7 +100,7 @@ import React, {
     useState,
 } from "react";
 import type { ReactNode } from "react";
-import type { Scalar } from "../../schema/order";
+import type { Scalar } from "@/schema/order";
 
 export type FormSnapshot = {
     values: Record<string, Scalar | Scalar[]>;
@@ -247,13 +247,13 @@ export function useFormSelections(fieldId: string): {
 ```tsx
 import React, { createContext, useContext, useMemo } from "react";
 import type { ReactNode } from "react";
-import { createInputRegistry } from "./registry";
+import { createInputRegistry } from "@/react";
 import type {
     Registry,
     InputDescriptor,
     InputKind,
     InputVariant,
-} from "./registry";
+} from "@/react";
 
 type InputsCtxValue = {
     registry: Registry;
@@ -314,7 +314,7 @@ export function useInputs(): InputsCtxValue {
 ` File: src/react/inputs/register-custom.ts`  [↑ Back to top](#index)
 
 ```ts
-import type {Registry, InputDescriptor, InputKind, InputVariant, InputAdapter} from './registry';
+import type {Registry, InputDescriptor, InputKind, InputVariant, InputAdapter} from "@/react";
 
 const moduleCache = new Map<string, unknown>();
 
@@ -382,7 +382,7 @@ export async function preloadCustomModule(url: string): Promise<void> {
 
 ```ts
 import type React from 'react';
-import type {Scalar} from '../../schema/order';
+import type {Scalar} from "@/schema/order";
 
 /** Matches your InputWrapper’s expectations */
 export type InputKind = string;               // e.g. "text", "number", "select", "custom:Rating"
@@ -475,13 +475,13 @@ import type {
     FieldOption,
     UtilityMark,
     WithQuantityDefault,
-} from "../../schema";
-import type { ButtonValue, Scalar } from "../../schema/order";
-import { useInputs } from "./provider";
-import type { InputDescriptor, InputVariant, InputKind } from "./registry";
-import { resolveInputDescriptor } from "./registry";
-import { isMultiField } from "../../utils";
-import { useOptionalFormApi } from "./FormContext";
+} from "@/schema";
+import type { ButtonValue, Scalar } from "@/schema/order";
+import { useInputs } from "@/react";
+import type { InputDescriptor, InputVariant, InputKind } from "@/react";
+import { resolveInputDescriptor } from "@/react";
+import { isMultiField } from "@/utils";
+import { useOptionalFormApi } from "@/react";
 
 export type InputWrapperProps = {
     field: Field;
@@ -704,4 +704,4 @@ export function Wrapper({
 
 ---
 *Generated with [Prodex](https://github.com/emxhive/prodex) — Codebase decoded.*
-<!-- PRODEx v1.4.11 | 2026-01-20T14:32:20.260Z -->
+<!-- PRODEx v1.4.11 | 2026-01-21T11:35:04.482Z -->

@@ -10,11 +10,11 @@
 - [src/react/canvas/__tests__/editor.utility-guard.spec.ts](#3)  L346-L440
 - [src/react/canvas/__tests__/selection.test.ts](#4)  L441-L594
 - [src/react/canvas/api.ts](#5)  L595-L886
-- [src/react/canvas/backend.ts](#6)  L887-L969
-- [src/react/canvas/comments.ts](#7)  L970-L1459
-- [src/react/canvas/editor.ts](#8)  L1460-L3590
-- [src/react/canvas/events.ts](#9)  L3591-L3635
-- [src/react/canvas/selection.ts](#10)  L3636-L4048
+- [src/react/canvas/backend.ts](#6)  L887-L991
+- [src/react/canvas/comments.ts](#7)  L992-L1481
+- [src/react/canvas/editor.ts](#8)  L1482-L3612
+- [src/react/canvas/events.ts](#9)  L3613-L3657
+- [src/react/canvas/selection.ts](#10)  L3658-L4070
 <!-- PRODEX_INDEX_LIST_END -->
 
 ---
@@ -27,7 +27,7 @@
 ```ts
 // src/canvas/__tests__/editor.quantity-rule.spec.ts
 import {describe, it, expect} from 'vitest';
-import {createBuilder} from "../../../core";
+import {createBuilder} from "@/core";
 import {CanvasAPI} from "../api";
 
 function baseProps() {
@@ -112,11 +112,11 @@ describe('Editor field quantity rule helpers', () => {
 
 ```ts
 import { describe, it, expect } from "vitest";
-import { createBuilder } from "../../../core";
+import { createBuilder } from "@/core";
 import { CanvasAPI } from "../api";
-import type { ServiceProps } from "../../../schema";
-import type { DgpServiceMap } from "../../../schema/provider";
-import type { FallbackSettings } from "../../../schema/validation";
+import type { ServiceProps } from "@/schema";
+import type { DgpServiceMap } from "@/schema/provider";
+import type { FallbackSettings } from "@/schema/validation";
 
 function baseProps(): ServiceProps {
     return {
@@ -352,9 +352,9 @@ describe("Editor.filterServicesForVisibleGroup", () => {
 ```ts
 // src/canvas/__tests__/editor.utility-guard.spec.ts
 import {describe, it, expect, vi} from 'vitest';
-import {createBuilder} from "../../../core";
+import {createBuilder} from "@/core";
 import {CanvasAPI} from "../api";
-import {ServiceProps} from "../../../schema";
+import {ServiceProps} from "@/schema";
 
 function baseProps(): ServiceProps {
     return {
@@ -599,7 +599,7 @@ describe('Selection.visibleGroup()', () => {
 ` File: src/react/canvas/api.ts`  [↑ Back to top](#index)
 
 ```ts
-import { EventBus } from "./events";
+import { EventBus } from "@/react";
 import type {
     CanvasEvents,
     CanvasOptions,
@@ -607,9 +607,9 @@ import type {
     NodePositions,
     Viewport,
     DraftWire,
-} from "../../schema/canvas-types";
-import type { Builder } from "../../core";
-import type { EdgeKind, GraphSnapshot } from "../../schema/graph";
+} from "@/schema/canvas-types";
+import type { Builder } from "@/core";
+import type { EdgeKind, GraphSnapshot } from "@/schema/graph";
 import { CommentsAPI } from "./comments";
 import { CanvasBackendOptions } from "./backend";
 import { Editor } from "./editor";
@@ -893,15 +893,14 @@ export class CanvasAPI {
 ```ts
 // Transport-agnostic backend interfaces the HOST must implement
 
-import type {CommentAnchor, CommentMessage, CommentThread} from './comments';
+import type { CommentAnchor, CommentMessage, CommentThread } from "./comments";
+import { BackendError } from "@/react/workspace/context/backend";
 
-export type BackendError = {
-    code: 'network' | 'forbidden' | 'not_found' | 'validation' | 'conflict' | 'unknown';
-    message: string;
-    meta?: any;
-};
+export { type BackendError } from "@/react/workspace/context/backend";
 
-export type Result<T> = { ok: true; data: T } | { ok: false; error: BackendError };
+export type Result<T> =
+    | { ok: true; data: T }
+    | { ok: false; error: BackendError };
 
 // Minimal identity for annotation; permissions enforced server-side
 export type Actor = { id: string; name?: string; avatarUrl?: string };
@@ -915,45 +914,68 @@ export type CommentMessageDTO = CommentMessage;
 
 export interface CommentsBackend {
     // Load all threads for a canvas/workspace
-    listThreads(ctx: { workspaceId: string }): Promise<Result<CommentThreadDTO[]>>;
+    listThreads(ctx: {
+        workspaceId: string;
+    }): Promise<Result<CommentThreadDTO[]>>;
 
     // Create thread with initial message
-    createThread(ctx: { workspaceId: string; actor?: Actor }, input: {
-        anchor: CommentAnchor;
-        body: string;
-        meta?: Record<string, unknown>;
-    }): Promise<Result<CommentThreadDTO>>;
+    createThread(
+        ctx: { workspaceId: string; actor?: Actor },
+        input: {
+            anchor: CommentAnchor;
+            body: string;
+            meta?: Record<string, unknown>;
+        },
+    ): Promise<Result<CommentThreadDTO>>;
 
-    addMessage(ctx: { workspaceId: string; actor?: Actor }, input: {
-        threadId: string;
-        body: string;
-        meta?: Record<string, unknown>;
-    }): Promise<Result<CommentMessageDTO>>;
+    addMessage(
+        ctx: { workspaceId: string; actor?: Actor },
+        input: {
+            threadId: string;
+            body: string;
+            meta?: Record<string, unknown>;
+        },
+    ): Promise<Result<CommentMessageDTO>>;
 
-    editMessage(ctx: { workspaceId: string; actor?: Actor }, input: {
-        threadId: string;
-        messageId: string;
-        body: string;
-    }): Promise<Result<CommentMessageDTO>>;
+    editMessage(
+        ctx: { workspaceId: string; actor?: Actor },
+        input: {
+            threadId: string;
+            messageId: string;
+            body: string;
+        },
+    ): Promise<Result<CommentMessageDTO>>;
 
-    deleteMessage(ctx: { workspaceId: string; actor?: Actor }, input: {
-        threadId: string;
-        messageId: string;
-    }): Promise<Result<void>>;
+    deleteMessage(
+        ctx: { workspaceId: string; actor?: Actor },
+        input: {
+            threadId: string;
+            messageId: string;
+        },
+    ): Promise<Result<void>>;
 
-    moveThread(ctx: { workspaceId: string; actor?: Actor }, input: {
-        threadId: string;
-        anchor: CommentAnchor;
-    }): Promise<Result<CommentThreadDTO>>;
+    moveThread(
+        ctx: { workspaceId: string; actor?: Actor },
+        input: {
+            threadId: string;
+            anchor: CommentAnchor;
+        },
+    ): Promise<Result<CommentThreadDTO>>;
 
-    resolveThread(ctx: { workspaceId: string; actor?: Actor }, input: {
-        threadId: string;
-        resolved: boolean;
-    }): Promise<Result<CommentThreadDTO>>;
+    resolveThread(
+        ctx: { workspaceId: string; actor?: Actor },
+        input: {
+            threadId: string;
+            resolved: boolean;
+        },
+    ): Promise<Result<CommentThreadDTO>>;
 
-    deleteThread(ctx: { workspaceId: string; actor?: Actor }, input: {
-        threadId: string;
-    }): Promise<Result<void>>;
+    deleteThread(
+        ctx: { workspaceId: string; actor?: Actor },
+        input: {
+            threadId: string;
+        },
+    ): Promise<Result<void>>;
 }
 
 export type CanvasBackend = {
@@ -974,8 +996,8 @@ export type CanvasBackendOptions = {
 ` File: src/react/canvas/comments.ts`  [↑ Back to top](#index)
 
 ```ts
-import type {EventBus} from './events';
-import type {CanvasEvents} from '../../schema/canvas-types';
+import type {EventBus} from "@/react";
+import type {CanvasEvents} from "@/schema/canvas-types";
 import type {CommentsBackend, Actor, BackendError} from './backend';
 import {RetryQueue, type RetryOptions as RetryOpts} from "../../utils/retry-queue";
 
@@ -1465,20 +1487,20 @@ export class CommentsAPI {
 
 ```ts
 import { cloneDeep } from "lodash-es";
-import type { Builder } from "../../core";
-import type { ServiceProps, Tag, Field } from "../../schema";
-import { normalise } from "../../core";
+import type { Builder } from "@/core";
+import type { ServiceProps, Tag, Field } from "@/schema";
+import { normalise } from "@/core";
 import type { CanvasAPI } from "./api";
 import type {
     Command,
     EditorEvents,
     EditorOptions,
-} from "../../schema/editor.types";
-import { compilePolicies, PolicyDiagnostic } from "../../core/policy";
-import { DynamicRule, FallbackSettings } from "../../schema/validation";
-import { DgpServiceCapability, DgpServiceMap } from "../../schema/provider";
-import { constraintFitOk, rateOk, toFiniteNumber } from "../../utils/util";
-import { EditorSnapshot } from "../../schema/editor";
+} from "@/schema/editor.types";
+import { compilePolicies, PolicyDiagnostic } from "@/core/policy";
+import { DynamicRule, FallbackSettings } from "@/schema/validation";
+import { DgpServiceCapability, DgpServiceMap } from "@/schema/provider";
+import { constraintFitOk, rateOk, toFiniteNumber } from "@/utils/util";
+import { EditorSnapshot } from "@/schema/editor";
 import { Selection } from "./selection";
 
 const MAX_LIMIT = 100;
@@ -3641,9 +3663,9 @@ export class EventBus<E extends EventMap> {
 
 ```ts
 // src/react/canvas/selection.ts
-import type { Builder } from "../../core";
-import type { ServiceProps, Tag, Field } from "../../schema";
-import type { DgpServiceCapability } from "../../schema/provider";
+import type { Builder } from "@/core";
+import type { ServiceProps, Tag, Field } from "@/schema";
+import type { DgpServiceCapability } from "@/schema/provider";
 
 export type Env = "client" | "workspace";
 
@@ -4046,4 +4068,4 @@ export class Selection {
 
 ---
 *Generated with [Prodex](https://github.com/emxhive/prodex) — Codebase decoded.*
-<!-- PRODEx v1.4.11 | 2026-01-20T14:32:20.260Z -->
+<!-- PRODEx v1.4.11 | 2026-01-21T11:35:04.482Z -->

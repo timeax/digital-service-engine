@@ -9,11 +9,11 @@
 - [src/schema/editor.ts](#2)  L93-L128
 - [src/schema/editor.types.ts](#3)  L129-L171
 - [src/schema/graph.ts](#4)  L172-L212
-- [src/schema/index.ts](#5)  L213-L455
-- [src/schema/order.ts](#6)  L456-L601
-- [src/schema/policies.ts](#7)  L602-L618
-- [src/schema/provider.ts](#8)  L619-L644
-- [src/schema/validation.ts](#9)  L645-L769
+- [src/schema/index.ts](#5)  L213-L447
+- [src/schema/order.ts](#6)  L448-L593
+- [src/schema/policies.ts](#7)  L594-L610
+- [src/schema/provider.ts](#8)  L611-L670
+- [src/schema/validation.ts](#9)  L671-L832
 <!-- PRODEX_INDEX_LIST_END -->
 
 ---
@@ -25,7 +25,7 @@
 
 ```ts
 import type { GraphSnapshot, GraphNode, GraphEdge, EdgeKind } from "./graph";
-import { CommentMessage, CommentThread } from "../react/canvas/comments";
+import { CommentMessage, CommentThread } from "@/react/canvas/comments";
 
 export type Viewport = { x: number; y: number; zoom: number };
 
@@ -134,7 +134,7 @@ export type EditorSnapshot = {
 
 ```ts
 import type { ServiceProps } from "./index";
-import { SelectionOptions } from "../react/canvas/selection";
+import { SelectionOptions } from "@/react/canvas/selection";
 
 export type EditorEvents = {
     "editor:command": { name: string; payload?: any };
@@ -256,25 +256,6 @@ export interface BaseFieldUI {
     defaults?: Record<string, unknown>;
 }
 
-const ui: Record<string, Ui> = {
-    multiselect: {
-        type: "boolean",
-    },
-    search: {
-        type: "boolean",
-    },
-    autocomplete: {
-        type: "boolean",
-    },
-
-    autocompleteItems: {
-        type: "array",
-        item: {
-            type: "string",
-        }
-    }
-}
-
 export type Ui = UiString | UiNumber | UiBoolean | UiAnyOf | UiArray | UiObject;
 
 /** string */
@@ -391,7 +372,9 @@ export type Field = BaseFieldUI & {
     options?: FieldOption[];
     component?: string; // required if type === 'custom'
     pricing_role?: PricingRole; // default 'base'
-    meta?: Record<string, unknown> & QuantityMark & UtilityMark;
+    meta?: Record<string, unknown> &
+        QuantityMark &
+        UtilityMark & { multi?: boolean };
 } & (
         | {
               button?: false;
@@ -403,7 +386,14 @@ export type Field = BaseFieldUI & {
           }
     );
 
-export type FlagKey = "refill" | "cancel" | "dripfeed";
+export type ConstraintKey = string;
+
+/**
+ * Back-compat alias: older code may still import FlagKey.
+ * Keeping this prevents a wave of TS errors while still allowing any string key.
+ */
+export type FlagKey = ConstraintKey;
+
 export type Tag = {
     id: string;
     label: string;
@@ -412,12 +402,14 @@ export type Tag = {
     includes?: string[];
     excludes?: string[];
     meta?: Record<string, unknown> & WithQuantityDefault;
+
     /**
      * Which flags are set for this tag. If a flag is not set, it's inherited from the nearest ancestor with a value set.
      */
-    constraints?: Partial<Record<FlagKey, boolean>>;
+    constraints?: Partial<Record<ConstraintKey, boolean>>;
+
     /** Which ancestor defined the *effective* value for each flag (nearest source). */
-    constraints_origin?: Partial<Record<FlagKey, string>>; // tagId
+    constraints_origin?: Partial<Record<ConstraintKey, string>>; // tagId
 
     /**
      * Present only when a child explicitly set a different value but was overridden
@@ -425,7 +417,7 @@ export type Tag = {
      */
     constraints_overrides?: Partial<
         Record<
-            FlagKey,
+            ConstraintKey,
             { from: boolean; to: boolean; origin: string } // child explicit -> effective + where it came from
         >
     >;
@@ -623,23 +615,57 @@ export type { DynamicRule };
 ` File: src/schema/provider.ts`  [↑ Back to top](#index)
 
 ```ts
-/** Minimal capability shape sourced from DgpService */
+// src/schema/provider.ts
+export type TimeRangeEstimate = {
+    min_seconds?: number;
+    max_seconds?: number;
+    label?: string; // "instant" | "5-30 mins" | ...
+    meta?: Record<string, unknown>;
+};
+
+export type SpeedEstimate = {
+    amount?: number; // e.g. 500
+    per?: "minute" | "hour" | "day" | "week" | "month";
+    unit?: string; // e.g. "followers", "likes"
+    label?: string; // e.g. "500/day", "fast"
+    meta?: Record<string, unknown>;
+};
+
+export type ServiceEstimates = {
+    start?: TimeRangeEstimate;
+    speed?: SpeedEstimate;
+    average?: TimeRangeEstimate;
+    meta?: Record<string, unknown>;
+};
+
+export type ServiceFlag = {
+    enabled: boolean;
+    description: string; // MUST
+    meta?: Record<string, unknown>;
+};
+
+export type IdType = string | number;
+
+export type ServiceFlags = Record<string, ServiceFlag>; // flagId -> flag
+
 export type DgpServiceCapability = {
-    id: number;
-    name?: string;                    // human-friendly name
-    key?: string;                     // provider key if relevant
-    rate?: number;                    // canonical numeric rate
-    min?: number;                     // min order qty
-    max?: number;                     // max order qty
-    dripfeed?: boolean;
-    refill?: boolean;
-    cancel?: boolean;
-    estimate?: { start?: number | null; speed?: number | null; average?: number | null };
+    id: IdType;
+    name: string;
+    rate: number;
+    min?: number;
+    max?: number;
+
+    category?: string;
+
+    flags?: ServiceFlags;
+    estimates?: ServiceEstimates;
+
     meta?: Record<string, unknown>;
     [x: string]: any;
 };
 
-export type DgpServiceMap = Record<number, DgpServiceCapability>; // id -> capability
+export type DgpServiceMap = Record<string, DgpServiceCapability> &
+    Record<number, DgpServiceCapability>;
 ```
 
 ---
@@ -697,31 +723,67 @@ export type ValidationCode =
 
 export type ValidationError = {
     code: ValidationCode;
+    message: string;
+    severity: "error" | "warning" | "info";
     nodeId?: string; // tag/field/option id
     details?: Record<string, unknown> & {
-        affectedIds?: string[]
+        affectedIds?: string[];
     };
+};
+
+// add near DynamicRule (above it or just below ValidationError)
+
+export type ServiceWhereOp =
+    | "eq"
+    | "neq"
+    | "in"
+    | "nin"
+    | "exists"
+    | "truthy"
+    | "falsy";
+
+/**
+ * Host-extensible service filter clause.
+ * `path` should usually be "service.<prop>" or "service.meta.<prop>" etc.
+ */
+export type ServiceWhereClause = {
+    path: string;
+    op?: ServiceWhereOp;
+    value?: unknown;
 };
 
 export type DynamicRule = {
     id: string;
+    label: string;
     scope: "global" | "visible_group";
     subject: "services";
+
+    /**
+     * Package-level filter surface:
+     * - role/tag/field are core to the builder schema
+     * - where[] allows hosts to filter against extra service properties (handler_id/platform_id/type/key/category_id/etc.)
+     */
     filter?: {
         role?: "base" | "utility" | "both";
-        handler_id?: number | number[];
-        platform_id?: number | number[];
         tag_id?: string | string[];
         field_id?: string | string[];
+
+        where?: ServiceWhereClause[];
     };
+
+    /**
+     * Projection is intentionally open:
+     * hosts may project custom service properties.
+     */
     projection?:
-        | "service.type"
-        | "service.key"
+        | "service.id"
+        | "service.name"
         | "service.rate"
-        | "service.handler_id"
-        | "service.platform_id"
-        | "service.dripfeed"
+        | "service.min"
+        | "service.max"
+        | "service.category"
         | string;
+
     op:
         | "all_equal"
         | "unique"
@@ -730,6 +792,7 @@ export type DynamicRule = {
         | "any_true"
         | "max_count"
         | "min_count";
+
     value?: number | boolean; // for max/min/all_true/any_true
     severity?: "error" | "warning";
     message?: string;
@@ -767,4 +830,4 @@ export type FallbackSettings = {
 
 ---
 *Generated with [Prodex](https://github.com/emxhive/prodex) — Codebase decoded.*
-<!-- PRODEx v1.4.11 | 2026-01-20T14:32:20.260Z -->
+<!-- PRODEx v1.4.11 | 2026-01-21T11:35:04.482Z -->
