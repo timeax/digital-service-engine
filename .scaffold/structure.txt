@@ -28,7 +28,14 @@ src/
         backend.ts                     # backend contracts
         context.tsx                    # CanvasProvider currently imports workspace from "."
         ctxmenu.tsx
-        memory-backend.ts
+        memory/
+          index.ts                    # exports createMemoryWorkspaceBackend, types
+          memory-backend.ts           # main implementation (WorkspaceBackend)
+          store.ts                    # in-memory store shape + helpers
+          ids.ts                      # id generators (thread/message/branch/template/commit/draft)
+          time.ts                     # now()/iso() helpers
+          errors.ts
+          seed.ts
         provider/
           provider.tsx                 # will be refactored into thin composition root
           context.ts                   # WorkspaceContext + hooks (useWorkspace/useWorkspaceMaybe)
@@ -46,6 +53,7 @@ src/
             use-templates-slice.ts     # templates (branch-scoped) state + load/refresh
             use-services-slice.ts      # services state + load/refresh
             use-snapshots-slice.ts     # snapshots (branch-scoped) state + load/save/autosave/publish/discard/refresh pointers
+            use-comments-slice.ts
 
           compose/
             use-workspace-refresh.ts   # refreshAll + refreshBranchContext orchestration

@@ -10,7 +10,7 @@ import type {
     WorkspaceBackend,
 } from "../../backend";
 import type { EditorSnapshot } from "@/schema/editor";
-import type { SnapshotSlice, WorkspaceAPI } from "../types";
+import type { SnapshotSlice, WorkspaceAPI } from "@/react";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
 
 export interface SnapshotsSliceApi {

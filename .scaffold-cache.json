@@ -231,6 +231,62 @@
       "sizeAtCreate": 0,
       "groupName": "default",
       "groupRoot": "."
+    },
+    "src/react/workspace/context/provider/slices/use-comments-slice.ts": {
+      "path": "src/react/workspace/context/provider/slices/use-comments-slice.ts",
+      "createdAt": "2026-01-21T14:26:15.638Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/workspace/context/memory/index.ts": {
+      "path": "src/react/workspace/context/memory/index.ts",
+      "createdAt": "2026-01-21T15:21:11.749Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/workspace/context/memory/memory-backend.ts": {
+      "path": "src/react/workspace/context/memory/memory-backend.ts",
+      "createdAt": "2026-01-21T15:21:11.752Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/workspace/context/memory/store.ts": {
+      "path": "src/react/workspace/context/memory/store.ts",
+      "createdAt": "2026-01-21T15:21:11.753Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/workspace/context/memory/ids.ts": {
+      "path": "src/react/workspace/context/memory/ids.ts",
+      "createdAt": "2026-01-21T15:21:11.761Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/workspace/context/memory/time.ts": {
+      "path": "src/react/workspace/context/memory/time.ts",
+      "createdAt": "2026-01-21T15:21:11.763Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/workspace/context/memory/errors.ts": {
+      "path": "src/react/workspace/context/memory/errors.ts",
+      "createdAt": "2026-01-21T15:21:11.764Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/workspace/context/memory/seed.ts": {
+      "path": "src/react/workspace/context/memory/seed.ts",
+      "createdAt": "2026-01-21T15:31:53.537Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
     }
   }
 }

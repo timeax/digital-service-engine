@@ -13,7 +13,6 @@ import { DynamicRule, FallbackSettings } from "@/schema/validation";
 import { DgpServiceCapability, DgpServiceMap } from "@/schema/provider";
 import { constraintFitOk, rateOk, toFiniteNumber } from "@/utils/util";
 import { EditorSnapshot } from "@/schema/editor";
-import { Selection } from "./selection";
 
 const MAX_LIMIT = 100;
 type WireKind = "bind" | "include" | "exclude" | "service";
@@ -2081,17 +2080,6 @@ function matchesRuleFilter(
     if (!f) return true;
 
     if (f.tag_id && !toStrSet(f.tag_id).has(String(tagId))) return false;
-    if (
-        f.handler_id &&
-        !toStrSet(f.handler_id).has(String((cap as any).handler_id))
-    )
-        return false;
-    if (
-        f.platform_id &&
-        !toStrSet(f.platform_id).has(String((cap as any).platform_id))
-    )
-        return false;
-
     // role is intentionally ignored at suggestion-time (unknown), as discussed.
     return true;
 }

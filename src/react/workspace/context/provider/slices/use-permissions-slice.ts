@@ -6,7 +6,7 @@ import type {
     PermissionsMap,
     WorkspaceBackend,
 } from "../../backend";
-import type { Loadable } from "../types";
+import type { Loadable } from "@/react";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
 
 export interface PermissionsSliceApi {

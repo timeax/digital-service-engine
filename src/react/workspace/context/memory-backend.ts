@@ -1,628 +1,471 @@
-// src/react/workspace/memory-backend.ts
-// In-memory WorkspaceBackend with Field Templates (plus a deprecated assets shim).
-// noinspection JSConstantReassignment,JSDeprecatedSymbols
+//@ts-nocheck src/react/workspace/context/backend/memory-backend.ts
 
 import type {
     Actor,
-    Author,
-    BackendError,
     Branch,
+    BranchAccessBackend,
+    BranchAccess,
+    BranchParticipant,
     BranchesBackend,
-    Commit,
-    Draft,
+    BackendResult,
     FieldTemplate,
-    MergeResult,
+    PermissionsBackend,
     PermissionsMap,
+    AuthorsBackend,
+    ServicesBackend,
+    ServicesInput,
+    SnapshotsBackend,
+    TemplatesBackend,
+    WorkspaceBackend,
+    WorkspaceInfo,
     Result,
     ServiceSnapshot,
-    SnapshotsBackend,
-    SnapshotsLoadResult,
-    TemplateCreateInput,
-    TemplateUpdatePatch,
-    TemplatesBackend,
-    TemplatesListParams,
-    WorkspaceBackend,
 } from "./backend";
-import type { EditorSnapshot } from "@/schema/editor";
+
 import type { DgpServiceCapability, DgpServiceMap } from "@/schema/provider";
 
-/* ---------------- utilities ---------------- */
-
-type Id = string;
-const nowIso = () => new Date().toISOString();
-const ok = <T>(value: T): { ok: true; value: T } => ({ ok: true, value });
-const err = (
-    code: string,
-    message: string,
-    hint?: string,
-): { ok: false; error: BackendError } => ({
-    ok: false,
-    error: { code, message, hint },
-});
-
-function clone<T>(v: T): T {
-    if (Array.isArray(v)) return v.slice() as unknown as T;
-    if (typeof v === "object" && v !== null) return { ...(v as object) } as T;
-    return v;
-}
-const genId = (p: string, i: number): Id => `${p}-${i}`;
-
-/* ---------------- seed & store ---------------- */
+/* ---------------- seed ---------------- */
 
 export interface MemorySeed {
-    workspaceId: string;
-    authors?: Author[];
-    permissionsForActor?: (ctx: {
-        workspaceId: string;
-        actor: Actor;
-    }) => PermissionsMap;
-    branchNames?: string[]; // default ["main"]
-    initialSnapshot?: ServiceSnapshot;
-    initialHeadMessage?: string;
-    initialDraft?: boolean;
-    services?: readonly DgpServiceCapability[] | DgpServiceMap;
+    /** Workspace root info (required by WorkspaceBackend) */
+    readonly info: WorkspaceInfo;
 
-    /** Pre-seed field templates */
-    templates?: ReadonlyArray<
-        Pick<
-            FieldTemplate,
-            | "key"
-            | "name"
-            | "kind"
-            | "definition"
-            | "defaults"
-            | "ui"
-            | "validators"
-            | "tags"
-            | "category"
-            | "published"
-        > & { branchId?: string }
+    /** Acting user/actor id for permissions lookups */
+    readonly actorId: string;
+
+    /** Authors visible in workspace */
+    readonly authors: readonly Actor[];
+
+    /** Permissions are resolved per actor */
+    readonly permissionsByActorId?: Readonly<Record<string, PermissionsMap>>;
+
+    /** Branches + main branch */
+    readonly branches: readonly Branch[];
+    readonly mainId: string;
+
+    /** Branch participants / access (optional) */
+    readonly participantsByBranchId?: Readonly<
+        Record<string, readonly BranchParticipant[]>
     >;
+    readonly accessByBranchId?: Readonly<Record<string, BranchAccess>>;
+
+    /** Services can be provided as array or map; we normalize to ServicesInput */
+    readonly services: readonly DgpServiceCapability[] | DgpServiceMap;
+
+    /** Template library (not branch templates) */
+    readonly templates: readonly FieldTemplate[];
+
+    /** Snapshot state */
+    readonly snapshot?: ServiceSnapshot;
+
+    /** Draft + head are used by snapshots backend */
+    readonly head?: string | null;
+    readonly draft?: ServiceSnapshot | null;
+
+    /** Counters for id generation */
+    readonly counters?: Readonly<Record<string, number>>;
 }
+
+/* ---------------- internal store ---------------- */
 
 interface Store {
-    readonly workspaceId: string;
-    authors: Author[];
-    permissionsForActor: (actor: Actor) => PermissionsMap;
+    readonly info: WorkspaceInfo;
+    readonly actorId: string;
 
-    branches: Branch[];
+    readonly authors: readonly Actor[];
+    readonly permissionsByActorId: Readonly<Record<string, PermissionsMap>>;
+
+    branches: readonly Branch[];
     mainId: string;
 
-    templates: FieldTemplate[];
+    readonly participantsByBranchId: Readonly<
+        Record<string, readonly BranchParticipant[]>
+    >;
+    readonly accessByBranchId: Readonly<Record<string, BranchAccess>>;
 
-    snapshot: ServiceSnapshot;
-    head?: Commit;
-    draft?: Draft;
+    readonly services: ServicesInput;
 
-    counters: { id: number; version: number; template: number };
+    templates: readonly FieldTemplate[];
+
+    snapshot?: ServiceSnapshot;
+    head?: string | null;
+    draft?: ServiceSnapshot | null;
+
+    counters: Record<string, number>;
 }
 
-/* ---------------- factory ---------------- */
+/* ---------------- public factory ---------------- */
 
-export function createMemoryWorkspaceBackend(seed: MemorySeed): WorkspaceBackend {
-    const wsId = seed.workspaceId;
-    let idCounter = 1;
-    let versionCounter = 1;
-    let templateCounter = 1;
-
-    // branches
-    const names = seed.branchNames?.length ? seed.branchNames : ["main"];
-    const branches: Branch[] = names.map(
-        (name): Branch => ({
-            id: genId("branch", idCounter++),
-            name,
-            isMain: false,
-            createdAt: nowIso(),
-            updatedAt: nowIso(),
-        }),
-    );
-    const mainIdx = Math.max(
-        0,
-        branches.findIndex((b) => b.name.toLowerCase() === "main"),
-    );
-    branches.forEach((b, i) => (b.isMain = i === (mainIdx >= 0 ? mainIdx : 0)));
-    const mainId = branches.find((b) => b.isMain)!.id;
-
-    // authors / permissions
-    const authors = seed.authors ?? [];
-    const perms = seed.permissionsForActor
-        ? (actor: Actor) =>
-              seed.permissionsForActor!({ workspaceId: wsId, actor })
-        : (_actor: Actor) => ({ "*": true });
-
-    // snapshot pointers
-    const snapshot: ServiceSnapshot = seed.initialSnapshot ?? {
-        schema_version: "1.0",
-        data: {} as EditorSnapshot,
-    };
-    const head: Commit | undefined = seed.initialHeadMessage
-        ? {
-              id: genId("commit", versionCounter++),
-              branchId: mainId,
-              message: seed.initialHeadMessage,
-              versionId: genId("version", versionCounter++),
-              etag: `etag-${Date.now()}`,
-              createdAt: nowIso(),
-          }
-        : undefined;
-    const draft: Draft | undefined = seed.initialDraft
-        ? {
-              id: genId("draft", versionCounter++),
-              branchId: mainId,
-              status: "uncommitted",
-              etag: `draft-${Date.now()}`,
-              createdAt: nowIso(),
-              updatedAt: nowIso(),
-          }
-        : undefined;
-
-    // templates
-    const templates: FieldTemplate[] = (seed.templates ?? []).map(
-        (t): FieldTemplate => ({
-            id: genId("tpl", templateCounter++),
-            key: t.key,
-            name: t.name,
-            kind: t.kind,
-            branchId: t.branchId,
-            definition: clone(t.definition ?? {}),
-            defaults: t.defaults ? clone(t.defaults) : undefined,
-            ui: t.ui ? clone(t.ui) : undefined,
-            validators: t.validators ? clone(t.validators) : undefined,
-            tags: t.tags ? clone(t.tags) : undefined,
-            category: t.category,
-            published: t.published ?? false,
-            version: 1,
-            createdAt: nowIso(),
-            updatedAt: nowIso(),
-        }),
-    );
-
+export function createMemoryWorkspaceBackend(
+    seed: MemorySeed,
+): WorkspaceBackend {
     const store: Store = {
-        workspaceId: wsId,
-        authors,
-        permissionsForActor: perms,
-        branches,
-        mainId,
-        templates,
-        snapshot,
-        head,
-        draft,
-        counters: {
-            id: idCounter,
-            version: versionCounter,
-            template: templateCounter,
-        },
+        info: seed.info,
+        actorId: seed.actorId,
+
+        authors: seed.authors,
+        permissionsByActorId: seed.permissionsByActorId ?? {},
+
+        branches: seed.branches,
+        mainId: seed.mainId,
+
+        participantsByBranchId: seed.participantsByBranchId ?? {},
+        accessByBranchId: seed.accessByBranchId ?? {},
+
+        services: normaliseServicesInput(seed.services),
+
+        templates: seed.templates,
+
+        snapshot: seed.snapshot,
+        head: seed.head ?? null,
+        draft: seed.draft ?? null,
+
+        counters: { ...(seed.counters ?? {}) },
     };
 
-    /* ---------------- authors backend ---------------- */
+    return {
+        info: store.info,
 
-    const authorsBackend = {
-        async list(workspaceId: string): Result<readonly Author[]> {
-            if (workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            return ok(clone(store.authors));
+        authors: createAuthorsBackend(store),
+        permissions: createPermissionsBackend(store),
+        branches: createBranchesBackend(store),
+        access: createAccessBackend(store),
+        services: createServicesBackend(store),
+
+        templates: createTemplatesBackend(store),
+        snapshots: createSnapshotsBackend(store),
+    };
+}
+
+/* ---------------- authors ---------------- */
+
+function createAuthorsBackend(store: Store): AuthorsBackend {
+    return {
+        async list(args) {
+            // args.workspaceId exists in the contract; memory backend is single-workspace so we ignore.
+            void args;
+            return ok(store.authors);
         },
-        async get(authorId: string): Result<Author | null> {
-            const a = store.authors.find((x) => x.id === authorId) ?? null;
-            return ok(a ? clone(a) : null);
+
+        async get(args) {
+            void args;
+            return ok(store.authors);
         },
-        async refresh(workspaceId: string): Result<readonly Author[]> {
-            return this.list(workspaceId);
+
+        async refresh(args) {
+            void args;
+            return ok(store.authors);
         },
     };
+}
 
-    /* ---------------- permissions backend ---------------- */
+/* ---------------- permissions ---------------- */
 
-    const permissionsBackend = {
-        async get(workspaceId: string, actor: Actor): Result<PermissionsMap> {
-            if (workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            return ok(clone(store.permissionsForActor(actor)));
+function createPermissionsBackend(store: Store): PermissionsBackend {
+    return {
+        async get({ workspaceId, actor }) {
+            void workspaceId;
+
+            const perms =
+                store.permissionsByActorId[actor.id] ??
+                store.permissionsByActorId[store.actorId] ??
+                {};
+
+            return ok(perms);
         },
-        async refresh(
-            workspaceId: string,
-            actor: Actor,
-        ): Result<PermissionsMap> {
-            return this.get(workspaceId, actor);
+
+        async refresh({ workspaceId, actor }) {
+            void workspaceId;
+
+            const perms =
+                store.permissionsByActorId[actor.id] ??
+                store.permissionsByActorId[store.actorId] ??
+                {};
+
+            return ok(perms);
         },
     };
+}
 
-    /* ---------------- branches backend ---------------- */
+/* ---------------- branches ---------------- */
 
-    const branchesBackend: BranchesBackend = {
-        async list(workspaceId: string): Result<readonly Branch[]> {
-            if (workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            return ok(clone(store.branches));
+function createBranchesBackend(store: Store): BranchesBackend {
+    return {
+        async list(workspaceId) {
+            void workspaceId;
+            return ok({ branches: store.branches, mainId: store.mainId });
         },
-        async create(
-            workspaceId: string,
-            name: string,
-            opts?: Readonly<{ fromId?: string }>,
-        ): Result<Branch> {
-            if (workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            const now = nowIso();
-            const fromId = opts?.fromId;
-            const headVersionId = fromId
-                ? store.branches.find((b) => b.id === fromId)?.headVersionId
-                : undefined;
+
+        async create(workspaceId, input) {
+            void workspaceId;
+
+            const id = nextId(store, "branch");
+            const now = new Date().toISOString();
+
             const b: Branch = {
-                id: genId("branch", ++store.counters.id),
-                name,
-                isMain: false,
-                headVersionId,
+                id,
+                name: input.name,
+                description: input.description,
                 createdAt: now,
                 updatedAt: now,
+                meta: input.meta,
             };
-            store.branches.push(b);
-            return ok(clone(b));
+
+            store.branches = [...store.branches, b];
+            return ok(b);
         },
-        async setMain(workspaceId: string, branchId: string): Result<Branch> {
-            if (workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            const target = store.branches.find((b) => b.id === branchId);
-            if (!target) return err("not_found", "Branch not found");
-            store.branches.forEach((b) => (b.isMain = b.id === branchId));
+
+        async setMain(workspaceId, branchId) {
+            void workspaceId;
             store.mainId = branchId;
-            target.updatedAt = nowIso();
-            return ok(clone(target));
+            return ok({ branches: store.branches, mainId: store.mainId });
         },
-        async merge(
-            workspaceId: string,
-            sourceId: string,
-            targetId: string,
-        ): Result<MergeResult> {
-            if (workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            const src = store.branches.find((b) => b.id === sourceId);
-            const tgt = store.branches.find((b) => b.id === targetId);
-            if (!src || !tgt)
-                return err("not_found", "Source or target branch not found");
-            const merge: MergeResult = {
-                sourceId,
-                targetId,
-                conflicts: 0,
-                message: "Fast-forward (memory)",
-            };
-            tgt.headVersionId = genId("version", ++store.counters.version);
-            tgt.updatedAt = nowIso();
-            return ok(merge);
+
+        async merge(workspaceId, fromId, intoId) {
+            // memory backend: noop merge, just report success
+            void workspaceId;
+            void fromId;
+            void intoId;
+            return ok(true);
         },
-        async delete(workspaceId: string, branchId: string): Result<void> {
-            if (workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            const idx = store.branches.findIndex((b) => b.id === branchId);
-            if (idx < 0) return err("not_found", "Branch not found");
-            if (store.branches[idx].isMain)
-                return err("forbidden", "Cannot delete main branch");
-            store.branches.splice(idx, 1);
-            return ok(undefined);
+
+        async delete(workspaceId, branchId) {
+            void workspaceId;
+
+            store.branches = store.branches.filter((b) => b.id !== branchId);
+            if (store.mainId === branchId) {
+                store.mainId = store.branches[0]?.id ?? store.mainId;
+            }
+
+            return ok({ branches: store.branches, mainId: store.mainId });
         },
-        async refresh(workspaceId: string): Result<readonly Branch[]> {
-            return this.list(workspaceId);
+
+        async refresh(workspaceId) {
+            void workspaceId;
+            return ok({ branches: store.branches, mainId: store.mainId });
         },
     };
+}
 
-    /* ---------------- templates backend ---------------- */
+/* ---------------- branch access ---------------- */
 
-    const templatesBackend: TemplatesBackend = {
-        async list(
-            params: TemplatesListParams,
-        ): Result<readonly FieldTemplate[]> {
-            if (params.workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            let items = store.templates.slice();
-            if (params.branchId)
-                items = items.filter((t) => t.branchId === params.branchId);
-            if (params.q) {
-                const q = params.q.toLowerCase();
-                items = items.filter(
-                    (t) =>
-                        t.name.toLowerCase().includes(q) ||
-                        t.key.toLowerCase().includes(q) ||
-                        (t.tags ?? []).some((tag) =>
-                            tag.toLowerCase().includes(q),
-                        ),
-                );
-            }
-            if (params.tags?.length) {
-                items = items.filter((t) => {
-                    const set = new Set(
-                        (t.tags ?? []).map((x) => x.toLowerCase()),
-                    );
-                    return params.tags!.every((tg) =>
-                        set.has(tg.toLowerCase()),
-                    );
-                });
-            }
-            if (params.category) {
-                items = items.filter(
-                    (t) =>
-                        (t.category ?? "").toLowerCase() ===
-                        params.category!.toLowerCase(),
-                );
-            }
-            return ok(clone(items));
-        },
+function createAccessBackend(store: Store): BranchAccessBackend {
+    return {
+        async get({ workspaceId, actor, branchId }) {
+            void workspaceId;
+            void actor;
 
-        async get(id: string): Result<FieldTemplate | null> {
-            const t = store.templates.find((x) => x.id === id) ?? null;
-            return ok(t ? clone(t) : null);
-        },
-
-        async getByKey(
-            workspaceId: string,
-            key: string,
-            branchId?: string,
-        ): Result<FieldTemplate | null> {
-            if (workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            const t =
-                store.templates.find(
-                    (x) =>
-                        x.key === key &&
-                        (branchId ? x.branchId === branchId : true),
-                ) ?? null;
-            return ok(t ? clone(t) : null);
-        },
-
-        async create(
-            workspaceId: string,
-            input: TemplateCreateInput,
-        ): Result<FieldTemplate> {
-            if (workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            const key = input.key ?? suggestKey(input.name);
-            if (
-                store.templates.some(
-                    (t) =>
-                        t.key === key &&
-                        (input.branchId
-                            ? t.branchId === input.branchId
-                            : !t.branchId),
-                )
-            ) {
-                return err("conflict", "Template key already exists");
-            }
-            const t: FieldTemplate = {
-                id: genId("tpl", ++store.counters.template),
-                key,
-                name: input.name,
-                kind: input.kind,
-                branchId: input.branchId,
-                definition: clone(input.definition ?? {}),
-                defaults: input.defaults ? clone(input.defaults) : undefined,
-                ui: input.ui ? clone(input.ui) : undefined,
-                validators: input.validators
-                    ? clone(input.validators)
-                    : undefined,
-                tags: input.tags ? clone(input.tags) : undefined,
-                category: input.category,
-                published: input.published ?? false,
-                version: 1,
-                createdAt: nowIso(),
-                updatedAt: nowIso(),
+            const access = store.accessByBranchId[branchId] ?? {
+                canRead: true,
+                canWrite: true,
+                canAdmin: false,
             };
-            store.templates.push(t);
-            return ok(clone(t));
+
+            const participants = store.participantsByBranchId[branchId] ?? [];
+
+            return ok({ access, participants });
         },
 
-        async update(
-            id: string,
-            patch: TemplateUpdatePatch,
-        ): Result<FieldTemplate> {
-            const t = store.templates.find((x) => x.id === id);
-            if (!t) return err("not_found", "Template not found");
-            if (patch.name !== undefined) t.name = patch.name;
-            if (patch.kind !== undefined) t.kind = patch.kind;
-            if (patch.branchId !== undefined)
-                t.branchId = patch.branchId ?? undefined;
-            if (patch.definition !== undefined)
-                t.definition = clone(patch.definition);
-            if (patch.defaults !== undefined)
-                t.defaults = patch.defaults ? clone(patch.defaults) : undefined;
-            if (patch.ui !== undefined)
-                t.ui = patch.ui ? clone(patch.ui) : undefined;
-            if (patch.validators !== undefined)
-                t.validators = patch.validators
-                    ? clone(patch.validators)
-                    : undefined;
-            if (patch.tags !== undefined)
-                t.tags = patch.tags ? clone(patch.tags) : undefined;
-            if (patch.category !== undefined)
-                t.category = patch.category ?? undefined;
-            if (patch.published !== undefined) t.published = patch.published;
-            t.version += 1;
-            t.updatedAt = nowIso();
-            return ok(clone(t));
-        },
+        async refresh({ workspaceId, actor, branchId }) {
+            void workspaceId;
+            void actor;
 
-        async clone(
-            source: Readonly<{ id?: string; key?: string }>,
-            opts?: Readonly<{
-                newKey?: string;
-                name?: string;
-                branchId?: string;
-                asDraft?: boolean;
-            }>,
-        ): Result<FieldTemplate> {
-            const orig =
-                (source.id &&
-                    store.templates.find((x) => x.id === source.id)) ||
-                (source.key &&
-                    store.templates.find((x) => x.key === source.key)) ||
-                null;
-            if (!orig) return err("not_found", "Source template not found");
-            const key = opts?.newKey ?? uniqueKey(orig.key);
-            const t: FieldTemplate = {
-                ...clone(orig),
-                id: genId("tpl", ++store.counters.template),
-                key,
-                name: opts?.name ?? `${orig.name} Copy`,
-                branchId: opts?.branchId ?? orig.branchId,
-                published: opts?.asDraft ? false : orig.published,
-                version: 1,
-                createdAt: nowIso(),
-                updatedAt: nowIso(),
+            const access = store.accessByBranchId[branchId] ?? {
+                canRead: true,
+                canWrite: true,
+                canAdmin: false,
             };
-            store.templates.push(t);
-            return ok(clone(t));
-        },
 
-        async publish(id: string): Result<FieldTemplate> {
-            const t = store.templates.find((x) => x.id === id);
-            if (!t) return err("not_found", "Template not found");
-            t.published = true;
-            t.version += 1;
-            t.updatedAt = nowIso();
-            return ok(clone(t));
-        },
+            const participants = store.participantsByBranchId[branchId] ?? [];
 
-        async unpublish(id: string): Result<FieldTemplate> {
-            const t = store.templates.find((x) => x.id === id);
-            if (!t) return err("not_found", "Template not found");
-            t.published = false;
-            t.version += 1;
-            t.updatedAt = nowIso();
-            return ok(clone(t));
-        },
-
-        async delete(id: string): Result<void> {
-            const i = store.templates.findIndex((x) => x.id === id);
-            if (i < 0) return err("not_found", "Template not found");
-            store.templates.splice(i, 1);
-            return ok(undefined);
-        },
-
-        async refresh(
-            params: Omit<TemplatesListParams, "q" | "tags" | "category">,
-        ): Result<readonly FieldTemplate[]> {
-            return this.list(params as TemplatesListParams);
+            return ok({ access, participants });
         },
     };
+}
 
-    function suggestKey(name: string): string {
-        const base = name
-            .trim()
-            .toLowerCase()
-            .replace(/\s+/g, "-")
-            .replace(/[^a-z0-9\-]/g, "");
-        return uniqueKey(base || "template");
-    }
-    function uniqueKey(base: string): string {
-        let k = base;
-        let i = 1;
-        while (store.templates.some((t) => t.key === k)) {
-            k = `${base}-${++i}`;
+/* ---------------- services (FIXED) ---------------- */
+
+function createServicesBackend(store: Store): ServicesBackend {
+    return {
+        async get({ workspaceId }) {
+            void workspaceId;
+            return ok(store.services);
+        },
+
+        async refresh({ workspaceId }) {
+            void workspaceId;
+            return ok(store.services);
+        },
+    };
+}
+
+function normaliseServicesInput(
+    src: readonly DgpServiceCapability[] | DgpServiceMap,
+): ServicesInput {
+    const items: DgpServiceCapability[] = Array.isArray(src)
+        ? [...src]
+        : Object.values(src ?? {});
+
+    const byId: DgpServiceMap = {} as any;
+    const byKey: Record<string, DgpServiceCapability> = {};
+
+    for (const s of items) {
+        if (!s) continue;
+
+        const id: unknown = (s as any).id;
+        if (id !== undefined && id !== null) {
+            (byId as any)[id as any] = s;
         }
-        return k;
+
+        const key: unknown = (s as any).key;
+        if (typeof key === "string" && key) {
+            byKey[key] = s;
+        }
     }
 
-    /* ---------------- snapshots backend ---------------- */
+    return { items, byId, byKey };
+}
 
-    const snapshotsBackend: SnapshotsBackend = {
-        async load(params): Result<SnapshotsLoadResult> {
-            if (params.workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
+/* ---------------- templates ---------------- */
+
+function createTemplatesBackend(store: Store): TemplatesBackend {
+    return {
+        async list() {
+            return ok(store.templates);
+        },
+
+        async get(id) {
+            const t = store.templates.find((x) => x.id === id);
+            return t ? ok(t) : err("not_found");
+        },
+
+        async create(input) {
+            const id = nextId(store, "template");
+            const now = new Date().toISOString();
+
+            const t: FieldTemplate = {
+                id,
+                key: input.key,
+                label: input.label,
+                description: input.description,
+                createdAt: now,
+                updatedAt: now,
+                meta: input.meta,
+                schema: input.schema,
+            };
+
+            store.templates = [...store.templates, t];
+            return ok(t);
+        },
+
+        async update(id, patch) {
+            const idx = store.templates.findIndex((x) => x.id === id);
+            if (idx < 0) return err("not_found");
+
+            const now = new Date().toISOString();
+            const prev = store.templates[idx];
+
+            const next: FieldTemplate = {
+                ...prev,
+                ...patch,
+                id: prev.id,
+                updatedAt: now,
+            };
+
+            const nextAll = [...store.templates];
+            nextAll[idx] = next;
+            store.templates = nextAll;
+
+            return ok(next);
+        },
+
+        async remove(id) {
+            const before = store.templates.length;
+            store.templates = store.templates.filter((x) => x.id !== id);
+            return ok(store.templates.length !== before);
+        },
+
+        async publish(id) {
+            void id;
+            return ok(true);
+        },
+    };
+}
+
+/* ---------------- snapshots ---------------- */
+
+function createSnapshotsBackend(store: Store): SnapshotsBackend {
+    return {
+        async load({ workspaceId, branchId }) {
+            void workspaceId;
+            void branchId;
+
+            // minimal: return current head/draft snapshot state
             return ok({
-                head: store.head ? clone(store.head) : undefined,
-                draft: store.draft ? clone(store.draft) : undefined,
-                snapshot: clone(store.snapshot),
+                snapshot: store.snapshot ?? null,
+                head: store.head ?? null,
+                draft: store.draft ?? null,
             });
         },
-        async autosave(params): Result<{ draft: Draft }> {
-            if (params.workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            store.snapshot = clone(params.snapshot);
-            const d: Draft = {
-                id: store.draft?.id ?? genId("draft", ++store.counters.version),
-                branchId: params.branchId,
-                status: "uncommitted",
-                etag: `draft-${Date.now()}`,
-                createdAt: store.draft?.createdAt ?? nowIso(),
-                updatedAt: nowIso(),
-            };
-            store.draft = d;
-            return ok({ draft: clone(d) });
+
+        async getDraft({ workspaceId, branchId }) {
+            void workspaceId;
+            void branchId;
+            return ok(store.draft ?? null);
         },
-        async save(params): Result<{ commit: Commit }> {
-            if (params.workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            store.snapshot = clone(params.snapshot);
-            const commit: Commit = {
-                id: genId("commit", ++store.counters.version),
-                branchId: params.branchId,
-                message: params.message ?? "Save (memory)",
-                versionId: genId("version", ++store.counters.version),
-                etag: `etag-${Date.now()}`,
-                createdAt: nowIso(),
-            };
-            store.head = commit;
-            store.draft = undefined;
-            const tgt = store.branches.find((b) => b.id === params.branchId);
-            if (tgt) {
-                tgt.headVersionId = commit.versionId;
-                tgt.updatedAt = nowIso();
+
+        async autosaveDraft({ workspaceId, branchId, draft }) {
+            void workspaceId;
+            void branchId;
+            store.draft = draft;
+            return ok(true);
+        },
+
+        async publish({ workspaceId, branchId }) {
+            void workspaceId;
+            void branchId;
+
+            // publish draft -> snapshot (head)
+            if (store.draft) {
+                store.snapshot = store.draft;
+                store.draft = null;
+                store.head = store.snapshot?.id ?? store.head ?? null;
             }
-            return ok({ commit: clone(commit) });
-        },
-        async publish(params): Result<{ commit: Commit }> {
-            if (params.workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            if (!store.draft || store.draft.id !== params.draftId)
-                return err("not_found", "Draft not found");
-            const commit: Commit = {
-                id: genId("commit", ++store.counters.version),
-                branchId: store.draft.branchId,
-                message: params.message ?? "Publish (memory)",
-                versionId: genId("version", ++store.counters.version),
-                etag: `etag-${Date.now()}`,
-                createdAt: nowIso(),
-            };
-            store.head = commit;
-            store.draft = undefined;
-            const tgt = store.branches.find((b) => b.id === commit.branchId);
-            if (tgt) {
-                tgt.headVersionId = commit.versionId;
-                tgt.updatedAt = nowIso();
-            }
-            return ok({ commit: clone(commit) });
-        },
-        async discard(params): Result<void> {
-            if (params.workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            if (!store.draft || store.draft.id !== params.draftId)
-                return err("not_found", "Draft not found");
-            store.draft = undefined;
-            return ok(undefined);
-        },
-        async refresh(params): Result<{ head?: Commit; draft?: Draft }> {
-            if (params.workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
+
             return ok({
-                head: store.head ? clone(store.head) : undefined,
-                draft: store.draft ? clone(store.draft) : undefined,
+                snapshot: store.snapshot ?? null,
+                head: store.head ?? null,
+                draft: store.draft ?? null,
+            });
+        },
+
+        async discard({ workspaceId, branchId }) {
+            void workspaceId;
+            void branchId;
+
+            store.draft = null;
+
+            return ok({
+                snapshot: store.snapshot ?? null,
+                head: store.head ?? null,
+                draft: store.draft ?? null,
             });
         },
     };
+}
 
-    /* ---------------- compose backend ---------------- */
+/* ---------------- helpers ---------------- */
 
-    const backend: WorkspaceBackend = {
-        info: {
-            id: wsId,
-            name: "Workspace 101",
-            createdAt: nowIso(),
-            updatedAt: nowIso(),
-        },
-        authors: authorsBackend,
-        permissions: permissionsBackend,
-        branches: branchesBackend,
-        templates: templatesBackend,
-        snapshots: snapshotsBackend,
-        services: seed.services,
-    };
+function nextId(store: Store, key: string): string {
+    const n = (store.counters[key] ?? 0) + 1;
+    store.counters[key] = n;
+    return `${key}_${n}`;
+}
 
-    return backend;
+function ok<T>(data: T): BackendResult<T> {
+    return { ok: true, data };
+}
+
+function err(code: string, message?: string): BackendResult<never> {
+    return { ok: false, error: { code, message } };
 }

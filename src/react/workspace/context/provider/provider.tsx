@@ -8,7 +8,7 @@ import type {
 } from "../backend";
 import type { DgpServiceMap } from "@/schema/provider";
 
-import { WorkspaceContext } from "./context";
+import { WorkspaceContext } from "@/react";
 import type { WorkspaceAPI, WorkspaceProviderProps } from "./types";
 import { LIVE_OFF } from "./helpers";
 
@@ -20,7 +20,7 @@ import { useBranchesSlice } from "./slices/use-branches-slice";
 import { useTemplatesSlice } from "./slices/use-templates-slice";
 import { useServicesSlice } from "./slices/use-services-slice";
 import { useSnapshotsSlice } from "./slices/use-snapshots-slice";
-
+import { useCommentsSlice } from "./slices/use-comments-slice";
 import { useBranchCache } from "./compose/use-branch-cache";
 import { useWorkspaceRefresh } from "./compose/use-workspace-refresh";
 import { useLivePolling } from "./compose/use-live-polling";
@@ -113,6 +113,13 @@ export function WorkspaceProvider(
     });
 
     const branchCache = useBranchCache(workspaceId);
+
+    const comments = useCommentsSlice({
+        backend: backend.comments,
+        workspaceId,
+        actorId: actor.id,
+        getCurrentBranchId,
+    });
 
     const refresh = useWorkspaceRefresh({
         runtime,
@@ -410,6 +417,17 @@ export function WorkspaceProvider(
                 save: snapshotsSlice.save,
                 publish: snapshotsSlice.publish,
                 discardDraft: snapshotsSlice.discardDraft,
+            },
+            comments: {
+                threads: comments.threads,
+                refreshThreads: comments.refreshThreads,
+                createThread: comments.createThread,
+                addMessage: comments.addMessage,
+                editMessage: comments.editMessage,
+                deleteMessage: comments.deleteMessage,
+                moveThread: comments.moveThread,
+                resolveThread: comments.resolveThread,
+                deleteThread: comments.deleteThread,
             },
         }),
         [

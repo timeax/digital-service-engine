@@ -8,7 +8,7 @@ import type {
     TemplatesListParams,
     WorkspaceBackend,
 } from "../../backend";
-import type { Loadable, WorkspaceAPI } from "../types";
+import type { Loadable, WorkspaceAPI } from "@/react";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
 
 export interface TemplatesSliceApi {

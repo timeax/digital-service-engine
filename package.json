@@ -1,102 +1,102 @@
 {
-  "name": "digital-service-ui-builder",
-  "version": "1.0.0",
-  "description": "Headless service props builder + minimal React Flow workspace.",
-  "type": "module",
-  "exports": {
-    ".": {
-      "types": "./dist/schema/index.d.ts",
-      "import": "./dist/schema/index.mjs",
-      "require": "./dist/schema/index.cjs"
+    "name": "digital-service-engine",
+    "version": "0.0.1",
+    "description": "Headless service props builder + minimal React Flow workspace.",
+    "type": "module",
+    "exports": {
+        ".": {
+            "types": "./dist/schema/index.d.ts",
+            "import": "./dist/schema/index.mjs",
+            "require": "./dist/schema/index.cjs"
+        },
+        "./schema": {
+            "types": "./dist/schema/index.d.ts",
+            "import": "./dist/schema/index.mjs",
+            "require": "./dist/schema/index.cjs"
+        },
+        "./schema/editor": {
+            "types": "./dist/schema/editor.d.ts",
+            "import": "./dist/schema/editor.mjs",
+            "require": "./dist/schema/editor.cjs"
+        },
+        "./core": {
+            "types": "./dist/core/index.d.ts",
+            "import": "./dist/core/index.mjs",
+            "require": "./dist/core/index.cjs"
+        },
+        "./react": {
+            "types": "./dist/react/index.d.ts",
+            "import": "./dist/react/index.mjs",
+            "require": "./dist/react/index.cjs"
+        },
+        "./workspace": {
+            "types": "./dist/workspace/index.d.ts",
+            "import": "./dist/workspace/index.mjs",
+            "require": "./dist/workspace/index.cjs"
+        },
+        "./json/service-props": "./schema/service-props.schema.json",
+        "./json/editor-snapshot": "./schema/editor-snapshot.schema.json",
+        "./json/policies": "./schema/policies.schema.json"
     },
-    "./schema": {
-      "types": "./dist/schema/index.d.ts",
-      "import": "./dist/schema/index.mjs",
-      "require": "./dist/schema/index.cjs"
+    "types": "./dist/schema/index.d.ts",
+    "files": [
+        "dist/",
+        "schema/"
+    ],
+    "scripts": {
+        "clean": "rimraf dist",
+        "build": "npm run clean && tsup && node scripts/generate-schemas.mjs",
+        "dev": "tsup --watch",
+        "typecheck": "tsc --noEmit",
+        "test": "vitest run",
+        "build:schema": "node scripts/generate-schemas.mjs"
     },
-    "./schema/editor": {
-      "types": "./dist/schema/editor.d.ts",
-      "import": "./dist/schema/editor.mjs",
-      "require": "./dist/schema/editor.cjs"
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/timeax/digital-service-engine.git"
     },
-    "./core": {
-      "types": "./dist/core/index.d.ts",
-      "import": "./dist/core/index.mjs",
-      "require": "./dist/core/index.cjs"
+    "private": false,
+    "author": "Timothy Okpako David",
+    "publishConfig": {
+        "access": "public"
     },
-    "./react": {
-      "types": "./dist/react/index.d.ts",
-      "import": "./dist/react/index.mjs",
-      "require": "./dist/react/index.cjs"
+    "sideEffects": false,
+    "peerDependencies": {
+        "react": "^19.0.0",
+        "react-day-picker": "^9.8.1",
+        "react-dom": "^19.0.0",
+        "reactflow": "^11.11.4"
     },
-    "./workspace": {
-      "types": "./dist/workspace/index.d.ts",
-      "import": "./dist/workspace/index.mjs",
-      "require": "./dist/workspace/index.cjs"
+    "devDependencies": {
+        "@types/lodash-es": "^4.17.12",
+        "@types/node": "^25.0.9",
+        "@types/react": "^18.3.24",
+        "@types/react-dom": "^18.3.7",
+        "jsdom": "^27.4.0",
+        "prettier": "^3.6.2",
+        "rimraf": "^5.0.10",
+        "ts-json-schema-generator": "^2.4.0",
+        "tsup": "^8.5.0",
+        "typescript": "^5.9.2",
+        "vitest": "^1.6.1"
     },
-    "./json/service-props": "./schema/service-props.schema.json",
-    "./json/editor-snapshot": "./schema/editor-snapshot.schema.json",
-    "./json/policies": "./schema/policies.schema.json"
-  },
-  "types": "./dist/schema/index.d.ts",
-  "files": [
-    "dist/",
-    "schema/"
-  ],
-  "scripts": {
-    "clean": "rimraf dist",
-    "build": "npm run clean && tsup && node scripts/generate-schemas.mjs",
-    "dev": "tsup --watch",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "build:schema": "node scripts/generate-schemas.mjs"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/timeax/digital-service-ui-builder.git"
-  },
-  "private": false,
-  "author": "Timothy Okpako David",
-  "publishConfig": {
-    "access": "public"
-  },
-  "sideEffects": false,
-  "peerDependencies": {
-    "react": "^19.0.0",
-    "react-day-picker": "^9.8.1",
-    "react-dom": "^19.0.0",
-    "reactflow": "^11.11.4"
-  },
-  "devDependencies": {
-    "@types/lodash-es": "^4.17.12",
-    "@types/node": "^25.0.9",
-    "@types/react": "^18.3.24",
-    "@types/react-dom": "^18.3.7",
-    "jsdom": "^27.4.0",
-    "prettier": "^3.6.2",
-    "rimraf": "^5.0.10",
-    "ts-json-schema-generator": "^2.4.0",
-    "tsup": "^8.5.0",
-    "typescript": "^5.9.2",
-    "vitest": "^1.6.1"
-  },
-  "dependencies": {
-    "@radix-ui/react-dialog": "^1.1.15",
-    "@radix-ui/react-dropdown-menu": "^2.1.16",
-    "@radix-ui/react-separator": "^1.1.7",
-    "@radix-ui/react-slot": "^1.2.3",
-    "@radix-ui/react-tabs": "^1.1.13",
-    "@timeax/cache-store": "^0.0.1",
-    "@vitejs/plugin-react": "^5.1.2",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "elkjs": "^0.11.0",
-    "lodash-es": "^4.17.21",
-    "lucide-react": "^0.548.0",
-    "react-icons": "^5.5.0",
-    "react-resizable-panels": "^3.0.6",
-    "tailwind-merge": "^3.3.1",
-    "tw-animate-css": "^1.4.0",
-    "vaul": "^1.1.2"
-  }
+    "dependencies": {
+        "@radix-ui/react-dialog": "^1.1.15",
+        "@radix-ui/react-dropdown-menu": "^2.1.16",
+        "@radix-ui/react-separator": "^1.1.7",
+        "@radix-ui/react-slot": "^1.2.3",
+        "@radix-ui/react-tabs": "^1.1.13",
+        "@timeax/cache-store": "^0.0.1",
+        "@vitejs/plugin-react": "^5.1.2",
+        "class-variance-authority": "^0.7.1",
+        "clsx": "^2.1.1",
+        "elkjs": "^0.11.0",
+        "lodash-es": "^4.17.21",
+        "lucide-react": "^0.548.0",
+        "react-icons": "^5.5.0",
+        "react-resizable-panels": "^3.0.6",
+        "tailwind-merge": "^3.3.1",
+        "tw-animate-css": "^1.4.0",
+        "vaul": "^1.1.2"
+    }
 }

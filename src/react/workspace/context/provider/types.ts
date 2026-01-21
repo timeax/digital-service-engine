@@ -24,7 +24,7 @@ import type { EditorSnapshot } from "@/schema/editor";
 import type { DgpServiceMap } from "@/schema/provider";
 import React from "react";
 import { WorkspaceLiveAdapterRegistry } from "@/react/workspace/context/provider/live/types";
-
+import { CommentsSliceApi } from "@/react/workspace/context/provider/slices/use-comments-slice";
 export interface Loadable<T> {
     readonly data: T | null;
     readonly loading: boolean;
@@ -221,4 +221,6 @@ export interface WorkspaceAPI {
         publish(message?: string): Result<Readonly<{ commit: Commit }>>;
         discardDraft(): Result<void>;
     };
+
+    readonly comments: CommentsSliceApi;
 }

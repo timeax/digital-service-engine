@@ -1,7 +1,7 @@
 // src/react/workspace/context/provider/slices/use-authors-slice.ts
 import * as React from "react";
 import type { Author, BackendError, WorkspaceBackend } from "../../backend";
-import type { Loadable } from "../types";
+import type { Loadable } from "@/react";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
 
 export interface AuthorsSliceApi {

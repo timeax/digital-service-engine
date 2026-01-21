@@ -13,7 +13,7 @@ import { CommentsAPI } from "./comments";
 import { CanvasBackendOptions } from "./backend";
 import { Editor } from "./editor";
 import { Selection } from "./selection";
-
+import type { BackendScope } from "@/react/workspace/context/backend";
 export class CanvasAPI {
     private bus = new EventBus<CanvasEvents>();
     private readonly state: CanvasState;
@@ -44,10 +44,34 @@ export class CanvasAPI {
         };
 
         // compose comments with backend (if provided)
+        const scopeProvider: (() => BackendScope | undefined) | undefined =
+            (opts as unknown as { getScope?: () => BackendScope | undefined })
+                .getScope ??
+            (() => {
+                const anyOpts = opts as unknown as Partial<{
+                    workspaceId: string;
+                    actorId: string;
+                    branchId: string;
+                }>;
+
+                if (
+                    !anyOpts.workspaceId ||
+                    !anyOpts.actorId ||
+                    !anyOpts.branchId
+                ) {
+                    return undefined;
+                }
+
+                return {
+                    workspaceId: anyOpts.workspaceId,
+                    actorId: anyOpts.actorId,
+                    branchId: anyOpts.branchId,
+                };
+            });
+
         this.comments = new CommentsAPI(this.bus, {
             backend: opts.backend?.comments,
-            workspaceId: opts.workspaceId,
-            actor: opts.actor,
+            getScope: scopeProvider,
         });
 
         this.editor = new Editor(builder, this, {
@@ -218,7 +242,7 @@ export class CanvasAPI {
     public setEdgeRel(rel: EdgeKind) {
         if (this.edgeRel === rel) return; // ← correct: skip only if identical
         this.edgeRel = rel;
-        this.bus.emit('edge:change', rel);
+        this.bus.emit("edge:change", rel);
     }
 
     /* ─── Option-node visibility (per field) ───────────────────────────────── */

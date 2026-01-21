@@ -2,7 +2,7 @@
 import * as React from "react";
 import type { BackendError, WorkspaceBackend } from "../../backend";
 import type { DgpServiceMap } from "@/schema/provider";
-import type { Loadable } from "../types";
+import type { Loadable } from "@/react";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
 import { toServiceMap } from "../helpers";
 

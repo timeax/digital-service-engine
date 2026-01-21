@@ -4,6 +4,11 @@
 
 import type { EditorSnapshot } from "@/schema/editor";
 import type { DgpServiceCapability, DgpServiceMap } from "@/schema/provider";
+import {
+    CommentAnchor,
+    CommentMessage,
+    CommentThread,
+} from "@/schema/comments";
 
 /* ---------------- core result & identity ---------------- */
 
@@ -374,6 +379,91 @@ export interface WorkspaceInfo {
     readonly meta?: Readonly<Record<string, unknown>>;
 }
 
+/**
+ * Shared request scope for host backends (workspace + optional branch + optional actor).
+ * This is intentionally transport-agnostic and minimal so other layers (e.g. canvas/comments)
+ * can reuse it without redefining identity types.
+ */
+export interface BackendScope {
+    readonly workspaceId: string;
+    readonly actorId: string;
+    readonly branchId: string;
+}
+
+/**
+ * Generic canvas comments backend contract.
+ *
+ * We keep this in workspace backend so HOSTS have a single place to implement
+ * transport-agnostic interfaces.
+ *
+ * The canvas module can “bind” these generics to its concrete types.
+ */
+export interface CommentsBackend<
+    ThreadDTO = unknown,
+    MessageDTO = unknown,
+    AnchorDTO = unknown,
+> {
+    listThreads(ctx: BackendScope): Result<readonly ThreadDTO[]>;
+
+    createThread(
+        ctx: BackendScope,
+        input: {
+            anchor: AnchorDTO;
+            body: string;
+            meta?: Record<string, unknown>;
+        },
+    ): Result<ThreadDTO>;
+
+    addMessage(
+        ctx: BackendScope,
+        input: {
+            threadId: string;
+            body: string;
+            meta?: Record<string, unknown>;
+        },
+    ): Result<MessageDTO>;
+
+    editMessage(
+        ctx: BackendScope,
+        input: {
+            threadId: string;
+            messageId: string;
+            body: string;
+        },
+    ): Result<MessageDTO>;
+
+    deleteMessage(
+        ctx: BackendScope,
+        input: {
+            threadId: string;
+            messageId: string;
+        },
+    ): Result<void>;
+
+    moveThread(
+        ctx: BackendScope,
+        input: {
+            threadId: string;
+            anchor: AnchorDTO;
+        },
+    ): Result<ThreadDTO>;
+
+    resolveThread(
+        ctx: BackendScope,
+        input: {
+            threadId: string;
+            resolved: boolean;
+        },
+    ): Result<ThreadDTO>;
+
+    deleteThread(
+        ctx: BackendScope,
+        input: {
+            threadId: string;
+        },
+    ): Result<void>;
+}
+
 export interface WorkspaceBackend {
     readonly info: WorkspaceInfo;
 
@@ -389,4 +479,10 @@ export interface WorkspaceBackend {
 
     readonly templates: TemplatesBackend;
     readonly snapshots: SnapshotsBackend;
+
+    readonly comments: CommentsBackend<
+        CommentThread,
+        CommentMessage,
+        CommentAnchor
+    >;
 }

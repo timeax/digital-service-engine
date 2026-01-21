@@ -6,7 +6,7 @@ import type {
     BranchParticipant,
     WorkspaceBackend,
 } from "../../backend";
-import type { BranchesSlice, Loadable } from "../types";
+import type { BranchesSlice, Loadable } from "@/react";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
 
 export interface BranchesSliceApi {
