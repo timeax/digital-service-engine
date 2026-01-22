@@ -94,7 +94,7 @@ function commentPosition(
     th: CommentThread,
     state: CanvasState,
 ): { x: number; y: number } {
-    const a = th.anchor;
+    const a = th.anchor!;
     if (a.type === "free") return { x: a.position.x, y: a.position.y };
     if (a.type === "node") {
         const base = state.positions[a.nodeId] ?? { x: 0, y: 0 };
@@ -107,14 +107,17 @@ function commentPosition(
 }
 
 function commentNodes(state: CanvasState, api: CanvasAPI): Node[] {
-    return api.comments.list().map((th) => ({
-        id: `c::${th.id}`,
-        type: "comment",
-        position: commentPosition(th, state),
-        draggable: true,
-        selectable: true,
-        data: { thread: th },
-    }));
+    return api.comments
+        .list()
+        .filter((item) => !!item.anchor)
+        .map((th) => ({
+            id: `c::${th.id}`,
+            type: "comment",
+            position: commentPosition(th, state),
+            draggable: true,
+            selectable: true,
+            data: { thread: th },
+        }));
 }
 
 function toRF(
@@ -285,7 +288,7 @@ export function useReactFlowAdapter(
                     if (isCommentId(c.id)) {
                         const threadId = c.id.slice(3);
                         const th = api.comments.get(threadId);
-                        if (!th) continue;
+                        if (!th || !th.anchor) continue;
                         const a = th.anchor;
                         if (a.type === "free") {
                             await api.comments.move(threadId, {

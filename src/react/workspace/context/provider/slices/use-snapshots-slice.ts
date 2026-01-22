@@ -9,8 +9,8 @@ import type {
     SnapshotsLoadResult,
     WorkspaceBackend,
 } from "../../backend";
-import type { EditorSnapshot } from "@/schema/editor";
-import type { SnapshotSlice, WorkspaceAPI } from "@/react";
+import type { EditorSnapshot } from "@/schema";
+import type { SnapshotSlice, WorkspaceAPI } from "@/react/workspace";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
 
 export interface SnapshotsSliceApi {

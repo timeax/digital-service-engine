@@ -5,7 +5,7 @@ import { WorkspaceProvider } from "./context";
 import type { WorkspaceProviderProps } from "./context";
 import type { Actor, WorkspaceBackend } from "./context/backend";
 
-import type { ToolsConfig } from "../adapters/reactflow";
+import type { ToolsConfig } from "./components";
 import { CanvasProvider } from "./context/context";
 
 /**

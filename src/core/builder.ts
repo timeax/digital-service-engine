@@ -2,16 +2,19 @@
 import { normalise } from "./normalise";
 import { validate } from "./validate";
 
-import type { ServiceProps, Tag, Field } from "@/schema";
 import type {
+    ServiceProps,
+    Tag,
+    Field,
     GraphNode,
     GraphEdge,
     GraphSnapshot,
     NodeKind,
     EdgeKind,
-} from "@/schema/graph";
-import type { DgpServiceMap } from "@/schema/provider";
-import type { ValidationError, ValidatorOptions } from "@/schema/validation";
+    DgpServiceMap,
+    ValidationError,
+    ValidatorOptions,
+} from "@/schema";
 
 /** Options you can set on the builder (used for validation/visibility) */
 export type BuilderOptions = Omit<ValidatorOptions, "serviceMap"> & {
@@ -58,6 +61,8 @@ export interface Builder {
 
     /** Service map for validation/rules */
     getServiceMap(): DgpServiceMap;
+
+    getConstraints(): string[];
 }
 
 export function createBuilder(opts: BuilderOptions = {}): Builder {
@@ -106,6 +111,22 @@ class BuilderImpl implements Builder {
 
     getServiceMap(): DgpServiceMap {
         return this.options.serviceMap ?? {};
+    }
+
+    getConstraints(): string[] {
+        const serviceMap = this.getServiceMap();
+
+        const out = new Set<string>();
+
+        for (const svc of Object.values(serviceMap)) {
+            const flags = svc.flags ?? {};
+            for (const flagId of Object.keys(flags)) {
+                out.add(flagId);
+            }
+        }
+
+        // if you want deterministic ordering in UI:
+        return Array.from(out).sort();
     }
 
     /* ───── querying ─────────────────────────────────────────────────────── */

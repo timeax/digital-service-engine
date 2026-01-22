@@ -33,3 +33,6 @@ export type {
  * Default poll adapter — hosts may use this or provide their own ws/sse adapters.
  */
 export { createPollAdapter } from "./provider/live/adapters/poll";
+
+export * from "./memory";
+export * from "./backend";

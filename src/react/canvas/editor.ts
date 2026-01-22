@@ -7,12 +7,14 @@ import type {
     Command,
     EditorEvents,
     EditorOptions,
-} from "@/schema/editor.types";
-import { compilePolicies, PolicyDiagnostic } from "@/core/policy";
-import { DynamicRule, FallbackSettings } from "@/schema/validation";
-import { DgpServiceCapability, DgpServiceMap } from "@/schema/provider";
+    EditorSnapshot,
+    DynamicRule,
+    FallbackSettings,
+    DgpServiceCapability,
+    DgpServiceMap,
+} from "@/schema";
+import { compilePolicies, type PolicyDiagnostic } from "@/core/policy";
 import { constraintFitOk, rateOk, toFiniteNumber } from "@/utils/util";
-import { EditorSnapshot } from "@/schema/editor";
 
 const MAX_LIMIT = 100;
 type WireKind = "bind" | "include" | "exclude" | "service";

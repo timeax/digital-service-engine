@@ -8,7 +8,7 @@ import type {
     Result,
     WorkspaceBackend,
 } from "../../backend";
-import type { Loadable } from "@/react";
+import type { Loadable } from "@/react/workspace";
 
 import type {
     CommentAnchor,

@@ -6,9 +6,9 @@ import * as React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-import { WorkspaceProvider, useWorkspace } from "@/react";
-import type { Actor, Branch } from "../context/backend";
-import type { WorkspaceAPI } from "@/react";
+import { WorkspaceProvider, useWorkspace } from "@/react/workspace";
+import type { Actor, Branch } from "@/react/workspace";
+import type { WorkspaceAPI } from "@/react/workspace";
 
 import { createMemoryWorkspaceBackend } from "../context/memory";
 

@@ -6,10 +6,10 @@ import "reactflow/dist/style.css";
 import {
     type AdapterOptions,
     useReactFlowAdapter,
-} from "../../adapters/reactflow/adapter";
+} from "../adapters/reactflow/adapter";
 import type { CanvasAPI } from "@/react";
-import { Toolbar } from "../../adapters/reactflow/toolbar";
-import type { LabelPlacement, ToolsConfig } from "../../adapters/reactflow";
+import { Toolbar } from "../adapters/reactflow/toolbar";
+import type { LabelPlacement, ToolsConfig } from "./index";
 import { edgeTypes, nodeTypes } from "./reactflow";
 
 export type ReactFlowCanvasProps = {

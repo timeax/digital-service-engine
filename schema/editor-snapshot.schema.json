@@ -50,7 +50,7 @@
             "$ref": "#/definitions/Field"
           }
         },
-        "includes_for_options": {
+        "includes_for_buttons": {
           "type": "object",
           "additionalProperties": {
             "type": "array",
@@ -59,7 +59,7 @@
             }
           }
         },
-        "excludes_for_options": {
+        "excludes_for_buttons": {
           "type": "object",
           "additionalProperties": {
             "type": "array",
@@ -117,94 +117,38 @@
         },
         "constraints": {
           "type": "object",
-          "properties": {
-            "refill": {
-              "type": "boolean"
-            },
-            "cancel": {
-              "type": "boolean"
-            },
-            "dripfeed": {
-              "type": "boolean"
-            }
+          "additionalProperties": {
+            "type": "boolean"
           },
           "description": "Which flags are set for this tag. If a flag is not set, it's inherited from the nearest ancestor with a value set."
         },
         "constraints_origin": {
           "type": "object",
-          "properties": {
-            "refill": {
-              "type": "string"
-            },
-            "cancel": {
-              "type": "string"
-            },
-            "dripfeed": {
-              "type": "string"
-            }
+          "additionalProperties": {
+            "type": "string"
           },
           "description": "Which ancestor defined the *effective* value for each flag (nearest source)."
         },
         "constraints_overrides": {
           "type": "object",
-          "properties": {
-            "refill": {
-              "type": "object",
-              "properties": {
-                "from": {
-                  "type": "boolean"
-                },
-                "to": {
-                  "type": "boolean"
-                },
-                "origin": {
-                  "type": "string"
-                }
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "boolean"
               },
-              "required": [
-                "from",
-                "to",
-                "origin"
-              ]
+              "to": {
+                "type": "boolean"
+              },
+              "origin": {
+                "type": "string"
+              }
             },
-            "cancel": {
-              "type": "object",
-              "properties": {
-                "from": {
-                  "type": "boolean"
-                },
-                "to": {
-                  "type": "boolean"
-                },
-                "origin": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "from",
-                "to",
-                "origin"
-              ]
-            },
-            "dripfeed": {
-              "type": "object",
-              "properties": {
-                "from": {
-                  "type": "boolean"
-                },
-                "to": {
-                  "type": "boolean"
-                },
-                "origin": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "from",
-                "to",
-                "origin"
-              ]
-            }
+            "required": [
+              "from",
+              "to",
+              "origin"
+            ]
           },
           "description": "Present only when a child explicitly set a different value but was overridden by an ancestor during normalisation."
         }
@@ -215,160 +159,312 @@
       ]
     },
     "Field": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "string"
-        },
-        "type": {
-          "$ref": "#/definitions/FieldType"
-        },
-        "bind_id": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          ]
-        },
-        "name": {
-          "type": "string"
-        },
-        "options": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/FieldOption"
-          }
-        },
-        "component": {
-          "type": "string"
-        },
-        "pricing_role": {
-          "$ref": "#/definitions/PricingRole"
-        },
-        "meta": {
+      "anyOf": [
+        {
           "type": "object",
           "properties": {
-            "utility": {
-              "type": "object",
-              "properties": {
-                "rate": {
-                  "type": "number"
-                },
-                "mode": {
-                  "type": "string",
-                  "enum": [
-                    "flat",
-                    "per_quantity",
-                    "per_value",
-                    "percent"
-                  ]
-                },
-                "valueBy": {
-                  "type": "string",
-                  "enum": [
-                    "value",
-                    "length"
-                  ]
-                },
-                "percentBase": {
-                  "type": "string",
-                  "enum": [
-                    "service_total",
-                    "base_service",
-                    "all"
-                  ]
-                },
-                "label": {
+            "button": {
+              "type": "boolean",
+              "const": false
+            },
+            "service_id": {
+              "not": {}
+            },
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "$ref": "#/definitions/FieldType"
+            },
+            "bind_id": {
+              "anyOf": [
+                {
                   "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
                 }
-              },
-              "required": [
-                "rate",
-                "mode"
               ]
             },
-            "quantity": {
+            "name": {
+              "type": "string"
+            },
+            "options": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/FieldOption"
+              }
+            },
+            "component": {
+              "type": "string"
+            },
+            "pricing_role": {
+              "$ref": "#/definitions/PricingRole"
+            },
+            "meta": {
               "type": "object",
               "properties": {
-                "valueBy": {
-                  "type": "string",
-                  "enum": [
-                    "value",
-                    "length",
-                    "eval"
-                  ]
+                "multi": {
+                  "type": "boolean"
                 },
-                "code": {
-                  "type": "string"
-                },
-                "multiply": {
-                  "type": "number"
-                },
-                "clamp": {
+                "utility": {
                   "type": "object",
                   "properties": {
-                    "min": {
+                    "rate": {
                       "type": "number"
                     },
-                    "max": {
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "flat",
+                        "per_quantity",
+                        "per_value",
+                        "percent"
+                      ]
+                    },
+                    "valueBy": {
+                      "type": "string",
+                      "enum": [
+                        "value",
+                        "length"
+                      ]
+                    },
+                    "percentBase": {
+                      "type": "string",
+                      "enum": [
+                        "service_total",
+                        "base_service",
+                        "all"
+                      ]
+                    },
+                    "label": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "rate",
+                    "mode"
+                  ]
+                },
+                "quantity": {
+                  "type": "object",
+                  "properties": {
+                    "valueBy": {
+                      "type": "string",
+                      "enum": [
+                        "value",
+                        "length",
+                        "eval"
+                      ]
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "multiply": {
+                      "type": "number"
+                    },
+                    "clamp": {
+                      "type": "object",
+                      "properties": {
+                        "min": {
+                          "type": "number"
+                        },
+                        "max": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "fallback": {
                       "type": "number"
                     }
-                  }
-                },
-                "fallback": {
-                  "type": "number"
+                  },
+                  "required": [
+                    "valueBy"
+                  ]
                 }
+              }
+            },
+            "label": {
+              "type": "string"
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "ui": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/Ui"
               },
-              "required": [
-                "valueBy"
-              ]
+              "description": "Host-defined prop names → typed UI nodes"
+            },
+            "defaults": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Host-defined prop names → runtime default values (untyped base)"
             }
-          }
-        },
-        "helperText": {
-          "type": "string"
-        },
-        "helperTextPos": {
-          "type": "string"
-        },
-        "placeholder": {
-          "type": "string"
-        },
-        "label": {
-          "type": "string"
-        },
-        "labelClassName": {
-          "type": "string"
-        },
-        "required": {
-          "type": "boolean"
-        },
-        "axis": {
-          "type": "string",
-          "enum": [
-            "y",
-            "x"
+          },
+          "required": [
+            "id",
+            "label",
+            "type"
           ]
         },
-        "labelAxis": {
-          "type": "string",
-          "enum": [
-            "x",
-            "y"
+        {
+          "type": "object",
+          "properties": {
+            "button": {
+              "type": "boolean",
+              "const": true
+            },
+            "service_id": {
+              "type": "number"
+            },
+            "id": {
+              "type": "string"
+            },
+            "type": {
+              "$ref": "#/definitions/FieldType"
+            },
+            "bind_id": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            },
+            "name": {
+              "type": "string"
+            },
+            "options": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/FieldOption"
+              }
+            },
+            "component": {
+              "type": "string"
+            },
+            "pricing_role": {
+              "$ref": "#/definitions/PricingRole"
+            },
+            "meta": {
+              "type": "object",
+              "properties": {
+                "multi": {
+                  "type": "boolean"
+                },
+                "utility": {
+                  "type": "object",
+                  "properties": {
+                    "rate": {
+                      "type": "number"
+                    },
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "flat",
+                        "per_quantity",
+                        "per_value",
+                        "percent"
+                      ]
+                    },
+                    "valueBy": {
+                      "type": "string",
+                      "enum": [
+                        "value",
+                        "length"
+                      ]
+                    },
+                    "percentBase": {
+                      "type": "string",
+                      "enum": [
+                        "service_total",
+                        "base_service",
+                        "all"
+                      ]
+                    },
+                    "label": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "rate",
+                    "mode"
+                  ]
+                },
+                "quantity": {
+                  "type": "object",
+                  "properties": {
+                    "valueBy": {
+                      "type": "string",
+                      "enum": [
+                        "value",
+                        "length",
+                        "eval"
+                      ]
+                    },
+                    "code": {
+                      "type": "string"
+                    },
+                    "multiply": {
+                      "type": "number"
+                    },
+                    "clamp": {
+                      "type": "object",
+                      "properties": {
+                        "min": {
+                          "type": "number"
+                        },
+                        "max": {
+                          "type": "number"
+                        }
+                      }
+                    },
+                    "fallback": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "valueBy"
+                  ]
+                }
+              }
+            },
+            "label": {
+              "type": "string"
+            },
+            "required": {
+              "type": "boolean"
+            },
+            "ui": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/Ui"
+              },
+              "description": "Host-defined prop names → typed UI nodes"
+            },
+            "defaults": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Host-defined prop names → runtime default values (untyped base)"
+            }
+          },
+          "required": [
+            "button",
+            "id",
+            "label",
+            "type"
           ]
-        },
-        "extra": {}
-      },
-      "required": [
-        "id",
-        "label",
-        "type"
+        }
       ]
     },
     "FieldType": {
@@ -455,6 +551,207 @@
         "utility"
       ]
     },
+    "Ui": {
+      "anyOf": [
+        {
+          "$ref": "#/definitions/UiString"
+        },
+        {
+          "$ref": "#/definitions/UiNumber"
+        },
+        {
+          "$ref": "#/definitions/UiBoolean"
+        },
+        {
+          "$ref": "#/definitions/UiAnyOf"
+        },
+        {
+          "$ref": "#/definitions/UiArray"
+        },
+        {
+          "$ref": "#/definitions/UiObject"
+        }
+      ]
+    },
+    "UiString": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "string"
+        },
+        "enum": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "minLength": {
+          "type": "number"
+        },
+        "maxLength": {
+          "type": "number"
+        },
+        "pattern": {
+          "type": "string"
+        },
+        "format": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "description": "string"
+    },
+    "UiNumber": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "number"
+        },
+        "minimum": {
+          "type": "number"
+        },
+        "maximum": {
+          "type": "number"
+        },
+        "multipleOf": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "description": "number"
+    },
+    "UiBoolean": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "boolean"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "description": "boolean"
+    },
+    "UiAnyOf": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "anyOf"
+        },
+        "multiple": {
+          "type": "boolean"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "string",
+                  "number",
+                  "boolean"
+                ]
+              },
+              "title": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "value": {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean"
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "value"
+            ]
+          }
+        }
+      },
+      "required": [
+        "type",
+        "items"
+      ],
+      "description": "enumerated choices"
+    },
+    "UiArray": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "array"
+        },
+        "item": {
+          "$ref": "#/definitions/Ui"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Ui"
+          }
+        },
+        "minItems": {
+          "type": "number"
+        },
+        "maxItems": {
+          "type": "number"
+        },
+        "uniqueItems": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "description": "arrays: homogeneous (item) or tuple (items)"
+    },
+    "UiObject": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "const": "object"
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/Ui"
+          }
+        },
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "order": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "fields"
+      ],
+      "description": "objects: nested props"
+    },
     "ServiceFallback": {
       "type": "object",
       "properties": {
@@ -489,11 +786,8 @@
     "LayoutState": {
       "type": "object",
       "properties": {
-        "nodes": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/NodePosition"
-          }
+        "canvas": {
+          "$ref": "#/definitions/CanvasState"
         },
         "edges": {
           "type": "array",
@@ -503,15 +797,171 @@
         }
       },
       "required": [
-        "nodes"
+        "canvas"
       ]
     },
-    "NodePosition": {
+    "CanvasState": {
+      "type": "object",
+      "properties": {
+        "graph": {
+          "$ref": "#/definitions/GraphSnapshot"
+        },
+        "positions": {
+          "$ref": "#/definitions/NodePositions"
+        },
+        "selection": {
+          "type": "object",
+          "properties": {
+            "size": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "size"
+          ]
+        },
+        "highlighted": {
+          "type": "object",
+          "properties": {
+            "size": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "size"
+          ]
+        },
+        "hoverId": {
+          "type": "string"
+        },
+        "viewport": {
+          "$ref": "#/definitions/Viewport"
+        },
+        "draftWire": {
+          "$ref": "#/definitions/DraftWire"
+        },
+        "version": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "graph",
+        "positions",
+        "selection",
+        "highlighted",
+        "viewport",
+        "version"
+      ]
+    },
+    "GraphSnapshot": {
+      "type": "object",
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/GraphNode"
+          }
+        },
+        "edges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/GraphEdge"
+          }
+        }
+      },
+      "required": [
+        "nodes",
+        "edges"
+      ]
+    },
+    "GraphNode": {
       "type": "object",
       "properties": {
         "id": {
           "type": "string"
         },
+        "kind": {
+          "$ref": "#/definitions/NodeKind"
+        },
+        "bind_type": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "bound",
+            "utility",
+            null
+          ]
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "label": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "kind",
+        "label"
+      ]
+    },
+    "NodeKind": {
+      "type": "string",
+      "enum": [
+        "tag",
+        "field",
+        "comment",
+        "option"
+      ]
+    },
+    "GraphEdge": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/definitions/EdgeKind"
+        },
+        "meta": {
+          "type": "object",
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "from",
+        "to",
+        "kind"
+      ]
+    },
+    "EdgeKind": {
+      "type": "string",
+      "enum": [
+        "child",
+        "bind",
+        "include",
+        "exclude",
+        "error",
+        "anchor"
+      ]
+    },
+    "NodePositions": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/NodePos"
+      }
+    },
+    "NodePos": {
+      "type": "object",
+      "properties": {
         "x": {
           "type": "number"
         },
@@ -520,9 +970,42 @@
         }
       },
       "required": [
-        "id",
         "x",
         "y"
+      ]
+    },
+    "Viewport": {
+      "type": "object",
+      "properties": {
+        "x": {
+          "type": "number"
+        },
+        "y": {
+          "type": "number"
+        },
+        "zoom": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "x",
+        "y",
+        "zoom"
+      ]
+    },
+    "DraftWire": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/definitions/EdgeKind"
+        }
+      },
+      "required": [
+        "from",
+        "kind"
       ]
     },
     "EdgeRoute": {

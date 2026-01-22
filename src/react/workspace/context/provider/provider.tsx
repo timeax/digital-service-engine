@@ -5,10 +5,10 @@ import type {
     MergeResult,
     Result,
     TemplatesListParams,
-} from "../backend";
+} from "@/react/workspace";
 import type { DgpServiceMap } from "@/schema/provider";
 
-import { WorkspaceContext } from "@/react";
+import { WorkspaceContext } from "@/react/workspace";
 import type { WorkspaceAPI, WorkspaceProviderProps } from "./types";
 import { LIVE_OFF } from "./helpers";
 
@@ -120,6 +120,16 @@ export function WorkspaceProvider(
         workspaceId,
         actorId: actor.id,
         getCurrentBranchId,
+        initialThreads: initial?.comments,
+    });
+
+    const policiesSlice = usePoliciesSlice({
+        backend,
+        workspaceId,
+        actorId: actor.id,
+        getCurrentBranchId,
+        initialPolicies: initial?.policies ?? null, // if you add it to initial
+        runtime,
     });
 
     const refresh = useWorkspaceRefresh({
@@ -129,6 +139,7 @@ export function WorkspaceProvider(
         refreshBranches: branchesSlice.refreshBranches,
         refreshServices: servicesSlice.refreshServices,
         refreshPolicies: policiesSlice.refreshPolicies,
+        refreshComments: comments.refreshThreads,
         getCurrentBranchId,
         refreshTemplates: async (p?: Partial<{ branchId: string }>) => {
             await templatesSlice.refreshTemplates(
@@ -175,15 +186,6 @@ export function WorkspaceProvider(
         refreshSnapshotPointers: refresh.refreshSnapshotPointers,
         adapters: liveAdapters,
         debounceMs: liveDebounceMs,
-    });
-
-    const policiesSlice = usePoliciesSlice({
-        backend,
-        workspaceId,
-        actorId: actor.id,
-        getCurrentBranchId,
-        initialPolicies: initial?.policies ?? null, // if you add it to initial
-        runtime,
     });
 
     /* ---------------- branch ops ---------------- */
@@ -334,6 +336,9 @@ export function WorkspaceProvider(
             ) {
                 branchCache.clear();
             }
+            if (setAll || keys?.includes("policies"))
+                policiesSlice.invalidatePolicies();
+
         },
         [
             authorsSlice,
@@ -384,6 +389,7 @@ export function WorkspaceProvider(
                 ) => branchesSlice.refreshParticipants(params),
 
                 snapshotPointers: refresh.refreshSnapshotPointers,
+                policies: () => policiesSlice.refreshPolicies(),
             },
 
             setCurrentBranch,
@@ -440,6 +446,7 @@ export function WorkspaceProvider(
                 resolveThread: comments.resolveThread,
                 deleteThread: comments.deleteThread,
             },
+            policies: policiesSlice,
         }),
         [
             backend.info,

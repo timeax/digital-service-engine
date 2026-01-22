@@ -1,6 +1,6 @@
 // src/react/workspace/context/provider/runtime/use-backend-runtime.ts
 import * as React from "react";
-import type { BackendError } from "../../backend";
+import type { BackendError } from "@/react/workspace";
 import type { RunResult } from "../types";
 import {
     runTasks as runTasksBase,

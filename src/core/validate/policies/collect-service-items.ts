@@ -7,7 +7,7 @@ import type {
 } from "@/schema/provider";
 import type { DynamicRule } from "@/schema/validation";
 
-import { getByPath } from "../shared";
+import { matchesWhere } from "../shared";
 
 export type ServiceItem = Readonly<{
     /** Scope tag context (only meaningful for visible_group / tag-filtered global) */
@@ -76,74 +76,6 @@ function isServiceIdRef(v: unknown): v is IdType {
     return (
         typeof v === "string" || (typeof v === "number" && Number.isFinite(v))
     );
-}
-
-function jsonStable(v: unknown): string {
-    try {
-        return JSON.stringify(v);
-    } catch {
-        return String(v);
-    }
-}
-
-function eqValue(a: unknown, b: unknown): boolean {
-    if (Object.is(a, b)) return true;
-    return jsonStable(a) === jsonStable(b);
-}
-
-function includesValue(arr: readonly unknown[], needle: unknown): boolean {
-    for (const v of arr) {
-        if (eqValue(v, needle)) return true;
-    }
-    return false;
-}
-
-function matchesWhere(
-    svc: Record<string, unknown>,
-    where: readonly WhereClause[] | undefined,
-): boolean {
-    if (!where || where.length === 0) return true;
-
-    const root: Record<string, unknown> = { service: svc };
-
-    for (const clause of where) {
-        const path: string = clause.path;
-        const op: string = clause.op ?? "eq";
-        const value: unknown = clause.value;
-
-        const cur: unknown = getByPath(root as any, path);
-
-        if (op === "exists") {
-            if (cur === undefined || cur === null) return false;
-            continue;
-        }
-        if (op === "truthy") {
-            if (!cur) return false;
-            continue;
-        }
-        if (op === "falsy") {
-            if (cur) return false;
-            continue;
-        }
-
-        if (op === "in" || op === "nin") {
-            const list: unknown[] = Array.isArray(value) ? value : [];
-            const hit: boolean = includesValue(list, cur);
-            if (op === "in" && !hit) return false;
-            if (op === "nin" && hit) return false;
-            continue;
-        }
-
-        if (op === "neq") {
-            if (eqValue(cur, value)) return false;
-            continue;
-        }
-
-        // default "eq"
-        if (!eqValue(cur, value)) return false;
-    }
-
-    return true;
 }
 
 function svcSnapshot(
@@ -356,6 +288,52 @@ export function collectServiceItems(
     const fb: ServiceProps["fallbacks"] | undefined = args.props.fallbacks;
     if (!fb) return Array.from(out.values());
 
+    const addFallbackNode = (nodeId: string, list: unknown): void => {
+        const arr: readonly unknown[] = Array.isArray(list) ? list : [];
+        for (const cand of arr) {
+            if (!isServiceIdRef(cand)) continue;
+
+            addServiceRef({
+                tagId: args.tagId,
+                nodeId,
+                serviceId: cand,
+                role: "base",
+                affectedIds: [`fallback-node:${nodeId}`, `service:${String(cand)}`],
+            });
+        }
+    };
+
+    const addFallbackGlobal = (primaryKey: string, list: unknown): void => {
+        const primaryId: IdType = primaryKey;
+
+        addServiceRef({
+            tagId: args.tagId,
+            nodeId: primaryKey,
+            serviceId: primaryId,
+            role: "base",
+            affectedIds: [
+                `fallback-global-primary:${primaryKey}`,
+                `service:${String(primaryId)}`,
+            ],
+        });
+
+        const arr: readonly unknown[] = Array.isArray(list) ? list : [];
+        for (const cand of arr) {
+            if (!isServiceIdRef(cand)) continue;
+
+            addServiceRef({
+                tagId: args.tagId,
+                nodeId: primaryKey,
+                serviceId: cand,
+                role: "base",
+                affectedIds: [
+                    `fallback-global:${primaryKey}`,
+                    `service:${String(cand)}`,
+                ],
+            });
+        }
+    };
+
     const includeAllFallbacks: boolean = args.mode === "global";
     const includeGroupFallbacks: boolean = args.mode === "visible_group";
 
@@ -368,21 +346,7 @@ export function collectServiceItems(
     if (nodes) {
         if (includeAllFallbacks) {
             for (const [nodeId, list] of Object.entries(nodes)) {
-                const arr: readonly unknown[] = Array.isArray(list) ? list : [];
-                for (const cand of arr) {
-                    if (!isServiceIdRef(cand)) continue;
-
-                    addServiceRef({
-                        tagId: args.tagId,
-                        nodeId,
-                        serviceId: cand,
-                        role: "base",
-                        affectedIds: [
-                            `fallback-node:${nodeId}`,
-                            `service:${String(cand)}`,
-                        ],
-                    });
-                }
+                addFallbackNode(nodeId, list);
             }
         } else if (includeGroupFallbacks) {
             const allowNodes: Set<string> = new Set<string>(
@@ -392,22 +356,7 @@ export function collectServiceItems(
             );
 
             for (const nodeId of allowNodes) {
-                const list: unknown = (nodes as any)[nodeId];
-                const arr: readonly unknown[] = Array.isArray(list) ? list : [];
-                for (const cand of arr) {
-                    if (!isServiceIdRef(cand)) continue;
-
-                    addServiceRef({
-                        tagId: args.tagId,
-                        nodeId,
-                        serviceId: cand,
-                        role: "base",
-                        affectedIds: [
-                            `fallback-node:${nodeId}`,
-                            `service:${String(cand)}`,
-                        ],
-                    });
-                }
+                addFallbackNode(nodeId, (nodes as any)[nodeId]);
             }
         }
     }
@@ -421,35 +370,7 @@ export function collectServiceItems(
     if (globalFb) {
         if (includeAllFallbacks) {
             for (const [primaryKey, list] of Object.entries(globalFb)) {
-                // Include the primary itself (object key is a service ref too)
-                const primaryId: IdType = primaryKey;
-
-                addServiceRef({
-                    tagId: args.tagId,
-                    nodeId: primaryKey,
-                    serviceId: primaryId,
-                    role: "base",
-                    affectedIds: [
-                        `fallback-global-primary:${primaryKey}`,
-                        `service:${String(primaryId)}`,
-                    ],
-                });
-
-                const arr: readonly unknown[] = Array.isArray(list) ? list : [];
-                for (const cand of arr) {
-                    if (!isServiceIdRef(cand)) continue;
-
-                    addServiceRef({
-                        tagId: args.tagId,
-                        nodeId: primaryKey,
-                        serviceId: cand,
-                        role: "base",
-                        affectedIds: [
-                            `fallback-global:${primaryKey}`,
-                            `service:${String(cand)}`,
-                        ],
-                    });
-                }
+                addFallbackGlobal(primaryKey, list);
             }
         } else if (includeGroupFallbacks) {
             const allowPrimaries: Set<string> = new Set<string>(
@@ -459,35 +380,7 @@ export function collectServiceItems(
             for (const primaryKey of allowPrimaries) {
                 const list: unknown = (globalFb as any)[primaryKey];
                 if (list === undefined) continue;
-
-                const primaryId: IdType = primaryKey;
-
-                addServiceRef({
-                    tagId: args.tagId,
-                    nodeId: primaryKey,
-                    serviceId: primaryId,
-                    role: "base",
-                    affectedIds: [
-                        `fallback-global-primary:${primaryKey}`,
-                        `service:${String(primaryId)}`,
-                    ],
-                });
-
-                const arr: readonly unknown[] = Array.isArray(list) ? list : [];
-                for (const cand of arr) {
-                    if (!isServiceIdRef(cand)) continue;
-
-                    addServiceRef({
-                        tagId: args.tagId,
-                        nodeId: primaryKey,
-                        serviceId: cand,
-                        role: "base",
-                        affectedIds: [
-                            `fallback-global:${primaryKey}`,
-                            `service:${String(cand)}`,
-                        ],
-                    });
-                }
+                addFallbackGlobal(primaryKey, list);
             }
         }
     }

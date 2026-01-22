@@ -60,6 +60,12 @@ export interface MemoryBackendSeed {
 
     /** comments threads keyed by branchId */
     readonly comments?: MemorySeedComments;
+
+    /** workspace policies */
+    readonly policies?: unknown;
+
+    /** branch policies keyed by branchId */
+    readonly policiesByBranch?: Readonly<Record<string, unknown>>;
 }
 
 export interface CreateMemoryWorkspaceBackendOptions {

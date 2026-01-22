@@ -39,7 +39,7 @@ import { applyNodeChanges, applyEdgeChanges } from "reactflow";
 import type { CanvasAPI } from "@/react";
 import type { CanvasState } from "@/schema/canvas-types";
 import type { EdgeKind } from "@/schema/graph";
-import { CommentThread } from "../../canvas/comments";
+import { CommentThread } from "@/schema/comments";
 
 /* ───────────────────────────── Types & options ───────────────────────────── */
 
@@ -1274,4 +1274,4 @@ export type ResolvedTools = ToolDescriptor[];
 
 ---
 *Generated with [Prodex](https://github.com/emxhive/prodex) — Codebase decoded.*
-<!-- PRODEx v1.4.11 | 2026-01-21T11:35:04.482Z -->
+<!-- PRODEx v1.4.11 | 2026-01-22T02:55:14.253Z -->

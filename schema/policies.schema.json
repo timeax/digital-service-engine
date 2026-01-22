@@ -15,6 +15,9 @@
         "id": {
           "type": "string"
         },
+        "label": {
+          "type": "string"
+        },
         "scope": {
           "type": "string",
           "enum": [
@@ -35,32 +38,6 @@
                 "base",
                 "utility",
                 "both"
-              ]
-            },
-            "handler_id": {
-              "anyOf": [
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "number"
-                  }
-                }
-              ]
-            },
-            "platform_id": {
-              "anyOf": [
-                {
-                  "type": "number"
-                },
-                {
-                  "type": "array",
-                  "items": {
-                    "type": "number"
-                  }
-                }
               ]
             },
             "tag_id": {
@@ -88,11 +65,19 @@
                   }
                 }
               ]
+            },
+            "where": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/ServiceWhereClause"
+              }
             }
-          }
+          },
+          "description": "Package-level filter surface:\n- role/tag/field are core to the builder schema\n- where[] allows hosts to filter against extra service properties (handler_id/platform_id/type/key/category_id/etc.)"
         },
         "projection": {
-          "type": "string"
+          "type": "string",
+          "description": "Projection is intentionally open: hosts may project custom service properties."
         },
         "op": {
           "type": "string",
@@ -128,6 +113,35 @@
         "scope",
         "subject",
         "op"
+      ]
+    },
+    "ServiceWhereClause": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "op": {
+          "$ref": "#/definitions/ServiceWhereOp"
+        },
+        "value": {}
+      },
+      "required": [
+        "path"
+      ],
+      "description": "Host-extensible service filter clause. `path` should usually be \"service.<prop>\" or \"service.meta.<prop>\" etc."
+    },
+    "ServiceWhereOp": {
+      "type": "string",
+      "enum": [
+        "eq",
+        "neq",
+        "in",
+        "nin",
+        "exists",
+        "truthy",
+        "falsy",
+        "sw"
       ]
     }
   }

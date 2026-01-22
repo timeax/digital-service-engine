@@ -2,9 +2,9 @@
 import * as React from "react";
 
 import type { WorkspaceBackend, Result, BackendError } from "../../backend";
-import type { Loadable } from "@/react";
+import type { Loadable } from "@/react/workspace";
 
-import type { DynamicRule } from "@/schema/validation";
+import type { DynamicRule } from "@/schema";
 import { compilePolicies, type PolicyDiagnostic } from "@/core/policy";
 
 /* ---------------- helpers ---------------- */

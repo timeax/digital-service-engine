@@ -63,7 +63,8 @@ export type ServiceWhereOp =
     | "nin"
     | "exists"
     | "truthy"
-    | "falsy";
+    | "falsy"
+    | "sw";
 
 /**
  * Host-extensible service filter clause.

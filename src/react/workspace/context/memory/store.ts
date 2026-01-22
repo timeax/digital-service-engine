@@ -37,6 +37,12 @@ export interface CommentsBranchState {
     // message index is derived; no separate store needed
 }
 
+export interface PolicyState {
+    raw: unknown;
+    updatedAt?: string;
+    etag?: string;
+}
+
 export interface MemoryWorkspaceStore {
     info: WorkspaceInfo;
 
@@ -55,6 +61,12 @@ export interface MemoryWorkspaceStore {
     snapshotsByBranch: Map<string, BranchSnapshotState>;
 
     commentsByBranch: Map<string, CommentsBranchState>;
+
+    /** workspace-scoped policies */
+    policies: PolicyState | null;
+
+    /** branch-scoped policies */
+    policiesByBranch: Map<string, PolicyState>;
 }
 
 export function newBranchSnapshotState(): BranchSnapshotState {

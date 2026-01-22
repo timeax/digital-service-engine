@@ -2,15 +2,16 @@
 // Transport-agnostic contracts for the Workspace layer.
 // Explicit types only (no implicit any). Result shape: { ok, value | error }.
 
-import type { EditorSnapshot } from "@/schema/editor";
-import type { DgpServiceCapability, DgpServiceMap } from "@/schema/provider";
-import {
+import type {
+    EditorSnapshot,
+    DgpServiceCapability,
+    DgpServiceMap,
     CommentAnchor,
     CommentMessage,
     CommentThread,
-} from "@/schema/comments";
-import { DynamicRule } from "@/schema/validation";
-import { PolicyDiagnostic } from "@/core/policy";
+    DynamicRule,
+} from "@/schema";
+import type { PolicyDiagnostic } from "@/core/policy";
 
 /* ---------------- core result & identity ---------------- */
 
@@ -542,7 +543,7 @@ export interface WorkspaceBackend {
     readonly snapshots: SnapshotsBackend;
 
     /** dynamic policies: workspace-scoped and/or branch-scoped rules */
-    readonly policies?: PoliciesBackend;
+    readonly policies: PoliciesBackend;
 
     readonly comments: CommentsBackend<
         CommentThread,

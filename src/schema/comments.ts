@@ -1,8 +1,3 @@
-import type { EventBus } from "@/react";
-import type { CanvasEvents } from "@/schema/canvas-types";
-import { RetryQueue } from "@/utils/retry-queue";
-import type { BackendError } from "@/react/workspace/context/backend";
-
 export type CommentId = string;
 export type ThreadId = string;
 
@@ -13,6 +8,7 @@ export type CommentAnchor =
 
 export type CommentMessage = {
     id: CommentId;
+    isMain?: boolean;
     authorId?: string;
     authorName?: string;
     body: string;
@@ -23,7 +19,7 @@ export type CommentMessage = {
 
 export type CommentThread = {
     id: ThreadId;
-    anchor: CommentAnchor;
+    anchor?: CommentAnchor;
     resolved: boolean;
     createdAt: number;
     updatedAt: number;

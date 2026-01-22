@@ -1,24 +1,16 @@
-// noinspection JSUnusedGlobalSymbols
-
+// tsup.config.ts
 import { defineConfig } from "tsup";
 
-// noinspection JSUnusedGlobalSymbols
 export default defineConfig([
     {
-        entry: {
-            "schema/index": "src/schema/index.ts",
-            "schema/editor": "src/schema/editor.ts",
-            "schema/provider": "src/schema/provider.ts",
-            "schema/validation": "src/schema/validation.ts",
-            "schema/graph": "src/schema/graph.ts",
-            "schema/policies": "src/schema/policies.ts",
-        },
+        entry: { "schema/index": "src/schema/index.ts" },
         dts: true,
         format: ["esm", "cjs"],
         sourcemap: true,
         outDir: "dist",
         clean: false,
     },
+
     {
         entry: { "core/index": "src/core/index.ts" },
         dts: true,
@@ -28,6 +20,7 @@ export default defineConfig([
         clean: false,
         external: [], // keep core light
     },
+
     {
         entry: { "react/index": "src/react/index.ts" },
         dts: true,
@@ -35,7 +28,7 @@ export default defineConfig([
         sourcemap: true,
         outDir: "dist",
         clean: false,
-        external: ["react", "react-dom", "reactflow"], // peer deps
+        external: ["react", "react-dom", "reactflow", "react/jsx-runtime"],
     },
 
     {
@@ -44,8 +37,12 @@ export default defineConfig([
         format: ["esm", "cjs"],
         sourcemap: true,
         outDir: "dist",
-        bundle: true,
+
+        // IMPORTANT:
+        bundle: true, // you can keep this if you want
         clean: false,
-        external: ["react", "react-dom", "reactflow"], // peer deps
+
+        // MUST include jsx-runtime here too
+        external: ["react", "react-dom", "reactflow", "react/jsx-runtime"],
     },
 ]);

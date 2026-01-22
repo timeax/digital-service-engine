@@ -13,9 +13,9 @@ import type {
     Commit,
     Draft,
     FieldTemplate,
-    MergeResult,
-    PermissionsBackend,
-    PermissionsMap,
+    PoliciesBackend,
+    PoliciesLoadResult,
+    PolicyScope,
     ServiceSnapshot,
     ServicesBackend,
     ServicesInput,
@@ -27,6 +27,9 @@ import type {
     TemplateUpdatePatch,
     WorkspaceBackend,
     WorkspaceInfo,
+    PermissionsBackend,
+    PermissionsMap,
+    MergeResult,
 } from "../backend";
 
 import type {
@@ -214,7 +217,18 @@ function seedStore(
         snapshotsByBranch: new Map<string, any>(),
 
         commentsByBranch: new Map<string, any>(),
+
+        policies: seed?.policies
+            ? { raw: seed.policies, updatedAt: isoNow() }
+            : null,
+        policiesByBranch: new Map<string, any>(),
     };
+
+    if (seed?.policiesByBranch) {
+        for (const [bid, raw] of Object.entries(seed.policiesByBranch)) {
+            store.policiesByBranch.set(bid, { raw, updatedAt: isoNow() });
+        }
+    }
 
     // authors
     if (seed?.authors) {
@@ -547,6 +561,7 @@ export function createMemoryWorkspaceBackend(
             store.participantsByBranch.delete(branchId);
             store.snapshotsByBranch.delete(branchId);
             store.commentsByBranch.delete(branchId);
+            store.policiesByBranch.delete(branchId);
             return ok(undefined);
         },
 
@@ -1016,10 +1031,7 @@ export function createMemoryWorkspaceBackend(
             newCommentsBranchState();
         store.commentsByBranch.set(ctx.branchId, st);
 
-        const th: CommentThread = ensureThread(
-            st,
-            threadId as ThreadId,
-        );
+        const th: CommentThread = ensureThread(st, threadId as ThreadId);
         const nowN: number = Date.now();
         return ok({ st, th, nowN });
     }
@@ -1204,6 +1216,65 @@ export function createMemoryWorkspaceBackend(
     // we return a structurally compatible implementation.
     const comments: WorkspaceBackend["comments"] = commentsImpl;
 
+    const policies: PoliciesBackend = {
+        load: async (ctx: PolicyScope) => {
+            if (ctx.workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+
+            const state = ctx.branchId
+                ? store.policiesByBranch.get(ctx.branchId)
+                : store.policies;
+
+            if (!state) return ok(null);
+
+            const out: PoliciesLoadResult = {
+                raw: state.raw,
+                updatedAt: state.updatedAt,
+                etag: state.etag,
+            };
+            return ok(out);
+        },
+
+        save: async (ctx: PolicyScope, input) => {
+            if (ctx.workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+
+            const prev = ctx.branchId
+                ? store.policiesByBranch.get(ctx.branchId)
+                : store.policies;
+
+            if (input.etag && prev?.etag && input.etag !== prev.etag) {
+                return fail("etag_mismatch", "Policy etag mismatch.");
+            }
+
+            const updatedAt = isoNow();
+            const etag = bumpEtag(prev?.etag);
+            const next = { raw: input.raw, updatedAt, etag };
+
+            if (ctx.branchId) {
+                store.policiesByBranch.set(ctx.branchId, next);
+            } else {
+                store.policies = next;
+            }
+
+            return ok({ updatedAt, etag });
+        },
+
+        clear: async (ctx: PolicyScope) => {
+            if (ctx.workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+
+            const updatedAt = isoNow();
+            if (ctx.branchId) {
+                store.policiesByBranch.delete(ctx.branchId);
+            } else {
+                store.policies = null;
+            }
+
+            return ok({ updatedAt });
+        },
+    };
+
     const backend: WorkspaceBackend = {
         info,
         authors,
@@ -1213,6 +1284,7 @@ export function createMemoryWorkspaceBackend(
         services,
         templates,
         snapshots,
+        policies,
         comments,
     };
 

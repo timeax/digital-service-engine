@@ -1,37 +1,32 @@
 {
-    "name": "digital-service-engine",
+    "name": "@timeax/digital-service-engine",
     "version": "0.0.1",
     "description": "Headless service props builder + minimal React Flow workspace.",
     "type": "module",
     "exports": {
         ".": {
             "types": "./dist/schema/index.d.ts",
-            "import": "./dist/schema/index.mjs",
+            "import": "./dist/schema/index.js",
             "require": "./dist/schema/index.cjs"
         },
         "./schema": {
             "types": "./dist/schema/index.d.ts",
-            "import": "./dist/schema/index.mjs",
+            "import": "./dist/schema/index.js",
             "require": "./dist/schema/index.cjs"
-        },
-        "./schema/editor": {
-            "types": "./dist/schema/editor.d.ts",
-            "import": "./dist/schema/editor.mjs",
-            "require": "./dist/schema/editor.cjs"
         },
         "./core": {
             "types": "./dist/core/index.d.ts",
-            "import": "./dist/core/index.mjs",
+            "import": "./dist/core/index.js",
             "require": "./dist/core/index.cjs"
         },
         "./react": {
             "types": "./dist/react/index.d.ts",
-            "import": "./dist/react/index.mjs",
+            "import": "./dist/react/index.js",
             "require": "./dist/react/index.cjs"
         },
         "./workspace": {
             "types": "./dist/workspace/index.d.ts",
-            "import": "./dist/workspace/index.mjs",
+            "import": "./dist/workspace/index.js",
             "require": "./dist/workspace/index.cjs"
         },
         "./json/service-props": "./schema/service-props.schema.json",
@@ -78,7 +73,8 @@
         "ts-json-schema-generator": "^2.4.0",
         "tsup": "^8.5.0",
         "typescript": "^5.9.2",
-        "vitest": "^1.6.1"
+        "vitest": "^1.6.1",
+        "@vitejs/plugin-react": "^5.1.2"
     },
     "dependencies": {
         "@radix-ui/react-dialog": "^1.1.15",
@@ -87,7 +83,6 @@
         "@radix-ui/react-slot": "^1.2.3",
         "@radix-ui/react-tabs": "^1.1.13",
         "@timeax/cache-store": "^0.0.1",
-        "@vitejs/plugin-react": "^5.1.2",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "elkjs": "^0.11.0",

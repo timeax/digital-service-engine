@@ -2,18 +2,19 @@
 > Note for LLMs: `Lx-Ly` ranges refer to lines in this Prodex trace file, not the original source files. Index metadata is provided via the HTML comment markers in this section.
 
 # Index
-<!-- PRODEX_INDEX_RANGE: L8-L16 -->
-<!-- PRODEX_FILE_COUNT: 9 -->
+<!-- PRODEX_INDEX_RANGE: L8-L17 -->
+<!-- PRODEX_FILE_COUNT: 10 -->
 <!-- PRODEX_INDEX_LIST_START -->
-- [src/schema/canvas-types.ts](#1)  L20-L92
-- [src/schema/editor.ts](#2)  L93-L128
-- [src/schema/editor.types.ts](#3)  L129-L171
-- [src/schema/graph.ts](#4)  L172-L212
-- [src/schema/index.ts](#5)  L213-L447
-- [src/schema/order.ts](#6)  L448-L593
-- [src/schema/policies.ts](#7)  L594-L610
-- [src/schema/provider.ts](#8)  L611-L670
-- [src/schema/validation.ts](#9)  L671-L832
+- [src/schema/canvas-types.ts](#1)  L21-L93
+- [src/schema/comments.ts](#2)  L94-L136
+- [src/schema/editor.ts](#3)  L137-L172
+- [src/schema/editor.types.ts](#4)  L173-L215
+- [src/schema/graph.ts](#5)  L216-L256
+- [src/schema/index.ts](#6)  L257-L491
+- [src/schema/order.ts](#7)  L492-L637
+- [src/schema/policies.ts](#8)  L638-L654
+- [src/schema/provider.ts](#9)  L655-L714
+- [src/schema/validation.ts](#10)  L715-L876
 <!-- PRODEX_INDEX_LIST_END -->
 
 ---
@@ -25,7 +26,7 @@
 
 ```ts
 import type { GraphSnapshot, GraphNode, GraphEdge, EdgeKind } from "./graph";
-import { CommentMessage, CommentThread } from "@/react/canvas/comments";
+import { CommentMessage, CommentThread } from "./comments";
 
 export type Viewport = { x: number; y: number; zoom: number };
 
@@ -94,6 +95,49 @@ export type CanvasOptions = {
 #### 2
 
 
+` File: src/schema/comments.ts`  [↑ Back to top](#index)
+
+```ts
+import type { EventBus } from "@/react";
+import type { CanvasEvents } from "@/schema/canvas-types";
+import { RetryQueue } from "@/utils/retry-queue";
+import type { BackendError } from "@/react/workspace/context/backend";
+
+export type CommentId = string;
+export type ThreadId = string;
+
+export type CommentAnchor =
+    | { type: "node"; nodeId: string; offset?: { dx: number; dy: number } }
+    | { type: "edge"; edgeId: string; t?: number }
+    | { type: "free"; position: { x: number; y: number } };
+
+export type CommentMessage = {
+    id: CommentId;
+    authorId?: string;
+    authorName?: string;
+    body: string;
+    createdAt: number;
+    editedAt?: number;
+    meta?: Record<string, unknown>;
+};
+
+export type CommentThread = {
+    id: ThreadId;
+    anchor: CommentAnchor;
+    resolved: boolean;
+    createdAt: number;
+    updatedAt: number;
+    messages: CommentMessage[];
+    meta?: Record<string, unknown>;
+    // local sync flags (not persisted by server)
+    _sync?: "pending" | "synced" | "error";
+};
+```
+
+---
+#### 3
+
+
 ` File: src/schema/editor.ts`  [↑ Back to top](#index)
 
 ```ts
@@ -127,7 +171,7 @@ export type EditorSnapshot = {
 ```
 
 ---
-#### 3
+#### 4
 
 
 ` File: src/schema/editor.types.ts`  [↑ Back to top](#index)
@@ -170,7 +214,7 @@ export type ConnectKind = "bind" | "include" | "exclude";
 ```
 
 ---
-#### 4
+#### 5
 
 
 ` File: src/schema/graph.ts`  [↑ Back to top](#index)
@@ -211,7 +255,7 @@ export type FlowNode = NodeProps<{
 ```
 
 ---
-#### 5
+#### 6
 
 
 ` File: src/schema/index.ts`  [↑ Back to top](#index)
@@ -446,7 +490,7 @@ export type ServiceFallback = {
 ```
 
 ---
-#### 6
+#### 7
 
 
 ` File: src/schema/order.ts`  [↑ Back to top](#index)
@@ -592,7 +636,7 @@ export type OrderSnapshot = {
 ```
 
 ---
-#### 7
+#### 8
 
 
 ` File: src/schema/policies.ts`  [↑ Back to top](#index)
@@ -609,7 +653,7 @@ export type { DynamicRule };
 ```
 
 ---
-#### 8
+#### 9
 
 
 ` File: src/schema/provider.ts`  [↑ Back to top](#index)
@@ -650,7 +694,7 @@ export type ServiceFlags = Record<string, ServiceFlag>; // flagId -> flag
 
 export type DgpServiceCapability = {
     id: IdType;
-    name: string;
+    name?: string;
     rate: number;
     min?: number;
     max?: number;
@@ -669,7 +713,7 @@ export type DgpServiceMap = Record<string, DgpServiceCapability> &
 ```
 
 ---
-#### 9
+#### 10
 
 
 ` File: src/schema/validation.ts`  [↑ Back to top](#index)
@@ -754,7 +798,7 @@ export type ServiceWhereClause = {
 
 export type DynamicRule = {
     id: string;
-    label: string;
+    label?: string;
     scope: "global" | "visible_group";
     subject: "services";
 
@@ -830,4 +874,4 @@ export type FallbackSettings = {
 
 ---
 *Generated with [Prodex](https://github.com/emxhive/prodex) — Codebase decoded.*
-<!-- PRODEx v1.4.11 | 2026-01-21T11:35:04.482Z -->
+<!-- PRODEx v1.4.11 | 2026-01-22T02:55:14.253Z -->

@@ -304,4 +304,8 @@ export class CanvasAPI {
         });
         this.refreshGraph();
     }
+
+    getConstraints() {
+
+    }
 }

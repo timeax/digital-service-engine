@@ -2,49 +2,322 @@
 > Note for LLMs: `Lx-Ly` ranges refer to lines in this Prodex trace file, not the original source files. Index metadata is provided via the HTML comment markers in this section.
 
 # Index
-<!-- PRODEX_INDEX_RANGE: L8-L42 -->
-<!-- PRODEX_FILE_COUNT: 35 -->
+<!-- PRODEX_INDEX_RANGE: L8-L51 -->
+<!-- PRODEX_FILE_COUNT: 44 -->
 <!-- PRODEX_INDEX_LIST_START -->
-- [src/react/workspace/app.tsx](#1)  L46-L133
-- [src/react/workspace/components/canvas.tsx](#2)  L134-L254
-- [src/react/workspace/components/context-menu-renderer.tsx](#3)  L255-L460
-- [src/react/workspace/components/reactflow/edge.tsx](#4)  L461-L470
-- [src/react/workspace/components/reactflow/index.tsx](#5)  L471-L492
-- [src/react/workspace/components/reactflow/nodes/comments.tsx](#6)  L493-L502
-- [src/react/workspace/components/reactflow/nodes/field.tsx](#7)  L503-L537
-- [src/react/workspace/components/reactflow/nodes/node.tsx](#8)  L538-L706
-- [src/react/workspace/components/reactflow/nodes/options.tsx](#9)  L707-L725
-- [src/react/workspace/components/reactflow/nodes/tags.tsx](#10)  L726-L748
-- [src/react/workspace/context/backend.ts](#11)  L749-L1149
-- [src/react/workspace/context/context.tsx](#12)  L1150-L1461
-- [src/react/workspace/context/ctxmenu.tsx](#13)  L1462-L1760
-- [src/react/workspace/context/index.tsx](#14)  L1761-L1804
-- [src/react/workspace/context/memory-backend.ts](#15)  L1805-L2442
-- [src/react/workspace/context/provider/compose/use-branch-cache.ts](#16)  L2443-L2724
-- [src/react/workspace/context/provider/compose/use-live-polling.ts](#17)  L2725-L3012
-- [src/react/workspace/context/provider/compose/use-workspace-refresh.ts](#18)  L3013-L3222
-- [src/react/workspace/context/provider/context.ts](#19)  L3223-L3250
-- [src/react/workspace/context/provider/helpers.ts](#20)  L3251-L3361
-- [src/react/workspace/context/provider/live/adapters/manual.ts](#21)  L3362-L3371
-- [src/react/workspace/context/provider/live/adapters/poll.ts](#22)  L3372-L3452
-- [src/react/workspace/context/provider/live/adapters/sse.ts](#23)  L3453-L3462
-- [src/react/workspace/context/provider/live/adapters/ws.ts](#24)  L3463-L3472
-- [src/react/workspace/context/provider/live/types.ts](#25)  L3473-L3555
-- [src/react/workspace/context/provider/provider.tsx](#26)  L3556-L4038
-- [src/react/workspace/context/provider/runtime/use-backend-runtime.ts](#27)  L4039-L4086
-- [src/react/workspace/context/provider/slices/use-authors-slice.ts](#28)  L4087-L4156
-- [src/react/workspace/context/provider/slices/use-branches-slice.ts](#29)  L4157-L4372
-- [src/react/workspace/context/provider/slices/use-permissions-slice.ts](#30)  L4373-L4450
-- [src/react/workspace/context/provider/slices/use-services-slice.ts](#31)  L4451-L4527
-- [src/react/workspace/context/provider/slices/use-snapshots-slice.ts](#32)  L4528-L4974
-- [src/react/workspace/context/provider/slices/use-templates-slice.ts](#33)  L4975-L5214
-- [src/react/workspace/context/provider/types.ts](#34)  L5215-L5447
-- [src/react/workspace/index.ts](#35)  L5448-L5465
+- [src/react/workspace/__tests__/provider.test.tsx](#1)  L55-L318
+- [src/react/workspace/app.tsx](#2)  L319-L406
+- [src/react/workspace/components/canvas.tsx](#3)  L407-L527
+- [src/react/workspace/components/context-menu-renderer.tsx](#4)  L528-L733
+- [src/react/workspace/components/reactflow/edge.tsx](#5)  L734-L743
+- [src/react/workspace/components/reactflow/index.tsx](#6)  L744-L765
+- [src/react/workspace/components/reactflow/nodes/comments.tsx](#7)  L766-L775
+- [src/react/workspace/components/reactflow/nodes/field.tsx](#8)  L776-L810
+- [src/react/workspace/components/reactflow/nodes/node.tsx](#9)  L811-L979
+- [src/react/workspace/components/reactflow/nodes/options.tsx](#10)  L980-L998
+- [src/react/workspace/components/reactflow/nodes/tags.tsx](#11)  L999-L1021
+- [src/react/workspace/context/backend.ts](#12)  L1022-L1582
+- [src/react/workspace/context/context.tsx](#13)  L1583-L1894
+- [src/react/workspace/context/ctxmenu.tsx](#14)  L1895-L2193
+- [src/react/workspace/context/index.tsx](#15)  L2194-L2239
+- [src/react/workspace/context/memory/errors.ts](#16)  L2240-L2292
+- [src/react/workspace/context/memory/ids.ts](#17)  L2293-L2353
+- [src/react/workspace/context/memory/index.ts](#18)  L2354-L2373
+- [src/react/workspace/context/memory/memory-backend.ts](#19)  L2374-L3674
+- [src/react/workspace/context/memory/seed.ts](#20)  L3675-L3772
+- [src/react/workspace/context/memory/store.ts](#21)  L3773-L3898
+- [src/react/workspace/context/memory/time.ts](#22)  L3899-L3923
+- [src/react/workspace/context/provider/compose/use-branch-cache.ts](#23)  L3924-L4205
+- [src/react/workspace/context/provider/compose/use-live-polling.ts](#24)  L4206-L4493
+- [src/react/workspace/context/provider/compose/use-workspace-refresh.ts](#25)  L4494-L4713
+- [src/react/workspace/context/provider/context.ts](#26)  L4714-L4741
+- [src/react/workspace/context/provider/helpers.ts](#27)  L4742-L4852
+- [src/react/workspace/context/provider/live/adapters/manual.ts](#28)  L4853-L4862
+- [src/react/workspace/context/provider/live/adapters/poll.ts](#29)  L4863-L4943
+- [src/react/workspace/context/provider/live/adapters/sse.ts](#30)  L4944-L4953
+- [src/react/workspace/context/provider/live/adapters/ws.ts](#31)  L4954-L4963
+- [src/react/workspace/context/provider/live/types.ts](#32)  L4964-L5046
+- [src/react/workspace/context/provider/provider.tsx](#33)  L5047-L5565
+- [src/react/workspace/context/provider/runtime/use-backend-runtime.ts](#34)  L5566-L5613
+- [src/react/workspace/context/provider/slices/use-authors-slice.ts](#35)  L5614-L5683
+- [src/react/workspace/context/provider/slices/use-branches-slice.ts](#36)  L5684-L5899
+- [src/react/workspace/context/provider/slices/use-comments-slice.ts](#37)  L5900-L6349
+- [src/react/workspace/context/provider/slices/use-permissions-slice.ts](#38)  L6350-L6427
+- [src/react/workspace/context/provider/slices/use-policies-slice.ts](#39)  L6428-L6644
+- [src/react/workspace/context/provider/slices/use-services-slice.ts](#40)  L6645-L6721
+- [src/react/workspace/context/provider/slices/use-snapshots-slice.ts](#41)  L6722-L7168
+- [src/react/workspace/context/provider/slices/use-templates-slice.ts](#42)  L7169-L7408
+- [src/react/workspace/context/provider/types.ts](#43)  L7409-L7653
+- [src/react/workspace/index.ts](#44)  L7654-L7671
 <!-- PRODEX_INDEX_LIST_END -->
 
 ---
 ---
 #### 1
+
+
+` File: src/react/workspace/__tests__/provider.test.tsx`  [↑ Back to top](#index)
+
+```tsx
+// src/react/workspace/context/provider/__tests__/workspace-provider.integration.test.ts
+// @vitest-environment jsdom
+
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import * as React from "react";
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+
+import { WorkspaceProvider, useWorkspace } from "@/react";
+import type { Actor, Branch } from "../context/backend";
+import type { WorkspaceAPI } from "@/react";
+
+import { createMemoryWorkspaceBackend } from "../context/memory";
+
+/**
+ * React’s act() warnings happen if the test environment doesn’t opt in.
+ * This silences: “The current testing environment is not configured to support act(...)”
+ */
+(
+    globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
+
+async function flushMicrotasks(): Promise<void> {
+    await Promise.resolve();
+    await Promise.resolve();
+}
+
+function makeActor(): Actor {
+    return { id: "actor-1", name: "Tester" };
+}
+
+function makeBranch(id: string, isMain: boolean): Branch {
+    const iso = new Date(0).toISOString();
+    return { id, name: id, isMain, createdAt: iso, updatedAt: iso };
+}
+
+describe("WorkspaceProvider (integration)", () => {
+    let container: HTMLDivElement;
+    let root: Root | null;
+
+    beforeEach(() => {
+        container = document.createElement("div");
+        document.body.appendChild(container);
+        root = createRoot(container);
+    });
+
+    afterEach(() => {
+        if (root) {
+            act(() => root?.unmount());
+            root = null;
+        }
+        container.remove();
+        vi.useRealTimers();
+        vi.restoreAllMocks();
+    });
+
+    it("refresh.all() calls workspace-wide refreshers then current-branch context refreshers (memory backend)", async () => {
+        const actor: Actor = makeActor();
+
+        const backend = createMemoryWorkspaceBackend({
+            workspaceId: "ws-1",
+            actorId: actor.id,
+            seed: {
+                authors: [{ id: actor.id, name: actor.name ?? "Tester" }],
+                branches: [makeBranch("b1", true)],
+            },
+        });
+
+        // spy on the real backend methods
+        const spyAuthorsRefresh = vi.spyOn(backend.authors, "refresh");
+        const spyPermissionsRefresh = vi.spyOn(backend.permissions, "refresh");
+        const spyBranchesRefresh = vi.spyOn(backend.branches, "refresh");
+        const spyServicesRefresh = vi.spyOn(backend.services, "refresh");
+        const spyAccessRefreshParticipants = vi.spyOn(
+            backend.access,
+            "refreshParticipants",
+        );
+        const spyTemplatesRefresh = vi.spyOn(backend.templates, "refresh");
+        const spySnapshotsRefresh = vi.spyOn(backend.snapshots, "refresh");
+
+        let api: WorkspaceAPI | null = null;
+
+        function Capture(): null {
+            const ctx: WorkspaceAPI = useWorkspace();
+            React.useEffect(() => {
+                api = ctx;
+            }, [ctx]);
+            return null;
+        }
+
+        await act(async () => {
+            root?.render(
+                <WorkspaceProvider
+                    backend={backend}
+                    actor={actor}
+                    autoAutosave={false}
+                    initial={{
+                        branches: [makeBranch("b1", true)],
+                        mainId: "b1",
+                        currentBranchId: "b1",
+                    }}
+                >
+                    <Capture />
+                </WorkspaceProvider>,
+            );
+            await flushMicrotasks();
+        });
+
+        expect(api).not.toBeNull();
+
+        vi.clearAllMocks();
+
+        await act(async () => {
+            await api!.refresh.all({ strict: true });
+            await flushMicrotasks();
+        });
+
+        const wsId: string = backend.info.id;
+
+        // workspace-wide
+        expect(spyAuthorsRefresh).toHaveBeenCalledWith(wsId);
+        expect(spyPermissionsRefresh).toHaveBeenCalledWith(wsId, actor);
+        expect(spyBranchesRefresh).toHaveBeenCalledWith(wsId);
+
+        // services.refresh(workspaceId, { since? }) — provider may pass a second arg
+        expect(spyServicesRefresh).toHaveBeenCalledWith(
+            wsId,
+            expect.objectContaining({ since: undefined }),
+        );
+
+        // branch-local (participants, templates, snapshot pointers for current branch)
+        expect(spyAccessRefreshParticipants).toHaveBeenCalledWith(
+            wsId,
+            "b1",
+            expect.anything(),
+        );
+
+        expect(spyTemplatesRefresh).toHaveBeenCalledWith(
+            expect.objectContaining({
+                workspaceId: wsId,
+                branchId: "b1",
+            }),
+        );
+
+        expect(spySnapshotsRefresh).toHaveBeenCalledWith(
+            expect.objectContaining({
+                workspaceId: wsId,
+                branchId: "b1",
+                actorId: actor.id,
+            }),
+        );
+    });
+
+    it("refresh.branchContext({ includeWorkspaceData:false }) refreshes only branch-local context (memory backend)", async () => {
+        const actor: Actor = makeActor();
+
+        const backend = createMemoryWorkspaceBackend({
+            workspaceId: "ws-1",
+            actorId: actor.id,
+            seed: {
+                authors: [{ id: actor.id, name: actor.name ?? "Tester" }],
+                branches: [makeBranch("b1", true)],
+            },
+        });
+
+        const spyAuthorsRefresh = vi.spyOn(backend.authors, "refresh");
+        const spyPermissionsRefresh = vi.spyOn(backend.permissions, "refresh");
+        const spyServicesRefresh = vi.spyOn(backend.services, "refresh");
+
+        const spyAccessRefreshParticipants = vi.spyOn(
+            backend.access,
+            "refreshParticipants",
+        );
+        const spyTemplatesRefresh = vi.spyOn(backend.templates, "refresh");
+        const spySnapshotsRefresh = vi.spyOn(backend.snapshots, "refresh");
+
+        let api: WorkspaceAPI | null = null;
+
+        function Capture(): null {
+            const ctx: WorkspaceAPI = useWorkspace();
+            React.useEffect(() => {
+                api = ctx;
+            }, [ctx]);
+            return null;
+        }
+
+        await act(async () => {
+            root?.render(
+                <WorkspaceProvider
+                    backend={backend}
+                    actor={actor}
+                    autoAutosave={false}
+                    initial={{
+                        branches: [makeBranch("b1", true)],
+                        mainId: "b1",
+                        currentBranchId: "b1",
+                    }}
+                >
+                    <Capture />
+                </WorkspaceProvider>,
+            );
+            await flushMicrotasks();
+        });
+
+        expect(api).not.toBeNull();
+
+        vi.clearAllMocks();
+
+        await act(async () => {
+            await (
+                api!.refresh.branchContext as (
+                    opts?: Readonly<{
+                        branchId?: string;
+                        strict?: boolean;
+                        includeWorkspaceData?: boolean;
+                    }>,
+                ) => Promise<unknown>
+            )({
+                branchId: "b1",
+                strict: true,
+                includeWorkspaceData: false,
+            });
+            await flushMicrotasks();
+        });
+
+        const wsId: string = backend.info.id;
+
+        // must NOT run workspace-wide refreshers
+        expect(spyAuthorsRefresh).not.toHaveBeenCalled();
+        expect(spyPermissionsRefresh).not.toHaveBeenCalled();
+        expect(spyServicesRefresh).not.toHaveBeenCalled();
+
+        // must run branch-local refreshers
+        expect(spyAccessRefreshParticipants).toHaveBeenCalledWith(
+            wsId,
+            "b1",
+            expect.anything(),
+        );
+
+        expect(spyTemplatesRefresh).toHaveBeenCalledWith(
+            expect.objectContaining({
+                workspaceId: wsId,
+                branchId: "b1",
+            }),
+        );
+
+        expect(spySnapshotsRefresh).toHaveBeenCalledWith(
+            expect.objectContaining({
+                workspaceId: wsId,
+                branchId: "b1",
+                actorId: actor.id,
+            }),
+        );
+    });
+});
+```
+
+---
+#### 2
 
 
 ` File: src/react/workspace/app.tsx`  [↑ Back to top](#index)
@@ -132,7 +405,7 @@ export default Workspace;
 ```
 
 ---
-#### 2
+#### 3
 
 
 ` File: src/react/workspace/components/canvas.tsx`  [↑ Back to top](#index)
@@ -253,7 +526,7 @@ export function Canvas({
 ```
 
 ---
-#### 3
+#### 4
 
 
 ` File: src/react/workspace/components/context-menu-renderer.tsx`  [↑ Back to top](#index)
@@ -459,7 +732,7 @@ function prevFocusable(
 ```
 
 ---
-#### 4
+#### 5
 
 
 ` File: src/react/workspace/components/reactflow/edge.tsx`  [↑ Back to top](#index)
@@ -469,7 +742,7 @@ function prevFocusable(
 ```
 
 ---
-#### 5
+#### 6
 
 
 ` File: src/react/workspace/components/reactflow/index.tsx`  [↑ Back to top](#index)
@@ -491,7 +764,7 @@ export { nodeTypes, edgeTypes };
 ```
 
 ---
-#### 6
+#### 7
 
 
 ` File: src/react/workspace/components/reactflow/nodes/comments.tsx`  [↑ Back to top](#index)
@@ -501,7 +774,7 @@ export { nodeTypes, edgeTypes };
 ```
 
 ---
-#### 7
+#### 8
 
 
 ` File: src/react/workspace/components/reactflow/nodes/field.tsx`  [↑ Back to top](#index)
@@ -536,7 +809,7 @@ export default Field;
 ```
 
 ---
-#### 8
+#### 9
 
 
 ` File: src/react/workspace/components/reactflow/nodes/node.tsx`  [↑ Back to top](#index)
@@ -705,7 +978,7 @@ export default Node;
 ```
 
 ---
-#### 9
+#### 10
 
 
 ` File: src/react/workspace/components/reactflow/nodes/options.tsx`  [↑ Back to top](#index)
@@ -724,7 +997,7 @@ export default Options;
 ```
 
 ---
-#### 10
+#### 11
 
 
 ` File: src/react/workspace/components/reactflow/nodes/tags.tsx`  [↑ Back to top](#index)
@@ -747,7 +1020,7 @@ export default Tag;
 ```
 
 ---
-#### 11
+#### 12
 
 
 ` File: src/react/workspace/context/backend.ts`  [↑ Back to top](#index)
@@ -759,6 +1032,13 @@ export default Tag;
 
 import type { EditorSnapshot } from "@/schema/editor";
 import type { DgpServiceCapability, DgpServiceMap } from "@/schema/provider";
+import {
+    CommentAnchor,
+    CommentMessage,
+    CommentThread,
+} from "@/schema/comments";
+import { DynamicRule } from "@/schema/validation";
+import { PolicyDiagnostic } from "@/core/policy";
 
 /* ---------------- core result & identity ---------------- */
 
@@ -1080,7 +1360,8 @@ export type WorkspaceEvent =
     | { type: "snapshot.autosaved"; branchId: string; draft: Draft }
     | { type: "snapshot.saved"; branchId: string; commit: Commit }
     | { type: "snapshot.published"; branchId: string; commit: Commit }
-    | { type: "snapshot.discarded"; branchId: string };
+    | { type: "snapshot.discarded"; branchId: string }
+    | { type: "policies.updated"; since?: number | string; branchId?: string };
 
 export type LiveOptions =
     | { mode: "off" }
@@ -1129,6 +1410,149 @@ export interface WorkspaceInfo {
     readonly meta?: Readonly<Record<string, unknown>>;
 }
 
+/**
+ * Shared request scope for host backends (workspace + optional branch + optional actor).
+ * This is intentionally transport-agnostic and minimal so other layers (e.g. canvas/comments)
+ * can reuse it without redefining identity types.
+ */
+export interface BackendScope {
+    readonly workspaceId: string;
+    readonly actorId: string;
+    readonly branchId: string;
+}
+
+/**
+ * Generic canvas comments backend contract.
+ *
+ * We keep this in workspace backend so HOSTS have a single place to implement
+ * transport-agnostic interfaces.
+ *
+ * The canvas module can “bind” these generics to its concrete types.
+ */
+export interface CommentsBackend<
+    ThreadDTO = unknown,
+    MessageDTO = unknown,
+    AnchorDTO = unknown,
+> {
+    listThreads(ctx: BackendScope): Result<readonly ThreadDTO[]>;
+
+    createThread(
+        ctx: BackendScope,
+        input: {
+            anchor: AnchorDTO;
+            body: string;
+            meta?: Record<string, unknown>;
+        },
+    ): Result<ThreadDTO>;
+
+    addMessage(
+        ctx: BackendScope,
+        input: {
+            threadId: string;
+            body: string;
+            meta?: Record<string, unknown>;
+        },
+    ): Result<MessageDTO>;
+
+    editMessage(
+        ctx: BackendScope,
+        input: {
+            threadId: string;
+            messageId: string;
+            body: string;
+        },
+    ): Result<MessageDTO>;
+
+    deleteMessage(
+        ctx: BackendScope,
+        input: {
+            threadId: string;
+            messageId: string;
+        },
+    ): Result<void>;
+
+    moveThread(
+        ctx: BackendScope,
+        input: {
+            threadId: string;
+            anchor: AnchorDTO;
+        },
+    ): Result<ThreadDTO>;
+
+    resolveThread(
+        ctx: BackendScope,
+        input: {
+            threadId: string;
+            resolved: boolean;
+        },
+    ): Result<ThreadDTO>;
+
+    deleteThread(
+        ctx: BackendScope,
+        input: {
+            threadId: string;
+        },
+    ): Result<void>;
+}
+
+/* ---------------- policies (dynamic rules) ---------------- */
+
+/**
+ * Policies are stored as raw JSON for round-tripping (comments/formatting, etc.),
+ * and compiled into DynamicRule[] for runtime validation.
+ *
+ * Scope rules:
+ * - If branchId is provided -> branch-scoped policies
+ * - If branchId is omitted  -> workspace-scoped policies
+ */
+export interface PolicyScope extends BackendScope {}
+
+export interface PoliciesLoadResult {
+    /** the raw JSON the host stored (authoring format) */
+    readonly raw: unknown;
+
+    /** optional precompiled rules (host may compile server-side) */
+    readonly compiled?: readonly DynamicRule[];
+
+    /** optional diagnostics (host may compile server-side) */
+    readonly diagnostics?: readonly PolicyDiagnostic[];
+
+    readonly updatedAt?: string;
+    readonly etag?: string;
+}
+
+/**
+ * Transport contract for policy storage/compilation.
+ *
+ * - UI can compile locally via compilePolicies()
+ * - Host can also compile/validate server-side by implementing compile()
+ */
+export interface PoliciesBackend {
+    load(ctx: PolicyScope): Result<PoliciesLoadResult | null>;
+
+    save(
+        ctx: PolicyScope,
+        input: Readonly<{
+            raw: unknown;
+            etag?: string;
+        }>,
+    ): Result<Readonly<{ updatedAt?: string; etag?: string }>>;
+
+    /** Optional server-side compile/validate (for shared editing / enforcement). */
+    compile?(
+        ctx: PolicyScope,
+        input: Readonly<{ raw: unknown }>,
+    ): Result<
+        Readonly<{
+            policies: readonly DynamicRule[];
+            diagnostics: readonly PolicyDiagnostic[];
+        }>
+    >;
+
+    /** Optional: reset/delete policies at scope (branch or workspace). */
+    clear?(ctx: PolicyScope): Result<Readonly<{ updatedAt?: string }>>;
+}
+
 export interface WorkspaceBackend {
     readonly info: WorkspaceInfo;
 
@@ -1144,11 +1568,20 @@ export interface WorkspaceBackend {
 
     readonly templates: TemplatesBackend;
     readonly snapshots: SnapshotsBackend;
+
+    /** dynamic policies: workspace-scoped and/or branch-scoped rules */
+    readonly policies: PoliciesBackend;
+
+    readonly comments: CommentsBackend<
+        CommentThread,
+        CommentMessage,
+        CommentAnchor
+    >;
 }
 ```
 
 ---
-#### 12
+#### 13
 
 
 ` File: src/react/workspace/context/context.tsx`  [↑ Back to top](#index)
@@ -1460,7 +1893,7 @@ export function useCanvasOwned(
 ```
 
 ---
-#### 13
+#### 14
 
 
 ` File: src/react/workspace/context/ctxmenu.tsx`  [↑ Back to top](#index)
@@ -1759,7 +2192,7 @@ export const Ctxmenu: React.FC<{
 ```
 
 ---
-#### 14
+#### 15
 
 
 ` File: src/react/workspace/context/index.tsx`  [↑ Back to top](#index)
@@ -1800,640 +2233,1439 @@ export type {
  * Default poll adapter — hosts may use this or provide their own ws/sse adapters.
  */
 export { createPollAdapter } from "./provider/live/adapters/poll";
+
+export * from "./memory";
 ```
 
 ---
-#### 15
+#### 16
 
 
-` File: src/react/workspace/context/memory-backend.ts`  [↑ Back to top](#index)
+` File: src/react/workspace/context/memory/errors.ts`  [↑ Back to top](#index)
 
 ```ts
-//@ts-nocheck
-// src/react/workspace/memory-backend.ts
-// In-memory WorkspaceBackend with Field Templates (plus a deprecated assets shim).
-// noinspection JSConstantReassignment,JSDeprecatedSymbols
+// src/react/workspace/context/backend/memory/errors.ts
+
+import type { BackendError, BackendResult } from "../backend";
+
+export function ok<T>(value: T): BackendResult<T> {
+    return { ok: true, value };
+}
+
+export function fail<T = never>(
+    code: string,
+    message: string,
+    opts?: Readonly<{
+        status?: number;
+        hint?: string;
+        meta?: unknown;
+        cause?: unknown;
+    }>,
+): BackendResult<T> {
+    const err: BackendError = {
+        code,
+        message,
+        status: opts?.status,
+        hint: opts?.hint,
+        meta: opts?.meta as any,
+        cause: opts?.cause,
+    };
+    return { ok: false, error: err };
+}
+
+export function asError(e: unknown): BackendError {
+    if (
+        typeof e === "object" &&
+        e !== null &&
+        "code" in (e as Record<string, unknown>) &&
+        "message" in (e as Record<string, unknown>)
+    ) {
+        return e as BackendError;
+    }
+    return {
+        code: "unknown_error",
+        message: String(e ?? "Unknown error"),
+        meta: e as any,
+    };
+}
+```
+
+---
+#### 17
+
+
+` File: src/react/workspace/context/memory/ids.ts`  [↑ Back to top](#index)
+
+```ts
+// src/react/workspace/context/backend/memory/ids.ts
+
+let __seq: number = 0;
+
+function nextSeq(): number {
+    __seq += 1;
+    return __seq;
+}
+
+export function newId(prefix: string): string {
+    // stable-enough for memory usage; predictable in tests if you reset module state
+    const t: string = Date.now().toString(36);
+    const s: string = nextSeq().toString(36);
+    return `${prefix}_${t}_${s}`;
+}
+
+export function newBranchId(): string {
+    return newId("br");
+}
+
+export function newAuthorId(): string {
+    return newId("au");
+}
+
+export function newTemplateId(): string {
+    return newId("tpl");
+}
+
+export function newTemplateKey(): string {
+    return `tpl_${Date.now().toString(36)}_${nextSeq().toString(36)}`;
+}
+
+export function newDraftId(): string {
+    return newId("dr");
+}
+
+export function newCommitId(): string {
+    return newId("cm");
+}
+
+export function newThreadId(): string {
+    return newId("th");
+}
+
+export function newMessageId(): string {
+    return newId("msg");
+}
+
+export function bumpEtag(prev?: string): string {
+    const n: number = (prev ? parseInt(prev, 10) : 0) + 1;
+    return String(Number.isFinite(n) ? n : 1);
+}
+```
+
+---
+#### 18
+
+
+` File: src/react/workspace/context/memory/index.ts`  [↑ Back to top](#index)
+
+```ts
+// src/react/workspace/context/backend/memory/index.ts
+
+export { createMemoryWorkspaceBackend } from "./memory-backend";
+
+export type {
+    CreateMemoryWorkspaceBackendOptions,
+    MemoryBackendSeed,
+    MemorySeedBranchSnapshots,
+    MemorySeedComments,
+    MemorySeedParticipants,
+} from "./seed";
+```
+
+---
+#### 19
+
+
+` File: src/react/workspace/context/memory/memory-backend.ts`  [↑ Back to top](#index)
+
+```ts
+// src/react/workspace/context/backend/memory/memory-backend.ts
 
 import type {
     Actor,
     Author,
-    BackendError,
+    AuthorsBackend,
+    BackendScope,
     Branch,
+    BranchAccessBackend,
+    BranchParticipant,
     BranchesBackend,
+    CommentsBackend,
     Commit,
     Draft,
     FieldTemplate,
-    MergeResult,
-    PermissionsMap,
-    Result,
+    PoliciesBackend,
+    PoliciesLoadResult,
+    PolicyScope,
     ServiceSnapshot,
+    ServicesBackend,
+    ServicesInput,
     SnapshotsBackend,
     SnapshotsLoadResult,
-    TemplateCreateInput,
-    TemplateUpdatePatch,
     TemplatesBackend,
     TemplatesListParams,
+    TemplateCreateInput,
+    TemplateUpdatePatch,
     WorkspaceBackend,
-} from "./backend";
-import type { EditorSnapshot } from "@/schema/editor";
-import type { DgpServiceCapability, DgpServiceMap } from "@/schema/provider";
+    WorkspaceInfo,
+    PermissionsBackend,
+    PermissionsMap,
+    MergeResult,
+} from "../backend";
 
-/* ---------------- utilities ---------------- */
+import type {
+    CommentAnchor,
+    CommentId,
+    CommentMessage,
+    CommentThread,
+    ThreadId,
+} from "@/schema/comments";
 
-type Id = string;
-const nowIso = () => new Date().toISOString();
-const ok = <T>(value: T): { ok: true; value: T } => ({ ok: true, value });
-const err = (
-    code: string,
-    message: string,
-    hint?: string,
-): { ok: false; error: BackendError } => ({
-    ok: false,
-    error: { code, message, hint },
-});
+import {
+    bumpEtag,
+    newBranchId,
+    newCommitId,
+    newDraftId,
+    newMessageId,
+    newTemplateId,
+    newTemplateKey,
+    newThreadId,
+} from "./ids";
+import { ok, fail } from "./errors";
+import { isoNow } from "./time";
+import type {
+    CreateMemoryWorkspaceBackendOptions,
+    MemoryBackendSeed,
+} from "./seed";
+import {
+    ensureThread,
+    findMessageIndex,
+    newBranchSnapshotState,
+    newCommentsBranchState,
+    type MemoryWorkspaceStore,
+} from "./store";
 
-function clone<T>(v: T): T {
-    if (Array.isArray(v)) return v.slice() as unknown as T;
-    if (typeof v === "object" && v !== null) return { ...(v as object) } as T;
-    return v;
-}
-const genId = (p: string, i: number): Id => `${p}-${i}`;
-
-/* ---------------- seed & store ---------------- */
-
-export interface MemorySeed {
-    workspaceId: string;
-    authors?: Author[];
-    permissionsForActor?: (ctx: {
-        workspaceId: string;
-        actor: Actor;
-    }) => PermissionsMap;
-    branchNames?: string[]; // default ["main"]
-    initialSnapshot?: ServiceSnapshot;
-    initialHeadMessage?: string;
-    initialDraft?: boolean;
-    services?: readonly DgpServiceCapability[] | DgpServiceMap;
-
-    /** Pre-seed field templates */
-    templates?: ReadonlyArray<
-        Pick<
-            FieldTemplate,
-            | "key"
-            | "name"
-            | "kind"
-            | "definition"
-            | "defaults"
-            | "ui"
-            | "validators"
-            | "tags"
-            | "category"
-            | "published"
-        > & { branchId?: string }
-    >;
+function emptySnapshot(): ServiceSnapshot {
+    // EditorSnapshot shape is host-defined; keep memory backend generic.
+    return {
+        schema_version: "1",
+        data: {} as unknown as any,
+    };
 }
 
-interface Store {
-    readonly workspaceId: string;
-    authors: Author[];
-    permissionsForActor: (actor: Actor) => PermissionsMap;
+function permissivePermissions(): PermissionsMap {
+    const handler: ProxyHandler<Record<string, boolean>> = {
+        get: (
+            _target: Record<string, boolean>,
+            prop: string | symbol,
+        ): boolean => {
+            if (typeof prop === "symbol") return true;
+            return true;
+        },
+        has: (): boolean => true,
+        ownKeys: (): ArrayLike<string | symbol> => [],
+        getOwnPropertyDescriptor: (): PropertyDescriptor | undefined =>
+            undefined,
+    };
 
-    branches: Branch[];
-    mainId: string;
-
-    templates: FieldTemplate[];
-
-    snapshot: ServiceSnapshot;
-    head?: Commit;
-    draft?: Draft;
-
-    counters: { id: number; version: number; template: number };
+    const p: PermissionsMap = new Proxy<Record<string, boolean>>(
+        {},
+        handler,
+    ) as unknown as PermissionsMap;
+    return p;
 }
 
-/* ---------------- factory ---------------- */
+function normalizeInfo(
+    workspaceId: string,
+    seed?: Partial<WorkspaceInfo>,
+): WorkspaceInfo {
+    return {
+        id: seed?.id ?? workspaceId,
+        name: seed?.name ?? "Memory Workspace",
+        description: seed?.description,
+        createdAt: seed?.createdAt ?? isoNow(),
+        updatedAt: seed?.updatedAt ?? isoNow(),
+        meta: seed?.meta,
+    };
+}
 
-export function createMemoryWorkspaceBackend(seed: MemorySeed): WorkspaceBackend {
-    const wsId = seed.workspaceId;
-    let idCounter = 1;
-    let versionCounter = 1;
-    let templateCounter = 1;
+function normalizeBranch(
+    input: Partial<Branch> & Pick<Branch, "id" | "name">,
+): Branch {
+    const createdAt: string = input.createdAt ?? isoNow();
+    const updatedAt: string = input.updatedAt ?? createdAt;
+
+    return {
+        id: input.id,
+        name: input.name,
+        isMain: Boolean(input.isMain),
+        headVersionId: input.headVersionId,
+        createdAt,
+        updatedAt,
+    };
+}
+
+function normalizeAuthor(
+    input: Partial<Author> & Pick<Author, "id" | "name">,
+): Author {
+    return {
+        id: input.id,
+        name: input.name,
+        handle: input.handle,
+        avatarUrl: input.avatarUrl,
+        meta: input.meta,
+        createdAt: input.createdAt ?? isoNow(),
+        updatedAt: input.updatedAt ?? isoNow(),
+    };
+}
+
+function normalizeTemplate(input: any): FieldTemplate {
+    const now: string = isoNow();
+
+    const id: string = String(input?.id ?? newTemplateId());
+    const key: string = String(input?.key ?? newTemplateKey());
+
+    return {
+        id,
+        key,
+        name: String(input?.name ?? "Template"),
+        kind: String(input?.kind ?? "text"),
+        branchId: input?.branchId ?? undefined,
+        definition: (input?.definition ?? {}) as Readonly<
+            Record<string, unknown>
+        >,
+        defaults: (input?.defaults ?? undefined) as
+            | Readonly<Record<string, unknown>>
+            | undefined,
+        ui: (input?.ui ?? undefined) as
+            | Readonly<Record<string, unknown>>
+            | undefined,
+        validators: (input?.validators ?? undefined) as
+            | readonly any[]
+            | undefined,
+        tags: (input?.tags ?? undefined) as readonly string[] | undefined,
+        category: (input?.category ?? undefined) as string | undefined,
+        published: Boolean(input?.published ?? true),
+        version: Number.isFinite(Number(input?.version))
+            ? Number(input.version)
+            : 1,
+        createdAt: String(input?.createdAt ?? now),
+        updatedAt: String(input?.updatedAt ?? now),
+    };
+}
+
+function matchesSince(
+    updatedAt: string | undefined,
+    since?: string | number,
+): boolean {
+    if (!since) return true;
+    if (!updatedAt) return false;
+
+    const t: number = Date.parse(updatedAt);
+    const s: number =
+        typeof since === "number" ? since : Date.parse(String(since));
+    if (!Number.isFinite(t) || !Number.isFinite(s)) return true;
+    return t >= s;
+}
+
+function templateVisibleForBranch(
+    tpl: FieldTemplate,
+    branchId?: string,
+): boolean {
+    const tplBid: string | undefined = tpl.branchId ?? undefined;
+    if (!branchId) return !tplBid;
+    return !tplBid || tplBid === branchId;
+}
+
+function seedStore(
+    opts: CreateMemoryWorkspaceBackendOptions,
+): MemoryWorkspaceStore {
+    const seed: MemoryBackendSeed | undefined = opts.seed;
+
+    const store: MemoryWorkspaceStore = {
+        info: normalizeInfo(opts.workspaceId, seed?.info),
+
+        authors: new Map<string, Author>(),
+        permissionsByActor: new Map<string, PermissionsMap>(),
+
+        branches: new Map<string, Branch>(),
+        participantsByBranch: new Map<string, readonly BranchParticipant[]>(),
+
+        services: (seed?.services ?? null) as ServicesInput | null,
+
+        templates: new Map<string, FieldTemplate>(),
+
+        snapshotsByBranch: new Map<string, any>(),
+
+        commentsByBranch: new Map<string, any>(),
+
+        policies: seed?.policies
+            ? { raw: seed.policies, updatedAt: isoNow() }
+            : null,
+        policiesByBranch: new Map<string, any>(),
+    };
+
+    if (seed?.policiesByBranch) {
+        for (const [bid, raw] of Object.entries(seed.policiesByBranch)) {
+            store.policiesByBranch.set(bid, { raw, updatedAt: isoNow() });
+        }
+    }
+
+    // authors
+    if (seed?.authors) {
+        for (const a of seed.authors) {
+            const na: Author = normalizeAuthor({ ...a });
+            store.authors.set(na.id, na);
+        }
+    }
+
+    // ensure actor-author
+    const ensureActorAuthor: boolean = opts.ensureActorAuthor ?? true;
+    const actorId: string | undefined = opts.actorId;
+    if (ensureActorAuthor && actorId && !store.authors.has(actorId)) {
+        store.authors.set(
+            actorId,
+            normalizeAuthor({
+                id: actorId,
+                name: seed?.actor?.name ?? "Actor",
+                handle: seed?.actor?.meta ? undefined : undefined,
+            }),
+        );
+    }
+
+    // permissions
+    if (seed?.permissions) {
+        const p: unknown = seed.permissions as unknown;
+        if (
+            typeof p === "object" &&
+            p !== null &&
+            !Array.isArray(p) &&
+            Object.values(p as Record<string, unknown>).every(
+                (v: unknown) => typeof v === "object" && v !== null,
+            )
+        ) {
+            const perActor: Record<string, PermissionsMap> = p as Record<
+                string,
+                PermissionsMap
+            >;
+            for (const [k, v] of Object.entries(perActor)) {
+                store.permissionsByActor.set(k, v);
+            }
+        } else {
+            store.permissionsByActor.set(
+                "*",
+                seed.permissions as PermissionsMap,
+            );
+        }
+    }
 
     // branches
-    const names = seed.branchNames?.length ? seed.branchNames : ["main"];
-    const branches: Branch[] = names.map(
-        (name): Branch => ({
-            id: genId("branch", idCounter++),
-            name,
-            isMain: false,
-            createdAt: nowIso(),
-            updatedAt: nowIso(),
-        }),
-    );
-    const mainIdx = Math.max(
-        0,
-        branches.findIndex((b) => b.name.toLowerCase() === "main"),
-    );
-    branches.forEach((b, i) => (b.isMain = i === (mainIdx >= 0 ? mainIdx : 0)));
-    const mainId = branches.find((b) => b.isMain)!.id;
+    if (seed?.branches) {
+        for (const b of seed.branches) {
+            const nb: Branch = normalizeBranch({ ...b });
+            store.branches.set(nb.id, nb);
+        }
+    }
 
-    // authors / permissions
-    const authors = seed.authors ?? [];
-    const perms = seed.permissionsForActor
-        ? (actor: Actor) =>
-              seed.permissionsForActor!({ workspaceId: wsId, actor })
-        : (_actor: Actor) => ({ "*": true });
+    const ensureMain: boolean = opts.ensureMain ?? true;
+    if (ensureMain) {
+        if (store.branches.size === 0) {
+            const id: string = newBranchId();
+            store.branches.set(
+                id,
+                normalizeBranch({
+                    id,
+                    name: "main",
+                    isMain: true,
+                }),
+            );
+        } else {
+            const branches: Branch[] = Array.from(store.branches.values());
+            const hasMain: boolean = branches.some((b: Branch) => b.isMain);
+            if (!hasMain) {
+                const first: Branch = branches[0];
+                store.branches.set(first.id, { ...first, isMain: true });
+            }
+        }
+    }
 
-    // snapshot pointers
-    const snapshot: ServiceSnapshot = seed.initialSnapshot ?? {
-        schema_version: "1.0",
-        data: {} as EditorSnapshot,
-    };
-    const head: Commit | undefined = seed.initialHeadMessage
-        ? {
-              id: genId("commit", versionCounter++),
-              branchId: mainId,
-              message: seed.initialHeadMessage,
-              versionId: genId("version", versionCounter++),
-              etag: `etag-${Date.now()}`,
-              createdAt: nowIso(),
-          }
-        : undefined;
-    const draft: Draft | undefined = seed.initialDraft
-        ? {
-              id: genId("draft", versionCounter++),
-              branchId: mainId,
-              status: "uncommitted",
-              etag: `draft-${Date.now()}`,
-              createdAt: nowIso(),
-              updatedAt: nowIso(),
-          }
-        : undefined;
+    // participants
+    if (seed?.participants) {
+        for (const [branchId, list] of Object.entries(seed.participants)) {
+            store.participantsByBranch.set(branchId, list);
+        }
+    }
 
     // templates
-    const templates: FieldTemplate[] = (seed.templates ?? []).map(
-        (t): FieldTemplate => ({
-            id: genId("tpl", templateCounter++),
-            key: t.key,
-            name: t.name,
-            kind: t.kind,
-            branchId: t.branchId,
-            definition: clone(t.definition ?? {}),
-            defaults: t.defaults ? clone(t.defaults) : undefined,
-            ui: t.ui ? clone(t.ui) : undefined,
-            validators: t.validators ? clone(t.validators) : undefined,
-            tags: t.tags ? clone(t.tags) : undefined,
-            category: t.category,
-            published: t.published ?? false,
-            version: 1,
-            createdAt: nowIso(),
-            updatedAt: nowIso(),
-        }),
-    );
+    if (seed?.templates) {
+        for (const t of seed.templates) {
+            const nt: FieldTemplate = normalizeTemplate(t);
+            store.templates.set(nt.id, nt);
+        }
+    }
 
-    const store: Store = {
-        workspaceId: wsId,
-        authors,
-        permissionsForActor: perms,
-        branches,
-        mainId,
-        templates,
-        snapshot,
-        head,
-        draft,
-        counters: {
-            id: idCounter,
-            version: versionCounter,
-            template: templateCounter,
+    // snapshots
+    for (const b of store.branches.values()) {
+        store.snapshotsByBranch.set(b.id, newBranchSnapshotState());
+    }
+    if (seed?.snapshots) {
+        for (const [branchId, snapSeed] of Object.entries(seed.snapshots)) {
+            const state =
+                store.snapshotsByBranch.get(branchId) ??
+                newBranchSnapshotState();
+
+            if (snapSeed.head) {
+                state.head = { ...snapSeed.head };
+                state.commits.set(snapSeed.head.id, {
+                    commit: { ...snapSeed.head },
+                    snapshot: snapSeed.snapshot ?? emptySnapshot(),
+                });
+                state.headSnapshot = snapSeed.snapshot ?? emptySnapshot();
+            } else if (snapSeed.snapshot) {
+                state.headSnapshot = snapSeed.snapshot;
+            }
+
+            if (snapSeed.draft) {
+                const aId: string = opts.actorId ?? "actor";
+                state.drafts.set(aId, {
+                    draft: { ...snapSeed.draft },
+                    snapshot: snapSeed.snapshot ?? emptySnapshot(),
+                });
+            }
+
+            store.snapshotsByBranch.set(branchId, state);
+        }
+    }
+
+    // comments
+    for (const b of store.branches.values()) {
+        store.commentsByBranch.set(b.id, newCommentsBranchState());
+    }
+    if (seed?.comments) {
+        for (const [branchId, threads] of Object.entries(seed.comments)) {
+            const st =
+                store.commentsByBranch.get(branchId) ??
+                newCommentsBranchState();
+            st.threads.clear();
+            for (const th of threads) {
+                st.threads.set(th.id as ThreadId, th);
+            }
+            store.commentsByBranch.set(branchId, st);
+        }
+    }
+
+    return store;
+}
+
+export function createMemoryWorkspaceBackend(
+    opts: CreateMemoryWorkspaceBackendOptions,
+): WorkspaceBackend {
+    const store: MemoryWorkspaceStore = seedStore(opts);
+
+    const info: WorkspaceInfo = store.info;
+
+    const authors: AuthorsBackend = {
+        list: async (workspaceId: string) => {
+            if (workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+            return ok(Array.from(store.authors.values()));
+        },
+        get: async (authorId: string) => {
+            const a: Author | undefined = store.authors.get(authorId);
+            return ok(a ?? null);
+        },
+        refresh: async (workspaceId: string) => {
+            if (workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+            return ok(Array.from(store.authors.values()));
         },
     };
 
-    /* ---------------- authors backend ---------------- */
+    const permissions: PermissionsBackend = {
+        get: async (workspaceId: string, actor: Actor) => {
+            if (workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+            const seeded: PermissionsMap | undefined =
+                store.permissionsByActor.get(actor.id) ??
+                store.permissionsByActor.get("*") ??
+                undefined;
 
-    const authorsBackend = {
-        async list(workspaceId: string): Result<readonly Author[]> {
-            if (workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            return ok(clone(store.authors));
+            return ok(seeded ?? permissivePermissions());
         },
-        async get(authorId: string): Result<Author | null> {
-            const a = store.authors.find((x) => x.id === authorId) ?? null;
-            return ok(a ? clone(a) : null);
-        },
-        async refresh(workspaceId: string): Result<readonly Author[]> {
-            return this.list(workspaceId);
+        refresh: async (workspaceId: string, actor: Actor) => {
+            if (workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+            const seeded: PermissionsMap | undefined =
+                store.permissionsByActor.get(actor.id) ??
+                store.permissionsByActor.get("*") ??
+                undefined;
+
+            return ok(seeded ?? permissivePermissions());
         },
     };
 
-    /* ---------------- permissions backend ---------------- */
-
-    const permissionsBackend = {
-        async get(workspaceId: string, actor: Actor): Result<PermissionsMap> {
-            if (workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            return ok(clone(store.permissionsForActor(actor)));
+    const branches: BranchesBackend = {
+        list: async (workspaceId: string) => {
+            if (workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+            return ok(Array.from(store.branches.values()));
         },
-        async refresh(
-            workspaceId: string,
-            actor: Actor,
-        ): Result<PermissionsMap> {
-            return this.get(workspaceId, actor);
-        },
-    };
 
-    /* ---------------- branches backend ---------------- */
-
-    const branchesBackend: BranchesBackend = {
-        async list(workspaceId: string): Result<readonly Branch[]> {
-            if (workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            return ok(clone(store.branches));
-        },
-        async create(
+        create: async (
             workspaceId: string,
             name: string,
-            opts?: Readonly<{ fromId?: string }>,
-        ): Result<Branch> {
-            if (workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            const now = nowIso();
-            const fromId = opts?.fromId;
-            const headVersionId = fromId
-                ? store.branches.find((b) => b.id === fromId)?.headVersionId
-                : undefined;
-            const b: Branch = {
-                id: genId("branch", ++store.counters.id),
+            opts2?: Readonly<{ fromId?: string }>,
+        ) => {
+            if (workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+
+            const id: string = newBranchId();
+            const b: Branch = normalizeBranch({
+                id,
                 name,
                 isMain: false,
-                headVersionId,
-                createdAt: now,
-                updatedAt: now,
-            };
-            store.branches.push(b);
-            return ok(clone(b));
+            });
+
+            store.branches.set(id, b);
+            store.snapshotsByBranch.set(id, newBranchSnapshotState());
+            store.commentsByBranch.set(id, newCommentsBranchState());
+
+            // optional: copy snapshot from fromId
+            if (opts2?.fromId) {
+                const from = store.snapshotsByBranch.get(opts2.fromId);
+                const to = store.snapshotsByBranch.get(id);
+                if (from && to) {
+                    const snap: ServiceSnapshot =
+                        from.headSnapshot ??
+                        (from.head
+                            ? from.commits.get(from.head.id)?.snapshot
+                            : undefined) ??
+                        emptySnapshot();
+
+                    to.headSnapshot = snap;
+                    const cmId: string = newCommitId();
+                    const commit: Commit = {
+                        id: cmId,
+                        branchId: id,
+                        createdAt: isoNow(),
+                        versionId: cmId,
+                    };
+                    to.head = commit;
+                    to.commits.set(cmId, { commit, snapshot: snap });
+                    store.branches.set(id, {
+                        ...b,
+                        headVersionId: cmId,
+                        updatedAt: isoNow(),
+                    });
+                }
+            }
+
+            return ok(store.branches.get(id)!);
         },
-        async setMain(workspaceId: string, branchId: string): Result<Branch> {
-            if (workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            const target = store.branches.find((b) => b.id === branchId);
-            if (!target) return err("not_found", "Branch not found");
-            store.branches.forEach((b) => (b.isMain = b.id === branchId));
-            store.mainId = branchId;
-            target.updatedAt = nowIso();
-            return ok(clone(target));
+
+        setMain: async (workspaceId: string, branchId: string) => {
+            if (workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+            const b: Branch | undefined = store.branches.get(branchId);
+            if (!b) return fail("not_found", "Branch not found.");
+
+            for (const br of store.branches.values()) {
+                if (br.isMain && br.id !== branchId) {
+                    store.branches.set(br.id, {
+                        ...br,
+                        isMain: false,
+                        updatedAt: isoNow(),
+                    });
+                }
+            }
+            const next: Branch = { ...b, isMain: true, updatedAt: isoNow() };
+            store.branches.set(branchId, next);
+            return ok(next);
         },
-        async merge(
+
+        merge: async (
             workspaceId: string,
             sourceId: string,
             targetId: string,
-        ): Result<MergeResult> {
-            if (workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            const src = store.branches.find((b) => b.id === sourceId);
-            const tgt = store.branches.find((b) => b.id === targetId);
-            if (!src || !tgt)
-                return err("not_found", "Source or target branch not found");
-            const merge: MergeResult = {
+        ) => {
+            if (workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+            const src: Branch | undefined = store.branches.get(sourceId);
+            const tgt: Branch | undefined = store.branches.get(targetId);
+            if (!src || !tgt) return fail("not_found", "Branch not found.");
+
+            const srcState = store.snapshotsByBranch.get(sourceId);
+            const tgtState = store.snapshotsByBranch.get(targetId);
+
+            if (srcState && tgtState) {
+                const snap: ServiceSnapshot =
+                    srcState.headSnapshot ??
+                    (srcState.head
+                        ? srcState.commits.get(srcState.head.id)?.snapshot
+                        : undefined) ??
+                    emptySnapshot();
+
+                const cmId: string = newCommitId();
+                const commit: Commit = {
+                    id: cmId,
+                    branchId: targetId,
+                    createdAt: isoNow(),
+                    versionId: cmId,
+                    message: `Merged ${sourceId} → ${targetId}`,
+                };
+
+                tgtState.head = commit;
+                tgtState.headSnapshot = snap;
+                tgtState.commits.set(cmId, { commit, snapshot: snap });
+
+                const updated: Branch = {
+                    ...tgt,
+                    headVersionId: cmId,
+                    updatedAt: isoNow(),
+                };
+                store.branches.set(targetId, updated);
+            }
+
+            const res: MergeResult = {
                 sourceId,
                 targetId,
                 conflicts: 0,
-                message: "Fast-forward (memory)",
+                message: "Merged in memory",
             };
-            tgt.headVersionId = genId("version", ++store.counters.version);
-            tgt.updatedAt = nowIso();
-            return ok(merge);
+            return ok(res);
         },
-        async delete(workspaceId: string, branchId: string): Result<void> {
-            if (workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            const idx = store.branches.findIndex((b) => b.id === branchId);
-            if (idx < 0) return err("not_found", "Branch not found");
-            if (store.branches[idx].isMain)
-                return err("forbidden", "Cannot delete main branch");
-            store.branches.splice(idx, 1);
+
+        delete: async (workspaceId: string, branchId: string) => {
+            if (workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+            store.branches.delete(branchId);
+            store.participantsByBranch.delete(branchId);
+            store.snapshotsByBranch.delete(branchId);
+            store.commentsByBranch.delete(branchId);
+            store.policiesByBranch.delete(branchId);
             return ok(undefined);
         },
-        async refresh(workspaceId: string): Result<readonly Branch[]> {
-            return this.list(workspaceId);
+
+        refresh: async (workspaceId: string) => {
+            if (workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+            return ok(Array.from(store.branches.values()));
         },
     };
 
-    /* ---------------- templates backend ---------------- */
+    const access: BranchAccessBackend = {
+        listParticipants: async (workspaceId: string, branchId: string) => {
+            if (workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+            const list: readonly BranchParticipant[] =
+                store.participantsByBranch.get(branchId) ?? [];
+            return ok(list);
+        },
+        refreshParticipants: async (workspaceId: string, branchId: string) => {
+            if (workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+            const list: readonly BranchParticipant[] =
+                store.participantsByBranch.get(branchId) ?? [];
+            return ok(list);
+        },
+    };
 
-    const templatesBackend: TemplatesBackend = {
-        async list(
-            params: TemplatesListParams,
-        ): Result<readonly FieldTemplate[]> {
-            if (params.workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            let items = store.templates.slice();
-            if (params.branchId)
-                items = items.filter((t) => t.branchId === params.branchId);
-            if (params.q) {
-                const q = params.q.toLowerCase();
-                items = items.filter(
-                    (t) =>
-                        t.name.toLowerCase().includes(q) ||
-                        t.key.toLowerCase().includes(q) ||
-                        (t.tags ?? []).some((tag) =>
-                            tag.toLowerCase().includes(q),
-                        ),
+    const services: ServicesBackend = {
+        get: async (workspaceId: string) => {
+            if (workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+            if (!store.services) return ok([] as ServicesInput);
+            return ok(store.services);
+        },
+        refresh: async (workspaceId: string) => {
+            if (workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+            if (!store.services) return ok([] as ServicesInput);
+            return ok(store.services);
+        },
+    };
+
+    const templates: TemplatesBackend = {
+        list: async (params: TemplatesListParams) => {
+            if (params.workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+
+            const all: FieldTemplate[] = Array.from(store.templates.values());
+            const filtered: FieldTemplate[] = all.filter((t: FieldTemplate) => {
+                if (!templateVisibleForBranch(t, params.branchId)) return false;
+                if (params.q) {
+                    const q: string = params.q.toLowerCase();
+                    if (
+                        !t.name.toLowerCase().includes(q) &&
+                        !t.key.toLowerCase().includes(q)
+                    ) {
+                        return false;
+                    }
+                }
+                if (params.category && t.category !== params.category)
+                    return false;
+                if (params.tags && params.tags.length) {
+                    const tset: Set<string> = new Set(t.tags ?? []);
+                    for (const tag of params.tags) {
+                        if (!tset.has(tag)) return false;
+                    }
+                }
+                return !(
+                    params.since && !matchesSince(t.updatedAt, params.since)
                 );
-            }
-            if (params.tags?.length) {
-                items = items.filter((t) => {
-                    const set = new Set(
-                        (t.tags ?? []).map((x) => x.toLowerCase()),
-                    );
-                    return params.tags!.every((tg) =>
-                        set.has(tg.toLowerCase()),
-                    );
-                });
-            }
-            if (params.category) {
-                items = items.filter(
-                    (t) =>
-                        (t.category ?? "").toLowerCase() ===
-                        params.category!.toLowerCase(),
-                );
-            }
-            return ok(clone(items));
+            });
+
+            return ok(filtered);
         },
 
-        async get(id: string): Result<FieldTemplate | null> {
-            const t = store.templates.find((x) => x.id === id) ?? null;
-            return ok(t ? clone(t) : null);
+        get: async (id: string) => {
+            const t: FieldTemplate | undefined = store.templates.get(id);
+            return ok(t ?? null);
         },
 
-        async getByKey(
+        getByKey: async (
             workspaceId: string,
             key: string,
             branchId?: string,
-        ): Result<FieldTemplate | null> {
-            if (workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            const t =
-                store.templates.find(
-                    (x) =>
-                        x.key === key &&
-                        (branchId ? x.branchId === branchId : true),
-                ) ?? null;
-            return ok(t ? clone(t) : null);
+        ) => {
+            if (workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+
+            for (const t of store.templates.values()) {
+                if (t.key !== key) continue;
+                if (!templateVisibleForBranch(t, branchId)) continue;
+                return ok(t);
+            }
+            return ok(null);
         },
 
-        async create(
-            workspaceId: string,
-            input: TemplateCreateInput,
-        ): Result<FieldTemplate> {
-            if (workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            const key = input.key ?? suggestKey(input.name);
-            if (
-                store.templates.some(
-                    (t) =>
-                        t.key === key &&
-                        (input.branchId
-                            ? t.branchId === input.branchId
-                            : !t.branchId),
-                )
-            ) {
-                return err("conflict", "Template key already exists");
-            }
-            const t: FieldTemplate = {
-                id: genId("tpl", ++store.counters.template),
+        create: async (workspaceId: string, input: TemplateCreateInput) => {
+            if (workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+
+            const now: string = isoNow();
+            const id: string = newTemplateId();
+            const key: string = input.key ?? newTemplateKey();
+
+            const tpl: FieldTemplate = {
+                id,
                 key,
                 name: input.name,
                 kind: input.kind,
-                branchId: input.branchId,
-                definition: clone(input.definition ?? {}),
-                defaults: input.defaults ? clone(input.defaults) : undefined,
-                ui: input.ui ? clone(input.ui) : undefined,
-                validators: input.validators
-                    ? clone(input.validators)
-                    : undefined,
-                tags: input.tags ? clone(input.tags) : undefined,
+                branchId: input.branchId ?? undefined,
+                definition: input.definition,
+                defaults: input.defaults,
+                ui: input.ui,
+                validators: input.validators,
+                tags: input.tags,
                 category: input.category,
-                published: input.published ?? false,
+                published: Boolean(input.published ?? true),
                 version: 1,
-                createdAt: nowIso(),
-                updatedAt: nowIso(),
+                createdAt: now,
+                updatedAt: now,
             };
-            store.templates.push(t);
-            return ok(clone(t));
+
+            store.templates.set(id, tpl);
+            return ok(tpl);
         },
 
-        async update(
-            id: string,
-            patch: TemplateUpdatePatch,
-        ): Result<FieldTemplate> {
-            const t = store.templates.find((x) => x.id === id);
-            if (!t) return err("not_found", "Template not found");
-            if (patch.name !== undefined) t.name = patch.name;
-            if (patch.kind !== undefined) t.kind = patch.kind;
-            if (patch.branchId !== undefined)
-                t.branchId = patch.branchId ?? undefined;
-            if (patch.definition !== undefined)
-                t.definition = clone(patch.definition);
-            if (patch.defaults !== undefined)
-                t.defaults = patch.defaults ? clone(patch.defaults) : undefined;
-            if (patch.ui !== undefined)
-                t.ui = patch.ui ? clone(patch.ui) : undefined;
-            if (patch.validators !== undefined)
-                t.validators = patch.validators
-                    ? clone(patch.validators)
-                    : undefined;
-            if (patch.tags !== undefined)
-                t.tags = patch.tags ? clone(patch.tags) : undefined;
-            if (patch.category !== undefined)
-                t.category = patch.category ?? undefined;
-            if (patch.published !== undefined) t.published = patch.published;
-            t.version += 1;
-            t.updatedAt = nowIso();
-            return ok(clone(t));
+        update: async (id: string, patch: TemplateUpdatePatch) => {
+            const prev: FieldTemplate | undefined = store.templates.get(id);
+            if (!prev) return fail("not_found", "Template not found.");
+
+            const now: string = isoNow();
+
+            const next: FieldTemplate = {
+                ...prev,
+                name: patch.name ?? prev.name,
+                kind: patch.kind ?? prev.kind,
+                branchId:
+                    patch.branchId === null
+                        ? undefined
+                        : (patch.branchId ?? prev.branchId),
+                definition: patch.definition ?? prev.definition,
+                defaults:
+                    patch.defaults === null
+                        ? undefined
+                        : (patch.defaults ?? prev.defaults),
+                ui: patch.ui === null ? undefined : (patch.ui ?? prev.ui),
+                validators:
+                    patch.validators === null
+                        ? undefined
+                        : (patch.validators ?? prev.validators),
+                tags:
+                    patch.tags === null ? undefined : (patch.tags ?? prev.tags),
+                category:
+                    patch.category === null
+                        ? undefined
+                        : (patch.category ?? prev.category),
+                published: patch.published ?? prev.published,
+                version: prev.version + 1,
+                updatedAt: now,
+            };
+
+            store.templates.set(id, next);
+            return ok(next);
         },
 
-        async clone(
+        clone: async (
             source: Readonly<{ id?: string; key?: string }>,
-            opts?: Readonly<{
+            opts2?: Readonly<{
                 newKey?: string;
                 name?: string;
                 branchId?: string;
                 asDraft?: boolean;
             }>,
-        ): Result<FieldTemplate> {
-            const orig =
-                (source.id &&
-                    store.templates.find((x) => x.id === source.id)) ||
-                (source.key &&
-                    store.templates.find((x) => x.key === source.key)) ||
-                null;
-            if (!orig) return err("not_found", "Source template not found");
-            const key = opts?.newKey ?? uniqueKey(orig.key);
-            const t: FieldTemplate = {
-                ...clone(orig),
-                id: genId("tpl", ++store.counters.template),
+        ) => {
+            const src: FieldTemplate | undefined = source.id
+                ? store.templates.get(source.id)
+                : undefined;
+
+            let byKey: FieldTemplate | undefined = undefined;
+            if (!src && source.key) {
+                for (const t of store.templates.values()) {
+                    if (t.key === source.key) {
+                        byKey = t;
+                        break;
+                    }
+                }
+            }
+
+            const base: FieldTemplate | undefined = src ?? byKey;
+            if (!base) return fail("not_found", "Template source not found.");
+
+            const now: string = isoNow();
+            const id: string = newTemplateId();
+            const key: string = opts2?.newKey ?? newTemplateKey();
+
+            const next: FieldTemplate = {
+                ...base,
+                id,
                 key,
-                name: opts?.name ?? `${orig.name} Copy`,
-                branchId: opts?.branchId ?? orig.branchId,
-                published: opts?.asDraft ? false : orig.published,
+                name: opts2?.name ?? `${base.name} (copy)`,
+                branchId: opts2?.branchId ?? base.branchId,
                 version: 1,
-                createdAt: nowIso(),
-                updatedAt: nowIso(),
+                createdAt: now,
+                updatedAt: now,
+                published: opts2?.asDraft ? false : base.published,
             };
-            store.templates.push(t);
-            return ok(clone(t));
+
+            store.templates.set(id, next);
+            return ok(next);
         },
 
-        async publish(id: string): Result<FieldTemplate> {
-            const t = store.templates.find((x) => x.id === id);
-            if (!t) return err("not_found", "Template not found");
-            t.published = true;
-            t.version += 1;
-            t.updatedAt = nowIso();
-            return ok(clone(t));
+        publish: async (id: string) => {
+            const t: FieldTemplate | undefined = store.templates.get(id);
+            if (!t) return fail("not_found", "Template not found.");
+            const next: FieldTemplate = {
+                ...t,
+                published: true,
+                updatedAt: isoNow(),
+            };
+            store.templates.set(id, next);
+            return ok(next);
         },
 
-        async unpublish(id: string): Result<FieldTemplate> {
-            const t = store.templates.find((x) => x.id === id);
-            if (!t) return err("not_found", "Template not found");
-            t.published = false;
-            t.version += 1;
-            t.updatedAt = nowIso();
-            return ok(clone(t));
+        unpublish: async (id: string) => {
+            const t: FieldTemplate | undefined = store.templates.get(id);
+            if (!t) return fail("not_found", "Template not found.");
+            const next: FieldTemplate = {
+                ...t,
+                published: false,
+                updatedAt: isoNow(),
+            };
+            store.templates.set(id, next);
+            return ok(next);
         },
 
-        async delete(id: string): Result<void> {
-            const i = store.templates.findIndex((x) => x.id === id);
-            if (i < 0) return err("not_found", "Template not found");
-            store.templates.splice(i, 1);
+        delete: async (id: string) => {
+            store.templates.delete(id);
             return ok(undefined);
         },
 
-        async refresh(
+        refresh: async (
             params: Omit<TemplatesListParams, "q" | "tags" | "category">,
-        ): Result<readonly FieldTemplate[]> {
-            return this.list(params as TemplatesListParams);
+        ) => {
+            return templates.list({ ...params });
         },
     };
 
-    function suggestKey(name: string): string {
-        const base = name
-            .trim()
-            .toLowerCase()
-            .replace(/\s+/g, "-")
-            .replace(/[^a-z0-9\-]/g, "");
-        return uniqueKey(base || "template");
-    }
-    function uniqueKey(base: string): string {
-        let k = base;
-        let i = 1;
-        while (store.templates.some((t) => t.key === k)) {
-            k = `${base}-${++i}`;
-        }
-        return k;
-    }
+    const snapshots: SnapshotsBackend = {
+        load: async (params) => {
+            if (params.workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
 
-    /* ---------------- snapshots backend ---------------- */
+            const st = store.snapshotsByBranch.get(params.branchId);
+            if (!st) return fail("not_found", "Branch not found.");
 
-    const snapshotsBackend: SnapshotsBackend = {
-        async load(params): Result<SnapshotsLoadResult> {
-            if (params.workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            return ok({
-                head: store.head ? clone(store.head) : undefined,
-                draft: store.draft ? clone(store.draft) : undefined,
-                snapshot: clone(store.snapshot),
-            });
+            const draftEntry = st.drafts.get(params.actorId);
+            const headEntry = st.head ? st.commits.get(st.head.id) : undefined;
+
+            // if versionId requested, try commit map
+            if (params.versionId) {
+                const v = st.commits.get(params.versionId);
+                if (v) {
+                    const out: SnapshotsLoadResult = {
+                        head: st.head,
+                        draft: draftEntry?.draft,
+                        snapshot: v.snapshot,
+                    };
+                    return ok(out);
+                }
+            }
+
+            const snapshot: ServiceSnapshot = (draftEntry?.snapshot ??
+                headEntry?.snapshot ??
+                st.headSnapshot ??
+                emptySnapshot()) as ServiceSnapshot;
+
+            const out: SnapshotsLoadResult = {
+                head: st.head,
+                draft: draftEntry?.draft,
+                snapshot,
+            };
+            return ok(out);
         },
-        async autosave(params): Result<{ draft: Draft }> {
-            if (params.workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            store.snapshot = clone(params.snapshot);
-            const d: Draft = {
-                id: store.draft?.id ?? genId("draft", ++store.counters.version),
+
+        autosave: async (params) => {
+            if (params.workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+
+            const st = store.snapshotsByBranch.get(params.branchId);
+            if (!st) return fail("not_found", "Branch not found.");
+
+            const prev = st.drafts.get(params.actorId);
+            if (
+                params.etag &&
+                prev?.draft.etag &&
+                params.etag !== prev.draft.etag
+            ) {
+                return fail("etag_mismatch", "Draft etag mismatch.", {
+                    meta: { expected: prev.draft.etag, got: params.etag },
+                });
+            }
+
+            const now: string = isoNow();
+            const draftId: string = prev?.draft.id ?? newDraftId();
+            const nextEtag: string = bumpEtag(prev?.draft.etag);
+
+            const draft: Draft = {
+                id: draftId,
                 branchId: params.branchId,
                 status: "uncommitted",
-                etag: `draft-${Date.now()}`,
-                createdAt: store.draft?.createdAt ?? nowIso(),
-                updatedAt: nowIso(),
+                etag: nextEtag,
+                meta: prev?.draft.meta,
+                createdAt: prev?.draft.createdAt ?? now,
+                updatedAt: now,
             };
-            store.draft = d;
-            return ok({ draft: clone(d) });
+
+            st.drafts.set(params.actorId, { draft, snapshot: params.snapshot });
+
+            return ok({ draft });
         },
-        async save(params): Result<{ commit: Commit }> {
-            if (params.workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            store.snapshot = clone(params.snapshot);
+
+        save: async (params) => {
+            if (params.workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+
+            const st = store.snapshotsByBranch.get(params.branchId);
+            if (!st) return fail("not_found", "Branch not found.");
+
+            // optional etag check against draft if draftId provided
+            if (params.draftId) {
+                const entry = st.drafts.get(params.actorId);
+                if (entry && entry.draft.id === params.draftId) {
+                    if (
+                        params.etag &&
+                        entry.draft.etag &&
+                        params.etag !== entry.draft.etag
+                    ) {
+                        return fail("etag_mismatch", "Draft etag mismatch.", {
+                            meta: {
+                                expected: entry.draft.etag,
+                                got: params.etag,
+                            },
+                        });
+                    }
+                }
+            }
+
+            const id: string = newCommitId();
             const commit: Commit = {
-                id: genId("commit", ++store.counters.version),
+                id,
                 branchId: params.branchId,
-                message: params.message ?? "Save (memory)",
-                versionId: genId("version", ++store.counters.version),
-                etag: `etag-${Date.now()}`,
-                createdAt: nowIso(),
+                message: params.message,
+                versionId: id,
+                etag: bumpEtag(undefined),
+                createdAt: isoNow(),
             };
-            store.head = commit;
-            store.draft = undefined;
-            const tgt = store.branches.find((b) => b.id === params.branchId);
-            if (tgt) {
-                tgt.headVersionId = commit.versionId;
-                tgt.updatedAt = nowIso();
+
+            st.commits.set(id, { commit, snapshot: params.snapshot });
+            st.head = commit;
+            st.headSnapshot = params.snapshot;
+
+            // update branch head pointer
+            const b: Branch | undefined = store.branches.get(params.branchId);
+            if (b) {
+                store.branches.set(params.branchId, {
+                    ...b,
+                    headVersionId: id,
+                    updatedAt: isoNow(),
+                });
             }
-            return ok({ commit: clone(commit) });
+
+            // if saving from a draft, keep draft (user may still publish) unless you want to clear:
+            // We keep it for now to avoid surprise data loss.
+
+            return ok({ commit });
         },
-        async publish(params): Result<{ commit: Commit }> {
-            if (params.workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            if (!store.draft || store.draft.id !== params.draftId)
-                return err("not_found", "Draft not found");
+
+        publish: async (params) => {
+            if (params.workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+
+            // locate draft by id across branches for this actor
+            let foundBranchId: string | null = null;
+            let foundEntry: { draft: Draft; snapshot: ServiceSnapshot } | null =
+                null;
+
+            for (const [bid, st] of store.snapshotsByBranch.entries()) {
+                const entry = st.drafts.get(params.actorId);
+                if (entry && entry.draft.id === params.draftId) {
+                    foundBranchId = bid;
+                    foundEntry = entry;
+                    break;
+                }
+            }
+
+            if (!foundBranchId || !foundEntry) {
+                return fail("not_found", "Draft not found.");
+            }
+
+            const st = store.snapshotsByBranch.get(foundBranchId)!;
+
+            const id: string = newCommitId();
             const commit: Commit = {
-                id: genId("commit", ++store.counters.version),
-                branchId: store.draft.branchId,
-                message: params.message ?? "Publish (memory)",
-                versionId: genId("version", ++store.counters.version),
-                etag: `etag-${Date.now()}`,
-                createdAt: nowIso(),
+                id,
+                branchId: foundBranchId,
+                message: params.message,
+                versionId: id,
+                etag: bumpEtag(undefined),
+                createdAt: isoNow(),
             };
-            store.head = commit;
-            store.draft = undefined;
-            const tgt = store.branches.find((b) => b.id === commit.branchId);
-            if (tgt) {
-                tgt.headVersionId = commit.versionId;
-                tgt.updatedAt = nowIso();
+
+            st.commits.set(id, { commit, snapshot: foundEntry.snapshot });
+            st.head = commit;
+            st.headSnapshot = foundEntry.snapshot;
+
+            // clear that draft
+            st.drafts.delete(params.actorId);
+
+            // update branch
+            const b: Branch | undefined = store.branches.get(foundBranchId);
+            if (b) {
+                store.branches.set(foundBranchId, {
+                    ...b,
+                    headVersionId: id,
+                    updatedAt: isoNow(),
+                });
             }
-            return ok({ commit: clone(commit) });
+
+            return ok({ commit });
         },
-        async discard(params): Result<void> {
-            if (params.workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            if (!store.draft || store.draft.id !== params.draftId)
-                return err("not_found", "Draft not found");
-            store.draft = undefined;
-            return ok(undefined);
+
+        discard: async (params) => {
+            if (params.workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+
+            // find branch containing the draft
+            for (const st of store.snapshotsByBranch.values()) {
+                const entry = st.drafts.get(params.actorId);
+                if (entry && entry.draft.id === params.draftId) {
+                    st.drafts.delete(params.actorId);
+                    return ok(undefined);
+                }
+            }
+
+            return fail("not_found", "Draft not found.");
         },
-        async refresh(params): Result<{ head?: Commit; draft?: Draft }> {
-            if (params.workspaceId !== store.workspaceId)
-                return err("bad_workspace", "Unknown workspace id");
-            return ok({
-                head: store.head ? clone(store.head) : undefined,
-                draft: store.draft ? clone(store.draft) : undefined,
-            });
+
+        refresh: async (params) => {
+            if (params.workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+
+            const st = store.snapshotsByBranch.get(params.branchId);
+            if (!st) return fail("not_found", "Branch not found.");
+
+            const draft = st.drafts.get(params.actorId)?.draft;
+            const head = st.head;
+
+            return ok({ head, draft });
         },
     };
 
-    /* ---------------- compose backend ---------------- */
+    function ensureThreadContext(ctx: BackendScope, threadId: string) {
+        if (ctx.workspaceId !== info.id)
+            return fail("not_found", "Workspace not found.");
+        const st =
+            store.commentsByBranch.get(ctx.branchId) ??
+            newCommentsBranchState();
+        store.commentsByBranch.set(ctx.branchId, st);
+
+        const th: CommentThread = ensureThread(st, threadId as ThreadId);
+        const nowN: number = Date.now();
+        return ok({ st, th, nowN });
+    }
+
+    const commentsImpl: CommentsBackend<
+        CommentThread,
+        CommentMessage,
+        CommentAnchor
+    > = {
+        listThreads: async (ctx: BackendScope) => {
+            if (ctx.workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+            const st =
+                store.commentsByBranch.get(ctx.branchId) ??
+                newCommentsBranchState();
+            store.commentsByBranch.set(ctx.branchId, st);
+
+            const list: readonly CommentThread[] = Array.from(
+                st.threads.values(),
+            );
+            return ok(list);
+        },
+
+        createThread: async (ctx: BackendScope, input) => {
+            if (ctx.workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+            const st =
+                store.commentsByBranch.get(ctx.branchId) ??
+                newCommentsBranchState();
+            store.commentsByBranch.set(ctx.branchId, st);
+
+            const nowN: number = Date.now();
+            const threadId: ThreadId = newThreadId() as ThreadId;
+            const msgId: CommentId = newMessageId() as CommentId;
+
+            const th: CommentThread = {
+                id: threadId,
+                anchor: input.anchor,
+                resolved: false,
+                createdAt: nowN as any,
+                updatedAt: nowN as any,
+                messages: [
+                    {
+                        id: msgId,
+                        body: input.body,
+                        createdAt: nowN as any,
+                        meta: input.meta,
+                    } as CommentMessage,
+                ],
+                meta: input.meta,
+            } as CommentThread;
+
+            st.threads.set(threadId, th);
+            return ok(th);
+        },
+
+        addMessage: async (ctx: BackendScope, input) => {
+            const res = ensureThreadContext(ctx, input.threadId);
+            if (!res.ok) return res;
+            const { st, th, nowN } = res.value;
+
+            const msg: CommentMessage = {
+                id: newMessageId() as CommentId,
+                body: input.body,
+                createdAt: nowN as any,
+                meta: input.meta,
+            } as CommentMessage;
+
+            const msgs: CommentMessage[] = [
+                ...((th.messages ?? []) as CommentMessage[]),
+                msg,
+            ];
+            const next: CommentThread = {
+                ...(th as object),
+                messages: msgs,
+                updatedAt: nowN as any,
+            } as CommentThread;
+
+            st.threads.set(th.id as ThreadId, next);
+            return ok(msg);
+        },
+
+        editMessage: async (ctx: BackendScope, input) => {
+            const res = ensureThreadContext(ctx, input.threadId);
+            if (!res.ok) return res;
+            const { st, th, nowN } = res.value;
+
+            const idx: number = findMessageIndex(
+                th,
+                input.messageId as CommentId,
+            );
+            if (idx < 0) return fail("not_found", "Message not found.");
+
+            const msgs: CommentMessage[] = [
+                ...((th.messages ?? []) as CommentMessage[]),
+            ];
+            const prev: CommentMessage = msgs[idx] as CommentMessage;
+
+            const nextMsg: CommentMessage = {
+                ...(prev as object),
+                body: input.body,
+                editedAt: nowN as any,
+            } as CommentMessage;
+
+            msgs[idx] = nextMsg;
+
+            const next: CommentThread = {
+                ...(th as object),
+                messages: msgs,
+                updatedAt: nowN as any,
+            } as CommentThread;
+
+            st.threads.set(th.id as ThreadId, next);
+            return ok(nextMsg);
+        },
+
+        deleteMessage: async (ctx: BackendScope, input) => {
+            const res = ensureThreadContext(ctx, input.threadId);
+            if (!res.ok) return res;
+            const { st, th, nowN } = res.value;
+
+            const msgs: CommentMessage[] = (
+                (th.messages ?? []) as CommentMessage[]
+            ).filter(
+                (m: CommentMessage) => m.id !== (input.messageId as CommentId),
+            );
+
+            const next: CommentThread = {
+                ...(th as object),
+                messages: msgs,
+                updatedAt: nowN as any,
+            } as CommentThread;
+
+            st.threads.set(th.id as ThreadId, next);
+            return ok(undefined);
+        },
+
+        moveThread: async (ctx: BackendScope, input) => {
+            const res = ensureThreadContext(ctx, input.threadId);
+            if (!res.ok) return res;
+            const { st, th, nowN } = res.value;
+
+            const next: CommentThread = {
+                ...(th as object),
+                anchor: input.anchor,
+                updatedAt: nowN as any,
+            } as CommentThread;
+
+            st.threads.set(th.id as ThreadId, next);
+            return ok(next);
+        },
+
+        resolveThread: async (ctx: BackendScope, input) => {
+            const res = ensureThreadContext(ctx, input.threadId);
+            if (!res.ok) return res;
+            const { st, th, nowN } = res.value;
+
+            const next: CommentThread = {
+                ...(th as object),
+                resolved: input.resolved,
+                updatedAt: nowN as any,
+            } as CommentThread;
+
+            st.threads.set(th.id as ThreadId, next);
+            return ok(next);
+        },
+
+        deleteThread: async (ctx: BackendScope, input) => {
+            if (ctx.workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+            const st =
+                store.commentsByBranch.get(ctx.branchId) ??
+                newCommentsBranchState();
+            store.commentsByBranch.set(ctx.branchId, st);
+
+            st.threads.delete(input.threadId as ThreadId);
+            return ok(undefined);
+        },
+    };
+
+    // WorkspaceBackend.comments expects CommentsBackend (default unknown generics);
+    // we return a structurally compatible implementation.
+    const comments: WorkspaceBackend["comments"] = commentsImpl;
+
+    const policies: PoliciesBackend = {
+        load: async (ctx: PolicyScope) => {
+            if (ctx.workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+
+            const state = ctx.branchId
+                ? store.policiesByBranch.get(ctx.branchId)
+                : store.policies;
+
+            if (!state) return ok(null);
+
+            const out: PoliciesLoadResult = {
+                raw: state.raw,
+                updatedAt: state.updatedAt,
+                etag: state.etag,
+            };
+            return ok(out);
+        },
+
+        save: async (ctx: PolicyScope, input) => {
+            if (ctx.workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+
+            const prev = ctx.branchId
+                ? store.policiesByBranch.get(ctx.branchId)
+                : store.policies;
+
+            if (input.etag && prev?.etag && input.etag !== prev.etag) {
+                return fail("etag_mismatch", "Policy etag mismatch.");
+            }
+
+            const updatedAt = isoNow();
+            const etag = bumpEtag(prev?.etag);
+            const next = { raw: input.raw, updatedAt, etag };
+
+            if (ctx.branchId) {
+                store.policiesByBranch.set(ctx.branchId, next);
+            } else {
+                store.policies = next;
+            }
+
+            return ok({ updatedAt, etag });
+        },
+
+        clear: async (ctx: PolicyScope) => {
+            if (ctx.workspaceId !== info.id)
+                return fail("not_found", "Workspace not found.");
+
+            const updatedAt = isoNow();
+            if (ctx.branchId) {
+                store.policiesByBranch.delete(ctx.branchId);
+            } else {
+                store.policies = null;
+            }
+
+            return ok({ updatedAt });
+        },
+    };
 
     const backend: WorkspaceBackend = {
-        info: {
-            id: wsId,
-            name: "Workspace 101",
-            createdAt: nowIso(),
-            updatedAt: nowIso(),
-        },
-        authors: authorsBackend,
-        permissions: permissionsBackend,
-        branches: branchesBackend,
-        templates: templatesBackend,
-        snapshots: snapshotsBackend,
-        services: seed.services,
+        info,
+        authors,
+        permissions,
+        branches,
+        access,
+        services,
+        templates,
+        snapshots,
+        policies,
+        comments,
     };
 
     return backend;
@@ -2441,7 +3673,256 @@ export function createMemoryWorkspaceBackend(seed: MemorySeed): WorkspaceBackend
 ```
 
 ---
-#### 16
+#### 20
+
+
+` File: src/react/workspace/context/memory/seed.ts`  [↑ Back to top](#index)
+
+```ts
+// src/react/workspace/context/backend/memory/seed.ts
+
+import type {
+    Actor,
+    Author,
+    Branch,
+    BranchParticipant,
+    Commit,
+    Draft,
+    PermissionsMap,
+    ServiceSnapshot,
+    ServicesInput,
+    WorkspaceInfo,
+} from "../backend";
+
+import type { CommentThread } from "@/schema/comments";
+
+export interface MemorySeedBranchSnapshots {
+    readonly head?: Commit;
+    readonly draft?: Draft;
+    readonly snapshot?: ServiceSnapshot;
+}
+
+export type MemorySeedParticipants = Readonly<
+    Record<string, readonly BranchParticipant[]>
+>;
+
+export type MemorySeedBranchSnapshotsMap = Readonly<
+    Record<string, MemorySeedBranchSnapshots>
+>;
+
+export type MemorySeedComments = Readonly<
+    Record<string, readonly CommentThread[]>
+>;
+
+export type SeededPermissions =
+    | PermissionsMap
+    | Readonly<Record<string, PermissionsMap>>;
+
+export interface MemoryBackendSeed {
+    readonly info?: Partial<WorkspaceInfo>;
+
+    readonly actor?: Partial<Actor>;
+    readonly authors?: readonly Author[];
+
+    readonly permissions?: SeededPermissions;
+
+    readonly branches?: readonly Branch[];
+
+    /** participants keyed by branchId */
+    readonly participants?: MemorySeedParticipants;
+
+    readonly services?: ServicesInput;
+
+    /** templates may be global (no branchId) or branch-scoped (branchId set) */
+    readonly templates?: readonly any[]; // FieldTemplate lives in backend.ts; keep seed ergonomic
+
+    /** snapshots keyed by branchId */
+    readonly snapshots?: MemorySeedBranchSnapshotsMap;
+
+    /** comments threads keyed by branchId */
+    readonly comments?: MemorySeedComments;
+
+    /** workspace policies */
+    readonly policies?: unknown;
+
+    /** branch policies keyed by branchId */
+    readonly policiesByBranch?: Readonly<Record<string, unknown>>;
+}
+
+export interface CreateMemoryWorkspaceBackendOptions {
+    readonly workspaceId: string;
+    readonly actorId?: string;
+
+    /**
+     * If true (default), ensure a main branch exists.
+     * If branches are seeded but none isMain=true, the first becomes main.
+     */
+    readonly ensureMain?: boolean;
+
+    /**
+     * If true (default), ensure at least one author exists.
+     * If authors are not seeded, one author is created from actorId.
+     */
+    readonly ensureActorAuthor?: boolean;
+
+    /** Seed data to preload the in-memory store */
+    readonly seed?: MemoryBackendSeed;
+}
+```
+
+---
+#### 21
+
+
+` File: src/react/workspace/context/memory/store.ts`  [↑ Back to top](#index)
+
+```ts
+// src/react/workspace/context/backend/memory/store.ts
+
+import type {
+    Author,
+    Branch,
+    BranchParticipant,
+    Commit,
+    Draft,
+    FieldTemplate,
+    PermissionsMap,
+    ServiceSnapshot,
+    ServicesInput,
+    WorkspaceInfo,
+} from "../backend";
+
+import type {
+    CommentAnchor,
+    CommentId,
+    CommentMessage,
+    CommentThread,
+    ThreadId,
+} from "@/schema/comments";
+
+export interface BranchSnapshotState {
+    head?: Commit;
+    headSnapshot?: ServiceSnapshot;
+
+    /** drafts keyed by actorId */
+    drafts: Map<string, { draft: Draft; snapshot: ServiceSnapshot }>;
+
+    /** commits keyed by commitId (versionId) */
+    commits: Map<string, { commit: Commit; snapshot: ServiceSnapshot }>;
+}
+
+export interface CommentsBranchState {
+    threads: Map<ThreadId, CommentThread>;
+    // message index is derived; no separate store needed
+}
+
+export interface PolicyState {
+    raw: unknown;
+    updatedAt?: string;
+    etag?: string;
+}
+
+export interface MemoryWorkspaceStore {
+    info: WorkspaceInfo;
+
+    authors: Map<string, Author>;
+
+    /** permissions by actorId */
+    permissionsByActor: Map<string, PermissionsMap>;
+
+    branches: Map<string, Branch>;
+    participantsByBranch: Map<string, readonly BranchParticipant[]>;
+
+    services: ServicesInput | null;
+
+    templates: Map<string, FieldTemplate>;
+
+    snapshotsByBranch: Map<string, BranchSnapshotState>;
+
+    commentsByBranch: Map<string, CommentsBranchState>;
+
+    /** workspace-scoped policies */
+    policies: PolicyState | null;
+
+    /** branch-scoped policies */
+    policiesByBranch: Map<string, PolicyState>;
+}
+
+export function newBranchSnapshotState(): BranchSnapshotState {
+    return {
+        drafts: new Map<string, { draft: Draft; snapshot: ServiceSnapshot }>(),
+        commits: new Map<
+            string,
+            { commit: Commit; snapshot: ServiceSnapshot }
+        >(),
+    };
+}
+
+export function newCommentsBranchState(): CommentsBranchState {
+    return {
+        threads: new Map<ThreadId, CommentThread>(),
+    };
+}
+
+// helpers that don’t need to know about backend.ts shapes beyond comment schemas
+export function findMessageIndex(
+    thread: CommentThread,
+    messageId: CommentId,
+): number {
+    const msgs: readonly CommentMessage[] = (thread.messages ??
+        []) as readonly CommentMessage[];
+    for (let i: number = 0; i < msgs.length; i += 1) {
+        if (msgs[i].id === messageId) return i;
+    }
+    return -1;
+}
+
+export function ensureThread(
+    state: CommentsBranchState,
+    threadId: ThreadId,
+): CommentThread {
+    const th: CommentThread | undefined = state.threads.get(threadId);
+    if (!th) {
+        throw new Error(`Comment thread not found: ${String(threadId)}`);
+    }
+    return th;
+}
+
+export function setThreadAnchor(
+    thread: CommentThread,
+    anchor: CommentAnchor,
+): CommentThread {
+    return { ...(thread as object), anchor } as CommentThread;
+}
+```
+
+---
+#### 22
+
+
+` File: src/react/workspace/context/memory/time.ts`  [↑ Back to top](#index)
+
+```ts
+// src/react/workspace/context/backend/memory/time.ts
+
+export function nowMs(): number {
+    return Date.now();
+}
+
+export function isoNow(): string {
+    return new Date().toISOString();
+}
+
+export function toIso(input?: string | number | Date): string {
+    if (!input) return isoNow();
+    if (typeof input === "string") return input;
+    if (typeof input === "number") return new Date(input).toISOString();
+    return input.toISOString();
+}
+```
+
+---
+#### 23
 
 
 ` File: src/react/workspace/context/provider/compose/use-branch-cache.ts`  [↑ Back to top](#index)
@@ -2723,7 +4204,7 @@ export function useBranchCache(workspaceId: string): BranchCacheApi {
 ```
 
 ---
-#### 17
+#### 24
 
 
 ` File: src/react/workspace/context/provider/compose/use-live-polling.ts`  [↑ Back to top](#index)
@@ -3011,7 +4492,7 @@ export function useLivePolling(params: UseLivePollingParams): LiveControl {
 ```
 
 ---
-#### 18
+#### 25
 
 
 ` File: src/react/workspace/context/provider/compose/use-workspace-refresh.ts`  [↑ Back to top](#index)
@@ -3021,6 +4502,8 @@ export function useLivePolling(params: UseLivePollingParams): LiveControl {
 import * as React from "react";
 import type { RunResult } from "../types";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
+import { PoliciesSlice } from "@/react/workspace/context/provider/slices/use-policies-slice";
+import { CommentsSliceApi } from "@/react/workspace/context/provider/slices/use-comments-slice";
 
 export interface WorkspaceRefreshApi {
     readonly refreshAll: (opts?: { strict?: boolean }) => Promise<RunResult>;
@@ -3060,6 +4543,8 @@ export interface UseWorkspaceRefreshParams {
     readonly refreshPermissions: () => Promise<void>;
     readonly refreshBranches: () => Promise<void>;
     readonly refreshServices: () => Promise<void>;
+    readonly refreshPolicies: PoliciesSlice["refreshPolicies"];
+    readonly refreshComments: CommentsSliceApi["refreshThreads"];
 
     readonly getCurrentBranchId: () => string | undefined;
 
@@ -3085,6 +4570,8 @@ export function useWorkspaceRefresh(
         refreshPermissions,
         refreshBranches,
         refreshServices,
+        refreshComments,
+        refreshPolicies,
         getCurrentBranchId,
         refreshTemplates,
         refreshParticipants,
@@ -3099,6 +4586,8 @@ export function useWorkspaceRefresh(
                     () => refreshParticipants({ branchId }),
                     () => refreshTemplates({ branchId }),
                     () => refreshSnapshotPointersForBranch(branchId),
+                    () => refreshComments(),
+                    () => refreshPolicies({ branchId }),
                 ],
                 tolerant,
             );
@@ -3182,6 +4671,8 @@ export function useWorkspaceRefresh(
             refreshServices,
             getCurrentBranchId,
             refreshBranchLocalContext,
+            refreshComments,
+            refreshPolicies,
         ],
     );
 
@@ -3221,7 +4712,7 @@ export function useWorkspaceRefresh(
 ```
 
 ---
-#### 19
+#### 26
 
 
 ` File: src/react/workspace/context/provider/context.ts`  [↑ Back to top](#index)
@@ -3249,7 +4740,7 @@ export function useWorkspaceMaybe(): WorkspaceAPI | null {
 ```
 
 ---
-#### 20
+#### 27
 
 
 ` File: src/react/workspace/context/provider/helpers.ts`  [↑ Back to top](#index)
@@ -3360,7 +4851,7 @@ export function toServiceMap(
 ```
 
 ---
-#### 21
+#### 28
 
 
 ` File: src/react/workspace/context/provider/live/adapters/manual.ts`  [↑ Back to top](#index)
@@ -3370,7 +4861,7 @@ export function toServiceMap(
 ```
 
 ---
-#### 22
+#### 29
 
 
 ` File: src/react/workspace/context/provider/live/adapters/poll.ts`  [↑ Back to top](#index)
@@ -3451,7 +4942,7 @@ export function createPollAdapter(
 ```
 
 ---
-#### 23
+#### 30
 
 
 ` File: src/react/workspace/context/provider/live/adapters/sse.ts`  [↑ Back to top](#index)
@@ -3461,7 +4952,7 @@ export function createPollAdapter(
 ```
 
 ---
-#### 24
+#### 31
 
 
 ` File: src/react/workspace/context/provider/live/adapters/ws.ts`  [↑ Back to top](#index)
@@ -3471,7 +4962,7 @@ export function createPollAdapter(
 ```
 
 ---
-#### 25
+#### 32
 
 
 ` File: src/react/workspace/context/provider/live/types.ts`  [↑ Back to top](#index)
@@ -3554,7 +5045,7 @@ export type WorkspaceLiveAdapterRegistry = Readonly<
 ```
 
 ---
-#### 26
+#### 33
 
 
 ` File: src/react/workspace/context/provider/provider.tsx`  [↑ Back to top](#index)
@@ -3570,7 +5061,7 @@ import type {
 } from "../backend";
 import type { DgpServiceMap } from "@/schema/provider";
 
-import { WorkspaceContext } from "./context";
+import { WorkspaceContext } from "@/react";
 import type { WorkspaceAPI, WorkspaceProviderProps } from "./types";
 import { LIVE_OFF } from "./helpers";
 
@@ -3582,10 +5073,11 @@ import { useBranchesSlice } from "./slices/use-branches-slice";
 import { useTemplatesSlice } from "./slices/use-templates-slice";
 import { useServicesSlice } from "./slices/use-services-slice";
 import { useSnapshotsSlice } from "./slices/use-snapshots-slice";
-
+import { useCommentsSlice } from "./slices/use-comments-slice";
 import { useBranchCache } from "./compose/use-branch-cache";
 import { useWorkspaceRefresh } from "./compose/use-workspace-refresh";
 import { useLivePolling } from "./compose/use-live-polling";
+import { usePoliciesSlice } from "@/react/workspace/context/provider/slices/use-policies-slice";
 
 /* ---------------- provider (thin composition root) ---------------- */
 
@@ -3676,12 +5168,31 @@ export function WorkspaceProvider(
 
     const branchCache = useBranchCache(workspaceId);
 
+    const comments = useCommentsSlice({
+        backend: backend.comments,
+        workspaceId,
+        actorId: actor.id,
+        getCurrentBranchId,
+        initialThreads: initial?.comments,
+    });
+
+    const policiesSlice = usePoliciesSlice({
+        backend,
+        workspaceId,
+        actorId: actor.id,
+        getCurrentBranchId,
+        initialPolicies: initial?.policies ?? null, // if you add it to initial
+        runtime,
+    });
+
     const refresh = useWorkspaceRefresh({
         runtime,
         refreshAuthors: authorsSlice.refreshAuthors,
         refreshPermissions: permissionsSlice.refreshPermissions,
         refreshBranches: branchesSlice.refreshBranches,
         refreshServices: servicesSlice.refreshServices,
+        refreshPolicies: policiesSlice.refreshPolicies,
+        refreshComments: comments.refreshThreads,
         getCurrentBranchId,
         refreshTemplates: async (p?: Partial<{ branchId: string }>) => {
             await templatesSlice.refreshTemplates(
@@ -3878,6 +5389,9 @@ export function WorkspaceProvider(
             ) {
                 branchCache.clear();
             }
+            if (setAll || keys?.includes("policies"))
+                policiesSlice.invalidatePolicies();
+
         },
         [
             authorsSlice,
@@ -3928,6 +5442,7 @@ export function WorkspaceProvider(
                 ) => branchesSlice.refreshParticipants(params),
 
                 snapshotPointers: refresh.refreshSnapshotPointers,
+                policies: () => policiesSlice.refreshPolicies(),
             },
 
             setCurrentBranch,
@@ -3973,6 +5488,18 @@ export function WorkspaceProvider(
                 publish: snapshotsSlice.publish,
                 discardDraft: snapshotsSlice.discardDraft,
             },
+            comments: {
+                threads: comments.threads,
+                refreshThreads: comments.refreshThreads,
+                createThread: comments.createThread,
+                addMessage: comments.addMessage,
+                editMessage: comments.editMessage,
+                deleteMessage: comments.deleteMessage,
+                moveThread: comments.moveThread,
+                resolveThread: comments.resolveThread,
+                deleteThread: comments.deleteThread,
+            },
+            policies: policiesSlice,
         }),
         [
             backend.info,
@@ -4037,7 +5564,7 @@ export function WorkspaceProvider(
 ```
 
 ---
-#### 27
+#### 34
 
 
 ` File: src/react/workspace/context/provider/runtime/use-backend-runtime.ts`  [↑ Back to top](#index)
@@ -4085,7 +5612,7 @@ export function useBackendRuntime(): BackendRuntime {
 ```
 
 ---
-#### 28
+#### 35
 
 
 ` File: src/react/workspace/context/provider/slices/use-authors-slice.ts`  [↑ Back to top](#index)
@@ -4094,7 +5621,7 @@ export function useBackendRuntime(): BackendRuntime {
 // src/react/workspace/context/provider/slices/use-authors-slice.ts
 import * as React from "react";
 import type { Author, BackendError, WorkspaceBackend } from "../../backend";
-import type { Loadable } from "../types";
+import type { Loadable } from "@/react";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
 
 export interface AuthorsSliceApi {
@@ -4155,7 +5682,7 @@ export function useAuthorsSlice(
 ```
 
 ---
-#### 29
+#### 36
 
 
 ` File: src/react/workspace/context/provider/slices/use-branches-slice.ts`  [↑ Back to top](#index)
@@ -4169,7 +5696,7 @@ import type {
     BranchParticipant,
     WorkspaceBackend,
 } from "../../backend";
-import type { BranchesSlice, Loadable } from "../types";
+import type { BranchesSlice, Loadable } from "@/react";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
 
 export interface BranchesSliceApi {
@@ -4371,7 +5898,457 @@ export function useBranchesSlice(
 ```
 
 ---
-#### 30
+#### 37
+
+
+` File: src/react/workspace/context/provider/slices/use-comments-slice.ts`  [↑ Back to top](#index)
+
+```ts
+// src/react/workspace/context/provider/slices/use-comments-slice.ts
+
+import * as React from "react";
+
+import type {
+    BackendError,
+    BackendScope,
+    Result,
+    WorkspaceBackend,
+} from "../../backend";
+import type { Loadable } from "@/react";
+
+import type {
+    CommentAnchor,
+    CommentMessage,
+    CommentThread,
+} from "@/schema/comments";
+
+export interface CommentsSliceApi {
+    readonly threads: Loadable<readonly CommentThread[]>;
+
+    readonly refreshThreads: (
+        params?: Readonly<{ branchId?: string }>,
+    ) => Promise<void>;
+
+    readonly createThread: (
+        input: Readonly<{
+            anchor: CommentAnchor;
+            body: string;
+            meta?: Readonly<Record<string, unknown>>;
+            branchId?: string;
+        }>,
+    ) => Result<CommentThread>;
+
+    readonly addMessage: (
+        input: Readonly<{
+            threadId: string;
+            body: string;
+            meta?: Readonly<Record<string, unknown>>;
+            branchId?: string;
+        }>,
+    ) => Result<CommentMessage>;
+
+    readonly editMessage: (
+        input: Readonly<{
+            threadId: string;
+            messageId: string;
+            body: string;
+            branchId?: string;
+        }>,
+    ) => Result<CommentMessage>;
+
+    readonly deleteMessage: (
+        input: Readonly<{
+            threadId: string;
+            messageId: string;
+            branchId?: string;
+        }>,
+    ) => Result<void>;
+
+    readonly moveThread: (
+        input: Readonly<{
+            threadId: string;
+            anchor: CommentAnchor;
+            branchId?: string;
+        }>,
+    ) => Result<CommentThread>;
+
+    readonly resolveThread: (
+        input: Readonly<{
+            threadId: string;
+            resolved: boolean;
+            branchId?: string;
+        }>,
+    ) => Result<CommentThread>;
+
+    readonly deleteThread: (
+        input: Readonly<{
+            threadId: string;
+            branchId?: string;
+        }>,
+    ) => Result<void>;
+}
+
+export interface UseCommentsSliceParams {
+    readonly actorId: string;
+    readonly workspaceId: string;
+
+    /** backend.comments */
+    readonly backend: WorkspaceBackend["comments"];
+
+    /** Current branch resolver (provider owns currentId) */
+    readonly getCurrentBranchId: () => string | undefined;
+
+    /** Optional initial preload */
+    readonly initialThreads?: readonly CommentThread[] | null;
+}
+
+function missingScopeError<T>(): Result<T> {
+    return Promise.resolve({
+        ok: false,
+        error: {
+            code: "missing_scope",
+            message:
+                "Workspace comments require workspaceId, actorId, and branchId.",
+        },
+    });
+}
+
+function setLoadableError<T>(
+    set: React.Dispatch<React.SetStateAction<Loadable<T>>>,
+    err: BackendError,
+): void {
+    set((s: Loadable<T>) => ({ ...s, loading: false, error: err }));
+}
+
+export function useCommentsSlice(
+    params: UseCommentsSliceParams,
+): CommentsSliceApi {
+    const {
+        backend,
+        workspaceId,
+        actorId,
+        getCurrentBranchId,
+        initialThreads,
+    } = params;
+
+    const now = (): number => Date.now();
+
+    const [threads, setThreads] = React.useState<
+        Loadable<readonly CommentThread[]>
+    >({
+        data: initialThreads ?? null,
+        loading: false,
+        updatedAt: initialThreads ? now() : undefined,
+    });
+
+    const resolveScope = React.useCallback(
+        (branchId?: string): BackendScope | null => {
+            const bid: string | undefined = branchId ?? getCurrentBranchId();
+            if (!workspaceId || !actorId || !bid) return null;
+            return { workspaceId, actorId, branchId: bid };
+        },
+        [workspaceId, actorId, getCurrentBranchId],
+    );
+
+    const refreshThreads = React.useCallback(
+        async (p?: Readonly<{ branchId?: string }>): Promise<void> => {
+            const scope: BackendScope | null = resolveScope(p?.branchId);
+            if (!scope) return;
+
+            setThreads((s) => ({ ...s, loading: true }));
+            const res = await backend.listThreads(scope);
+
+            if (res.ok) {
+                setThreads({
+                    data: res.value as readonly CommentThread[],
+                    loading: false,
+                    updatedAt: now(),
+                });
+            } else {
+                setLoadableError(setThreads, res.error);
+            }
+        },
+        [backend, resolveScope],
+    );
+
+    const createThread = React.useCallback(
+        async (
+            input: Readonly<{
+                anchor: CommentAnchor;
+                body: string;
+                meta?: Readonly<Record<string, unknown>>;
+                branchId?: string;
+            }>,
+        ): Result<CommentThread> => {
+            const scope: BackendScope | null = resolveScope(input.branchId);
+            if (!scope) return missingScopeError<CommentThread>();
+
+            const res = await backend.createThread(scope, {
+                anchor: input.anchor,
+                body: input.body,
+                meta: input.meta ? { ...input.meta } : undefined,
+            });
+
+            if (res.ok) {
+                setThreads((s) => {
+                    const prev: readonly CommentThread[] = s.data ?? [];
+                    return {
+                        ...s,
+                        data: [res.value as CommentThread, ...prev],
+                        loading: false,
+                        updatedAt: now(),
+                    };
+                });
+            }
+
+            return res as unknown as Result<CommentThread>;
+        },
+        [backend, resolveScope],
+    );
+
+    const addMessage = React.useCallback(
+        async (
+            input: Readonly<{
+                threadId: string;
+                body: string;
+                meta?: Readonly<Record<string, unknown>>;
+                branchId?: string;
+            }>,
+        ): Result<CommentMessage> => {
+            const scope: BackendScope | null = resolveScope(input.branchId);
+            if (!scope) return missingScopeError<CommentMessage>();
+
+            const res = await backend.addMessage(scope, {
+                threadId: input.threadId,
+                body: input.body,
+                meta: input.meta ? { ...input.meta } : undefined,
+            });
+
+            if (res.ok) {
+                const msg: CommentMessage = res.value as CommentMessage;
+
+                setThreads((s) => {
+                    if (!s.data) return s;
+
+                    const next: readonly CommentThread[] = s.data.map((t) => {
+                        if (t.id !== input.threadId) return t;
+                        const msgs: readonly CommentMessage[] = (t.messages ??
+                            []) as readonly CommentMessage[];
+                        return { ...t, messages: [...msgs, msg] };
+                    });
+
+                    return { ...s, data: next, updatedAt: now() };
+                });
+            }
+
+            return res as unknown as Result<CommentMessage>;
+        },
+        [backend, resolveScope],
+    );
+
+    const editMessage = React.useCallback(
+        async (
+            input: Readonly<{
+                threadId: string;
+                messageId: string;
+                body: string;
+                branchId?: string;
+            }>,
+        ): Result<CommentMessage> => {
+            const scope: BackendScope | null = resolveScope(input.branchId);
+            if (!scope) return missingScopeError<CommentMessage>();
+
+            const res = await backend.editMessage(scope, {
+                threadId: input.threadId,
+                messageId: input.messageId,
+                body: input.body,
+            });
+
+            if (res.ok) {
+                const msg: CommentMessage = res.value as CommentMessage;
+
+                setThreads((s) => {
+                    if (!s.data) return s;
+                    const next: readonly CommentThread[] = s.data.map((t) => {
+                        if (t.id !== input.threadId) return t;
+                        const msgs: readonly CommentMessage[] = (t.messages ??
+                            []) as readonly CommentMessage[];
+                        const updated: readonly CommentMessage[] = msgs.map(
+                            (m) => (m.id === input.messageId ? msg : m),
+                        );
+                        return { ...t, messages: updated } as CommentThread;
+                    });
+
+                    return { ...s, data: next, updatedAt: now() };
+                });
+            }
+
+            return res as unknown as Result<CommentMessage>;
+        },
+        [backend, resolveScope],
+    );
+
+    const deleteMessage = React.useCallback(
+        async (
+            input: Readonly<{
+                threadId: string;
+                messageId: string;
+                branchId?: string;
+            }>,
+        ): Result<void> => {
+            const scope: BackendScope | null = resolveScope(input.branchId);
+            if (!scope) return missingScopeError<void>();
+
+            const res = await backend.deleteMessage(scope, {
+                threadId: input.threadId,
+                messageId: input.messageId,
+            });
+
+            if (res.ok) {
+                setThreads((s) => {
+                    if (!s.data) return s;
+
+                    const next: readonly CommentThread[] = s.data.map((t) => {
+                        if (t.id !== input.threadId) return t;
+                        const msgs: readonly CommentMessage[] = (t.messages ??
+                            []) as readonly CommentMessage[];
+                        return {
+                            ...t,
+                            messages: msgs.filter(
+                                (m) => m.id !== input.messageId,
+                            ),
+                        };
+                    });
+
+                    return { ...s, data: next, updatedAt: now() };
+                });
+            }
+
+            return res as unknown as Result<void>;
+        },
+        [backend, resolveScope],
+    );
+
+    const updateThread = React.useCallback((thread: CommentThread) => {
+        setThreads((s) => {
+            if (!s.data) return s;
+            return {
+                ...s,
+                data: s.data.map((t) => (t.id === thread.id ? thread : t)),
+                updatedAt: now(),
+            };
+        });
+    }, []);
+
+    const moveThread = React.useCallback(
+        async (
+            input: Readonly<{
+                threadId: string;
+                anchor: CommentAnchor;
+                branchId?: string;
+            }>,
+        ): Result<CommentThread> => {
+            const scope: BackendScope | null = resolveScope(input.branchId);
+            if (!scope) return missingScopeError<CommentThread>();
+
+            const res = await backend.moveThread(scope, {
+                threadId: input.threadId,
+                anchor: input.anchor,
+            });
+
+            if (res.ok) {
+                updateThread(res.value as CommentThread);
+            }
+
+            return res as unknown as Result<CommentThread>;
+        },
+        [backend, resolveScope, updateThread],
+    );
+
+    const resolveThread = React.useCallback(
+        async (
+            input: Readonly<{
+                threadId: string;
+                resolved: boolean;
+                branchId?: string;
+            }>,
+        ): Result<CommentThread> => {
+            const scope: BackendScope | null = resolveScope(input.branchId);
+            if (!scope) return missingScopeError<CommentThread>();
+
+            const res = await backend.resolveThread(scope, {
+                threadId: input.threadId,
+                resolved: input.resolved,
+            });
+
+            if (res.ok) {
+                updateThread(res.value as CommentThread);
+            }
+
+            return res as unknown as Result<CommentThread>;
+        },
+        [backend, resolveScope, updateThread],
+    );
+
+    const deleteThread = React.useCallback(
+        async (
+            input: Readonly<{
+                threadId: string;
+                branchId?: string;
+            }>,
+        ): Result<void> => {
+            const scope: BackendScope | null = resolveScope(input.branchId);
+            if (!scope) return missingScopeError<void>();
+
+            const res = await backend.deleteThread(scope, {
+                threadId: input.threadId,
+            });
+
+            if (res.ok) {
+                setThreads((s) => {
+                    if (!s.data) return s;
+                    return {
+                        ...s,
+                        data: s.data.filter((t) => t.id !== input.threadId),
+                        updatedAt: now(),
+                    };
+                });
+            }
+
+            return res as unknown as Result<void>;
+        },
+        [backend, resolveScope],
+    );
+
+    return React.useMemo(
+        () => ({
+            threads,
+            refreshThreads,
+            createThread,
+            addMessage,
+            editMessage,
+            deleteMessage,
+            moveThread,
+            resolveThread,
+            deleteThread,
+        }),
+        [
+            threads,
+            refreshThreads,
+            createThread,
+            addMessage,
+            editMessage,
+            deleteMessage,
+            moveThread,
+            resolveThread,
+            deleteThread,
+        ],
+    );
+}
+```
+
+---
+#### 38
 
 
 ` File: src/react/workspace/context/provider/slices/use-permissions-slice.ts`  [↑ Back to top](#index)
@@ -4385,7 +6362,7 @@ import type {
     PermissionsMap,
     WorkspaceBackend,
 } from "../../backend";
-import type { Loadable } from "../types";
+import type { Loadable } from "@/react";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
 
 export interface PermissionsSliceApi {
@@ -4449,7 +6426,224 @@ export function usePermissionsSlice(
 ```
 
 ---
-#### 31
+#### 39
+
+
+` File: src/react/workspace/context/provider/slices/use-policies-slice.ts`  [↑ Back to top](#index)
+
+```ts
+// src/react/workspace/context/provider/slices/use-policies-slice.ts
+import * as React from "react";
+
+import type { WorkspaceBackend, Result, BackendError } from "../../backend";
+import type { Loadable } from "@/react";
+
+import type { DynamicRule } from "@/schema/validation";
+import { compilePolicies, type PolicyDiagnostic } from "@/core/policy";
+
+/* ---------------- helpers ---------------- */
+
+function idle<T>(data: T | null = null): Loadable<T> {
+    return { state: "idle", data } as any;
+}
+function loading<T>(prev: Loadable<T>): Loadable<T> {
+    return { ...prev, state: "loading", error: undefined } as any;
+}
+function ready<T>(data: T): Loadable<T> {
+    return { state: "ready", data, error: undefined } as any;
+}
+function failed<T>(prev: Loadable<T>, error: BackendError): Loadable<T> {
+    return { ...prev, state: "error", error } as any;
+}
+
+function missingBackendError(key: string): BackendError {
+    return {
+        code: "backend_missing",
+        message: `WorkspaceBackend.policies.${key} is not implemented.`,
+    };
+}
+
+/* ---------------- slice ---------------- */
+
+export type PoliciesSlice = {
+    readonly policies: Loadable<readonly DynamicRule[]>;
+    readonly policyDiagnostics: Loadable<readonly PolicyDiagnostic[]>;
+
+    /** internal state setters (for cache switching parity) */
+    readonly __setPoliciesState: React.Dispatch<
+        React.SetStateAction<Loadable<readonly DynamicRule[]>>
+    >;
+    readonly __setPolicyDiagnosticsState: React.Dispatch<
+        React.SetStateAction<Loadable<readonly PolicyDiagnostic[]>>
+    >;
+
+    readonly invalidatePolicies: () => void;
+
+    readonly refreshPolicies: (
+        params?: Readonly<{ since?: number | string; branchId?: string }>,
+    ) => Promise<void>;
+
+    readonly savePolicies: (
+        rules: readonly DynamicRule[],
+        params?: Readonly<{ branchId?: string }>,
+    ) => Result<Readonly<{ policies: readonly DynamicRule[] }>>;
+
+    /** local-only compile helper for editor UIs */
+    readonly compilePoliciesFromRaw: (raw: unknown) => Readonly<{
+        policies: DynamicRule[];
+        diagnostics: PolicyDiagnostic[];
+    }>;
+};
+
+export function usePoliciesSlice(
+    args: Readonly<{
+        backend: WorkspaceBackend;
+        workspaceId: string;
+        actorId: string;
+        getCurrentBranchId: () => string | undefined;
+
+        /** optional hydration */
+        initialPolicies?: readonly DynamicRule[] | null;
+
+        /** runtime is accepted for parity with other slices (not required here) */
+        runtime?: unknown;
+    }>,
+): PoliciesSlice {
+    const {
+        backend,
+        workspaceId,
+        actorId,
+        getCurrentBranchId,
+        initialPolicies = null,
+    } = args;
+
+    const [policies, __setPoliciesState] = React.useState<
+        Loadable<readonly DynamicRule[]>
+    >(() => (initialPolicies ? ready(initialPolicies) : idle(null)) as any);
+
+    const [policyDiagnostics, __setPolicyDiagnosticsState] = React.useState<
+        Loadable<readonly PolicyDiagnostic[]>
+    >(() => idle([]));
+
+    const invalidatePolicies = React.useCallback((): void => {
+        __setPoliciesState((s) => idle(s.data ?? null));
+        __setPolicyDiagnosticsState(() => idle([]));
+    }, []);
+
+    const refreshPolicies = React.useCallback(
+        async (
+            params?: Readonly<{ since?: number | string; branchId?: string }>,
+        ): Promise<void> => {
+            const branchId: string | undefined =
+                params?.branchId ?? getCurrentBranchId();
+
+            const api: any = (backend as any).policies;
+
+            // Prefer refresh(); fallback to get()
+            const fn: any = api?.refresh ?? api?.get;
+            const fnKey: string = api?.refresh ? "refresh" : "get";
+
+            if (!fn) {
+                __setPoliciesState((s) =>
+                    failed(s, missingBackendError(fnKey)),
+                );
+                return;
+            }
+
+            __setPoliciesState((s) => loading(s));
+
+            const res = await fn({
+                workspaceId,
+                branchId,
+                actorId,
+                since: params?.since,
+            });
+
+            if (!res?.ok) {
+                __setPoliciesState((s) =>
+                    failed(s, res?.error ?? missingBackendError(fnKey)),
+                );
+                return;
+            }
+
+            const list: readonly DynamicRule[] = (res.value?.policies ??
+                res.value ??
+                []) as readonly DynamicRule[];
+
+            __setPoliciesState(() => ready(list));
+        },
+        [backend, workspaceId, actorId, getCurrentBranchId],
+    );
+
+    const savePolicies = React.useCallback<PoliciesSlice["savePolicies"]>(
+        async (rules, params) => {
+            const branchId: string | undefined =
+                params?.branchId ?? getCurrentBranchId();
+
+            const api: any = (backend as any).policies;
+            if (!api?.save) {
+                const err = missingBackendError("save");
+                __setPoliciesState((s) => failed(s, err));
+                return { ok: false, error: err };
+            }
+
+            __setPoliciesState((s) => loading(s));
+
+            const res = await api.save({
+                workspaceId,
+                branchId,
+                actorId,
+                policies: rules,
+            });
+
+            if (!res?.ok) {
+                __setPoliciesState((s) =>
+                    failed(s, res?.error ?? missingBackendError("save")),
+                );
+                return res;
+            }
+
+            const list: readonly DynamicRule[] = (res.value?.policies ??
+                res.value ??
+                rules) as readonly DynamicRule[];
+
+            __setPoliciesState(() => ready(list));
+
+            return {
+                ok: true,
+                value: { policies: list },
+            };
+        },
+        [backend, workspaceId, actorId, getCurrentBranchId],
+    );
+
+    const compilePoliciesFromRaw = React.useCallback((raw: unknown) => {
+        const { policies: compiled, diagnostics } = compilePolicies(raw);
+
+        __setPoliciesState(() => ready(compiled));
+        __setPolicyDiagnosticsState(() => ready(diagnostics));
+
+        return { policies: compiled, diagnostics };
+    }, []);
+
+    return {
+        policies,
+        policyDiagnostics,
+
+        __setPoliciesState,
+        __setPolicyDiagnosticsState,
+
+        invalidatePolicies,
+        refreshPolicies,
+        savePolicies,
+
+        compilePoliciesFromRaw,
+    };
+}
+```
+
+---
+#### 40
 
 
 ` File: src/react/workspace/context/provider/slices/use-services-slice.ts`  [↑ Back to top](#index)
@@ -4459,7 +6653,7 @@ export function usePermissionsSlice(
 import * as React from "react";
 import type { BackendError, WorkspaceBackend } from "../../backend";
 import type { DgpServiceMap } from "@/schema/provider";
-import type { Loadable } from "../types";
+import type { Loadable } from "@/react";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
 import { toServiceMap } from "../helpers";
 
@@ -4526,7 +6720,7 @@ export function useServicesSlice(
 ```
 
 ---
-#### 32
+#### 41
 
 
 ` File: src/react/workspace/context/provider/slices/use-snapshots-slice.ts`  [↑ Back to top](#index)
@@ -4544,7 +6738,7 @@ import type {
     WorkspaceBackend,
 } from "../../backend";
 import type { EditorSnapshot } from "@/schema/editor";
-import type { SnapshotSlice, WorkspaceAPI } from "../types";
+import type { SnapshotSlice, WorkspaceAPI } from "@/react";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
 
 export interface SnapshotsSliceApi {
@@ -4973,7 +7167,7 @@ export function useSnapshotsSlice(
 ```
 
 ---
-#### 33
+#### 42
 
 
 ` File: src/react/workspace/context/provider/slices/use-templates-slice.ts`  [↑ Back to top](#index)
@@ -4989,7 +7183,7 @@ import type {
     TemplatesListParams,
     WorkspaceBackend,
 } from "../../backend";
-import type { Loadable, WorkspaceAPI } from "../types";
+import type { Loadable, WorkspaceAPI } from "@/react";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
 
 export interface TemplatesSliceApi {
@@ -5213,7 +7407,7 @@ export function useTemplatesSlice(
 ```
 
 ---
-#### 34
+#### 43
 
 
 ` File: src/react/workspace/context/provider/types.ts`  [↑ Back to top](#index)
@@ -5245,7 +7439,10 @@ import type { EditorSnapshot } from "@/schema/editor";
 import type { DgpServiceMap } from "@/schema/provider";
 import React from "react";
 import { WorkspaceLiveAdapterRegistry } from "@/react/workspace/context/provider/live/types";
-
+import { CommentsSliceApi } from "@/react/workspace/context/provider/slices/use-comments-slice";
+import { DynamicRule } from "@/schema/validation";
+import type { CommentThread } from "@/schema/comments";
+import { PoliciesSlice } from "@/react/workspace/context/provider/slices/use-policies-slice";
 export interface Loadable<T> {
     readonly data: T | null;
     readonly loading: boolean;
@@ -5281,6 +7478,8 @@ export interface WorkspaceProviderProps {
 
         // services can be injected as already-normalized map
         services: DgpServiceMap;
+        policies?: readonly DynamicRule[];
+        comments?: readonly CommentThread[];
     }>;
 
     readonly ensureMain?: boolean;
@@ -5363,6 +7562,7 @@ export interface WorkspaceAPI {
         ): Promise<void>;
 
         snapshotPointers(): Promise<void>;
+        policies(): Promise<void>;
     };
 
     readonly setCurrentBranch: (id: string) => void;
@@ -5407,6 +7607,9 @@ export interface WorkspaceAPI {
             | "services"
             | "templates"
             | "participants"
+            | "comments"
+            | "policies"
+            | "snapshot"
         >,
     ) => void;
 
@@ -5442,11 +7645,14 @@ export interface WorkspaceAPI {
         publish(message?: string): Result<Readonly<{ commit: Commit }>>;
         discardDraft(): Result<void>;
     };
+
+    readonly comments: CommentsSliceApi;
+    readonly policies: PoliciesSlice;
 }
 ```
 
 ---
-#### 35
+#### 44
 
 
 ` File: src/react/workspace/index.ts`  [↑ Back to top](#index)
@@ -5463,4 +7669,4 @@ export * from "./context";
 
 ---
 *Generated with [Prodex](https://github.com/emxhive/prodex) — Codebase decoded.*
-<!-- PRODEx v1.4.11 | 2026-01-21T11:35:04.482Z -->
+<!-- PRODEx v1.4.11 | 2026-01-22T02:55:14.253Z -->

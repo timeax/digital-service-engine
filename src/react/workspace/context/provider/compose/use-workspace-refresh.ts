@@ -2,6 +2,8 @@
 import * as React from "react";
 import type { RunResult } from "../types";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
+import { PoliciesSlice } from "@/react/workspace/context/provider/slices/use-policies-slice";
+import { CommentsSliceApi } from "@/react/workspace/context/provider/slices/use-comments-slice";
 
 export interface WorkspaceRefreshApi {
     readonly refreshAll: (opts?: { strict?: boolean }) => Promise<RunResult>;
@@ -41,8 +43,8 @@ export interface UseWorkspaceRefreshParams {
     readonly refreshPermissions: () => Promise<void>;
     readonly refreshBranches: () => Promise<void>;
     readonly refreshServices: () => Promise<void>;
-    readonly refreshPolicies: () => Promise<void>;
-    readonly refreshComments: () => Promise<void>;
+    readonly refreshPolicies: PoliciesSlice["refreshPolicies"];
+    readonly refreshComments: CommentsSliceApi["refreshThreads"];
 
     readonly getCurrentBranchId: () => string | undefined;
 
@@ -85,7 +87,7 @@ export function useWorkspaceRefresh(
                     () => refreshTemplates({ branchId }),
                     () => refreshSnapshotPointersForBranch(branchId),
                     () => refreshComments(),
-                    () => refreshPolicies(),
+                    () => refreshPolicies({ branchId }),
                 ],
                 tolerant,
             );

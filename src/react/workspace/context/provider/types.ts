@@ -20,11 +20,16 @@ import type {
     WorkspaceBackend,
     WorkspaceInfo,
 } from "../backend";
-import type { EditorSnapshot } from "@/schema/editor";
-import type { DgpServiceMap } from "@/schema/provider";
+import type {
+    EditorSnapshot,
+    DgpServiceMap,
+    DynamicRule,
+    CommentThread,
+} from "@/schema";
 import React from "react";
 import { WorkspaceLiveAdapterRegistry } from "@/react/workspace/context/provider/live/types";
 import { CommentsSliceApi } from "@/react/workspace/context/provider/slices/use-comments-slice";
+import { PoliciesSlice } from "@/react/workspace/context/provider/slices/use-policies-slice";
 export interface Loadable<T> {
     readonly data: T | null;
     readonly loading: boolean;
@@ -60,6 +65,8 @@ export interface WorkspaceProviderProps {
 
         // services can be injected as already-normalized map
         services: DgpServiceMap;
+        policies?: readonly DynamicRule[];
+        comments?: readonly CommentThread[];
     }>;
 
     readonly ensureMain?: boolean;
@@ -142,6 +149,7 @@ export interface WorkspaceAPI {
         ): Promise<void>;
 
         snapshotPointers(): Promise<void>;
+        policies(): Promise<void>;
     };
 
     readonly setCurrentBranch: (id: string) => void;
@@ -186,6 +194,9 @@ export interface WorkspaceAPI {
             | "services"
             | "templates"
             | "participants"
+            | "comments"
+            | "policies"
+            | "snapshot"
         >,
     ) => void;
 
@@ -223,4 +234,5 @@ export interface WorkspaceAPI {
     };
 
     readonly comments: CommentsSliceApi;
+    readonly policies: PoliciesSlice;
 }
