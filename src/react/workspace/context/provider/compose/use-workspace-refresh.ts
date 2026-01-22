@@ -41,6 +41,8 @@ export interface UseWorkspaceRefreshParams {
     readonly refreshPermissions: () => Promise<void>;
     readonly refreshBranches: () => Promise<void>;
     readonly refreshServices: () => Promise<void>;
+    readonly refreshPolicies: () => Promise<void>;
+    readonly refreshComments: () => Promise<void>;
 
     readonly getCurrentBranchId: () => string | undefined;
 
@@ -66,6 +68,8 @@ export function useWorkspaceRefresh(
         refreshPermissions,
         refreshBranches,
         refreshServices,
+        refreshComments,
+        refreshPolicies,
         getCurrentBranchId,
         refreshTemplates,
         refreshParticipants,
@@ -80,6 +84,8 @@ export function useWorkspaceRefresh(
                     () => refreshParticipants({ branchId }),
                     () => refreshTemplates({ branchId }),
                     () => refreshSnapshotPointersForBranch(branchId),
+                    () => refreshComments(),
+                    () => refreshPolicies(),
                 ],
                 tolerant,
             );
@@ -163,6 +169,8 @@ export function useWorkspaceRefresh(
             refreshServices,
             getCurrentBranchId,
             refreshBranchLocalContext,
+            refreshComments,
+            refreshPolicies,
         ],
     );
 

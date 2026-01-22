@@ -33,7 +33,7 @@ export type ServiceFlags = Record<string, ServiceFlag>; // flagId -> flag
 
 export type DgpServiceCapability = {
     id: IdType;
-    name: string;
+    name?: string;
     rate: number;
     min?: number;
     max?: number;

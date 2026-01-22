@@ -24,6 +24,7 @@ import { useCommentsSlice } from "./slices/use-comments-slice";
 import { useBranchCache } from "./compose/use-branch-cache";
 import { useWorkspaceRefresh } from "./compose/use-workspace-refresh";
 import { useLivePolling } from "./compose/use-live-polling";
+import { usePoliciesSlice } from "@/react/workspace/context/provider/slices/use-policies-slice";
 
 /* ---------------- provider (thin composition root) ---------------- */
 
@@ -127,6 +128,7 @@ export function WorkspaceProvider(
         refreshPermissions: permissionsSlice.refreshPermissions,
         refreshBranches: branchesSlice.refreshBranches,
         refreshServices: servicesSlice.refreshServices,
+        refreshPolicies: policiesSlice.refreshPolicies,
         getCurrentBranchId,
         refreshTemplates: async (p?: Partial<{ branchId: string }>) => {
             await templatesSlice.refreshTemplates(
@@ -173,6 +175,15 @@ export function WorkspaceProvider(
         refreshSnapshotPointers: refresh.refreshSnapshotPointers,
         adapters: liveAdapters,
         debounceMs: liveDebounceMs,
+    });
+
+    const policiesSlice = usePoliciesSlice({
+        backend,
+        workspaceId,
+        actorId: actor.id,
+        getCurrentBranchId,
+        initialPolicies: initial?.policies ?? null, // if you add it to initial
+        runtime,
     });
 
     /* ---------------- branch ops ---------------- */

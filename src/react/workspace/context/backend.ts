@@ -9,6 +9,8 @@ import {
     CommentMessage,
     CommentThread,
 } from "@/schema/comments";
+import { DynamicRule } from "@/schema/validation";
+import { PolicyDiagnostic } from "@/core/policy";
 
 /* ---------------- core result & identity ---------------- */
 
@@ -330,7 +332,8 @@ export type WorkspaceEvent =
     | { type: "snapshot.autosaved"; branchId: string; draft: Draft }
     | { type: "snapshot.saved"; branchId: string; commit: Commit }
     | { type: "snapshot.published"; branchId: string; commit: Commit }
-    | { type: "snapshot.discarded"; branchId: string };
+    | { type: "snapshot.discarded"; branchId: string }
+    | { type: "policies.updated"; since?: number | string; branchId?: string };
 
 export type LiveOptions =
     | { mode: "off" }
@@ -464,6 +467,64 @@ export interface CommentsBackend<
     ): Result<void>;
 }
 
+/* ---------------- policies (dynamic rules) ---------------- */
+
+/**
+ * Policies are stored as raw JSON for round-tripping (comments/formatting, etc.),
+ * and compiled into DynamicRule[] for runtime validation.
+ *
+ * Scope rules:
+ * - If branchId is provided -> branch-scoped policies
+ * - If branchId is omitted  -> workspace-scoped policies
+ */
+export interface PolicyScope extends BackendScope {}
+
+export interface PoliciesLoadResult {
+    /** the raw JSON the host stored (authoring format) */
+    readonly raw: unknown;
+
+    /** optional precompiled rules (host may compile server-side) */
+    readonly compiled?: readonly DynamicRule[];
+
+    /** optional diagnostics (host may compile server-side) */
+    readonly diagnostics?: readonly PolicyDiagnostic[];
+
+    readonly updatedAt?: string;
+    readonly etag?: string;
+}
+
+/**
+ * Transport contract for policy storage/compilation.
+ *
+ * - UI can compile locally via compilePolicies()
+ * - Host can also compile/validate server-side by implementing compile()
+ */
+export interface PoliciesBackend {
+    load(ctx: PolicyScope): Result<PoliciesLoadResult | null>;
+
+    save(
+        ctx: PolicyScope,
+        input: Readonly<{
+            raw: unknown;
+            etag?: string;
+        }>,
+    ): Result<Readonly<{ updatedAt?: string; etag?: string }>>;
+
+    /** Optional server-side compile/validate (for shared editing / enforcement). */
+    compile?(
+        ctx: PolicyScope,
+        input: Readonly<{ raw: unknown }>,
+    ): Result<
+        Readonly<{
+            policies: readonly DynamicRule[];
+            diagnostics: readonly PolicyDiagnostic[];
+        }>
+    >;
+
+    /** Optional: reset/delete policies at scope (branch or workspace). */
+    clear?(ctx: PolicyScope): Result<Readonly<{ updatedAt?: string }>>;
+}
+
 export interface WorkspaceBackend {
     readonly info: WorkspaceInfo;
 
@@ -479,6 +540,9 @@ export interface WorkspaceBackend {
 
     readonly templates: TemplatesBackend;
     readonly snapshots: SnapshotsBackend;
+
+    /** dynamic policies: workspace-scoped and/or branch-scoped rules */
+    readonly policies?: PoliciesBackend;
 
     readonly comments: CommentsBackend<
         CommentThread,
