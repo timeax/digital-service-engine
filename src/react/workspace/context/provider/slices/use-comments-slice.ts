@@ -25,7 +25,7 @@ export interface CommentsSliceApi {
 
     readonly createThread: (
         input: Readonly<{
-            anchor: CommentAnchor;
+            anchor?: CommentAnchor;
             body: string;
             meta?: Readonly<Record<string, unknown>>;
             branchId?: string;
@@ -168,7 +168,7 @@ export function useCommentsSlice(
     const createThread = React.useCallback(
         async (
             input: Readonly<{
-                anchor: CommentAnchor;
+                anchor?: CommentAnchor;
                 body: string;
                 meta?: Readonly<Record<string, unknown>>;
                 branchId?: string;

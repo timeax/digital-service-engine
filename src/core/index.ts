@@ -3,3 +3,4 @@ export * from "./validate";
 export * from "./builder";
 export * from "./fallback";
 export * from "./rate-coherence";
+export * from './tag-relations'

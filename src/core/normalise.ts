@@ -1,18 +1,20 @@
 // src/core/normalise.ts
 
+import { cloneDeep } from "lodash-es";
 import type {
-    ServiceProps,
-    Tag,
     Field,
     FieldOption,
     PricingRole,
     ServiceFallback,
     ServiceIdRef,
+    ServiceProps,
+    Tag,
 } from "@/schema";
 
 export type NormaliseOptions = {
     /** default pricing role for fields/options when missing */
-    defaultPricingRole?: PricingRole; // default: 'base'
+    defaultPricingRole?: PricingRole; // default: 'base',
+    constraints?: string[];
 };
 
 export function normalise(
@@ -20,6 +22,7 @@ export function normalise(
     opts: NormaliseOptions = {},
 ): ServiceProps {
     const defRole: PricingRole = opts.defaultPricingRole ?? "base";
+    const constraints = opts.constraints ?? ["refill", "cancel", "dripfeed"];
     const obj = toObject(input);
 
     // ── Canonical top-level keys only
@@ -38,7 +41,7 @@ export function normalise(
     );
 
     // Tags & fields
-    let filters: Tag[] = rawFilters.map(coerceTag);
+    let filters: Tag[] = rawFilters.map((t: any) => coerceTag(t, constraints));
     const fields: Field[] = rawFields.map((f: any) => coerceField(f, defRole));
 
     // ── Ensure a root tag exists (id: 't:root')
@@ -52,6 +55,7 @@ export function normalise(
     const out: ServiceProps = {
         filters,
         fields,
+        order_for_tags: (obj as any).order_for_tags,
         ...(isNonEmpty(includes_for_buttons) && { includes_for_buttons }),
         ...(isNonEmpty(excludes_for_buttons) && { excludes_for_buttons }),
         ...(fallbacks &&
@@ -64,14 +68,11 @@ export function normalise(
                 : "1.0",
     };
 
-    propagateConstraints(out);
+    propagateConstraints(out, constraints);
     return out;
 }
 
 /* ───────────────────────── Constraint propagation ───────────────────────── */
-
-const FLAG_KEYS = ["refill", "cancel", "dripfeed"] as const;
-type FlagKey = (typeof FLAG_KEYS)[number];
 
 /**
  * Propagate constraint flags down the tag tree:
@@ -83,7 +84,7 @@ type FlagKey = (typeof FLAG_KEYS)[number];
  * IMPORTANT: Children inherit the **effective** value from their parent,
  * not the parent's raw local. This ensures overridden values keep propagating.
  */
-function propagateConstraints(props: ServiceProps): void {
+function propagateConstraints(props: ServiceProps, flagKeys: string[]): void {
     const tags = Array.isArray(props.filters) ? props.filters : [];
     if (!tags.length) return;
 
@@ -100,29 +101,35 @@ function propagateConstraints(props: ServiceProps): void {
     const roots = tags.filter((t) => !t.bind_id || !byId.has(t.bind_id));
     const starts = roots.length ? roots : tags;
 
-    type Inherited = Partial<Record<FlagKey, { val: boolean; origin: string }>>;
+    type Inherited = Partial<Record<string, { val: boolean; origin: string }>>;
     const visited = new Set<string>();
 
     const visit = (tag: Tag, inherited: Inherited) => {
         if (visited.has(tag.id)) return;
         visited.add(tag.id);
 
-        const local = tag.constraints ?? {};
-        const next: Partial<Record<FlagKey, boolean>> = {};
-        const origin: Partial<Record<FlagKey, string>> = {};
+        // If the tag already has overrides, it means it was already normalised once.
+        // We should use the 'from' value as our local baseline for this pass
+        // so that we don't lose the original local intent.
+        const local = cloneDeep(tag.constraints ?? {});
+        if (tag.constraints_overrides) {
+            for (const [k, over] of Object.entries(tag.constraints_overrides)) {
+                if (over) local[k] = over.from;
+            }
+        }
+
+        const next: Partial<Record<string, boolean>> = {};
+        const origin: Partial<Record<string, string>> = {};
         const overrides: NonNullable<Tag["constraints_overrides"]> = {};
 
-        for (const k of FLAG_KEYS) {
+        for (const k of flagKeys) {
             const inh = inherited[k];
             const prev = local[k];
 
             if (inh) {
-                if (prev === undefined) {
+                if (prev === undefined || prev === inh.val) {
                     next[k] = inh.val;
                     origin[k] = inh.origin;
-                } else if (prev === inh.val) {
-                    next[k] = inh.val;
-                    origin[k] = tag.id;
                 } else {
                     next[k] = inh.val;
                     origin[k] = inh.origin;
@@ -138,31 +145,12 @@ function propagateConstraints(props: ServiceProps): void {
             }
         }
 
-        // Persist only defined keys (keep JSON lean)
-        const definedConstraints: Partial<Record<FlagKey, boolean>> = {};
-        const definedOrigin: Partial<Record<FlagKey, string>> = {};
-        const definedOverrides: NonNullable<Tag["constraints_overrides"]> = {};
+        tag.constraints = Object.keys(next).length ? next : undefined;
+        tag.constraints_origin = Object.keys(origin).length ? origin : undefined;
+        tag.constraints_overrides = Object.keys(overrides).length ? overrides : undefined;
 
-        for (const k of FLAG_KEYS) {
-            if (next[k] !== undefined)
-                definedConstraints[k] = next[k] as boolean;
-            if (origin[k] !== undefined) definedOrigin[k] = origin[k] as string;
-            if (overrides[k] !== undefined) definedOverrides[k] = overrides[k]!;
-        }
-
-        tag.constraints = Object.keys(definedConstraints).length
-            ? definedConstraints
-            : undefined;
-        tag.constraints_origin = Object.keys(definedOrigin).length
-            ? definedOrigin
-            : undefined;
-        tag.constraints_overrides = Object.keys(definedOverrides).length
-            ? definedOverrides
-            : undefined;
-
-        // Children inherit effective values + nearest origin
         const passDown: Inherited = { ...inherited };
-        for (const k of FLAG_KEYS) {
+        for (const k of flagKeys) {
             if (next[k] !== undefined && origin[k] !== undefined) {
                 passDown[k] = { val: next[k] as boolean, origin: origin[k]! };
             }
@@ -175,23 +163,33 @@ function propagateConstraints(props: ServiceProps): void {
 
 /* ───────────────────────────── coercers ───────────────────────────── */
 
-function coerceTag(src: any): Tag {
+function coerceTag(src: any, flagKeys: string[]): Tag {
     if (!src || typeof src !== "object") src = {};
     const id = str(src.id);
     const label = str(src.label);
-    const bind_id = str(src.bind_id) || undefined;
+    const bind_id = str(src.bind_id) || (id == "t:root" ? undefined : "t:root");
     const service_id = toNumberOrUndefined(src.service_id);
 
     const includes = toStringArray(src.includes);
     const excludes = toStringArray(src.excludes);
 
-    const constraints =
-        src.constraints && typeof src.constraints === "object"
-            ? {
-                  refill: bool((src.constraints as any).refill),
-                  cancel: bool((src.constraints as any).cancel),
-                  dripfeed: bool((src.constraints as any).dripfeed),
-              }
+    let constraints: Record<string, boolean> | undefined = undefined;
+    if (src.constraints && typeof src.constraints === "object") {
+        constraints = {};
+        for (const k of flagKeys) {
+            const v = (src.constraints as any)[k];
+            if (v !== undefined) {
+                constraints[k] = bool(v)!;
+            }
+        }
+        if (Object.keys(constraints).length === 0) {
+            constraints = undefined;
+        }
+    }
+
+    const constraints_overrides =
+        src.constraints_overrides && typeof src.constraints_overrides === "object"
+            ? (src.constraints_overrides as Tag["constraints_overrides"])
             : undefined;
 
     const meta =
@@ -207,6 +205,7 @@ function coerceTag(src: any): Tag {
         ...(bind_id && { bind_id }),
         ...(service_id !== undefined && { service_id }),
         ...(constraints && { constraints }),
+        ...(constraints_overrides && { constraints_overrides }),
         ...(includes.length && { includes: dedupe(includes) }),
         ...(excludes.length && { excludes: dedupe(excludes) }),
         ...(meta && { meta }),

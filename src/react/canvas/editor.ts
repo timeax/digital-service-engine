@@ -1,18 +1,20 @@
 import { cloneDeep } from "lodash-es";
 import type { Builder } from "@/core";
-import type { ServiceProps, Tag, Field } from "@/schema";
 import { normalise } from "@/core";
-import type { CanvasAPI } from "./api";
 import type {
     Command,
+    DgpServiceCapability,
+    DgpServiceMap,
+    DynamicRule,
     EditorEvents,
     EditorOptions,
     EditorSnapshot,
-    DynamicRule,
     FallbackSettings,
-    DgpServiceCapability,
-    DgpServiceMap,
+    Field,
+    ServiceProps,
+    Tag,
 } from "@/schema";
+import type { CanvasAPI } from "./api";
 import { compilePolicies, type PolicyDiagnostic } from "@/core/policy";
 import { constraintFitOk, rateOk, toFiniteNumber } from "@/utils/util";
 
@@ -1389,6 +1391,285 @@ export class Editor {
         return false;
     }
 
+    private wouldCreateIncludeExcludeCycle(
+        p: ServiceProps,
+        receiverId: string,
+        targetId: string,
+    ): boolean {
+        // Simple case: A includes A or A excludes A
+        if (receiverId === targetId) return true;
+
+        // We want to prevent A including/excluding B if B includes/excludes A.
+        const getDirectRelations = (id: string): string[] => {
+            if (isTagId(id)) {
+                const t = (p.filters ?? []).find((x) => x.id === id);
+                return [...(t?.includes ?? []), ...(t?.excludes ?? [])];
+            }
+            // For buttons and options
+            const inc = p.includes_for_buttons?.[id] ?? [];
+            const exc = p.excludes_for_buttons?.[id] ?? [];
+            return [...inc, ...exc];
+        };
+
+        const visited = new Set<string>();
+        const stack = [targetId];
+
+        while (stack.length > 0) {
+            const curr = stack.pop()!;
+            if (curr === receiverId) return true;
+            if (visited.has(curr)) continue;
+            visited.add(curr);
+
+            stack.push(...getDirectRelations(curr));
+        }
+
+        return false;
+    }
+
+    include(receiverId: string, idOrIds: string | string[]) {
+        this.exec({
+            name: "include",
+            do: () =>
+                this.patchProps((p) => {
+                    const receiver = this.getNode(receiverId);
+                    const ids = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
+                    if (
+                        receiver.kind === "tag" ||
+                        (receiver.kind === "field" &&
+                            (receiver.data as any)?.button) ||
+                        receiver.kind === "option"
+                    ) {
+                        if (receiver.kind === "tag") {
+                            const t = (p.filters ?? []).find(
+                                (x) => x.id === receiverId,
+                            );
+                            if (t) {
+                                const accepted: string[] = [];
+                                const next = new Set(t.includes ?? []);
+                                for (const id of ids) {
+                                    if (
+                                        this.wouldCreateIncludeExcludeCycle(
+                                            p,
+                                            receiverId,
+                                            id,
+                                        )
+                                    ) {
+                                        this.emit("editor:error", {
+                                            message: `Cycle detected: ${receiverId} including ${id} would create a cycle.`,
+                                            code: "cycle_detected",
+                                            meta: {
+                                                receiverId,
+                                                targetId: id,
+                                                type: "include",
+                                            },
+                                        });
+                                        continue;
+                                    }
+                                    next.add(id);
+                                    accepted.push(id);
+                                }
+                                if (
+                                    accepted.length > 0 ||
+                                    (t.includes?.length ?? 0) > 0
+                                ) {
+                                    t.includes = Array.from(next);
+                                }
+
+                                if (t.excludes) {
+                                    t.excludes = t.excludes.filter(
+                                        (x) => !accepted.includes(x),
+                                    );
+                                    if (t.excludes.length === 0) {
+                                        delete t.excludes;
+                                    }
+                                }
+                            }
+                        } else {
+                            const accepted: string[] = [];
+                            const current =
+                                p.includes_for_buttons?.[receiverId] ?? [];
+                            const next = new Set(current);
+                            for (const id of ids) {
+                                if (
+                                    this.wouldCreateIncludeExcludeCycle(
+                                        p,
+                                        receiverId,
+                                        id,
+                                    )
+                                ) {
+                                    this.emit("editor:error", {
+                                        message: `Cycle detected: ${receiverId} including ${id} would create a cycle.`,
+                                        code: "cycle_detected",
+                                        meta: {
+                                            receiverId,
+                                            targetId: id,
+                                            type: "include",
+                                        },
+                                    });
+                                    continue;
+                                }
+                                next.add(id);
+                                accepted.push(id);
+                            }
+                            if (
+                                accepted.length > 0 ||
+                                current.length > 0
+                            ) {
+                                if (!p.includes_for_buttons)
+                                    p.includes_for_buttons = {};
+                                p.includes_for_buttons[receiverId] =
+                                    Array.from(next);
+                            }
+
+                            if (p.excludes_for_buttons?.[receiverId]) {
+                                p.excludes_for_buttons[receiverId] =
+                                    p.excludes_for_buttons[receiverId].filter(
+                                        (x) => !accepted.includes(x),
+                                    );
+                                if (
+                                    p.excludes_for_buttons[receiverId]
+                                        .length === 0
+                                ) {
+                                    delete p.excludes_for_buttons[receiverId];
+                                }
+                            }
+                        }
+
+                        // ensure normalise doesn't drop it (test environment might not have all nodes)
+                        if (!p.fields) p.fields = [];
+                        if (!p.filters) p.filters = [];
+                    } else {
+                        throw new Error(
+                            "Receiver must be a tag, button field, or option",
+                        );
+                    }
+                }),
+            undo: () => this.api.undo(),
+        });
+    }
+
+    exclude(receiverId: string, idOrIds: string | string[]) {
+        this.exec({
+            name: "exclude",
+            do: () =>
+                this.patchProps((p) => {
+                    const receiver = this.getNode(receiverId);
+                    const ids = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
+                    if (
+                        receiver.kind === "tag" ||
+                        (receiver.kind === "field" &&
+                            (receiver.data as any)?.button) ||
+                        receiver.kind === "option"
+                    ) {
+                        if (receiver.kind === "tag") {
+                            const t = (p.filters ?? []).find(
+                                (x) => x.id === receiverId,
+                            );
+                            if (t) {
+                                const accepted: string[] = [];
+                                const next = new Set(t.excludes ?? []);
+                                for (const id of ids) {
+                                    if (
+                                        this.wouldCreateIncludeExcludeCycle(
+                                            p,
+                                            receiverId,
+                                            id,
+                                        )
+                                    ) {
+                                        this.emit("editor:error", {
+                                            message: `Cycle detected: ${receiverId} excluding ${id} would create a cycle.`,
+                                            code: "cycle_detected",
+                                            meta: {
+                                                receiverId,
+                                                targetId: id,
+                                                type: "exclude",
+                                            },
+                                        });
+                                        continue;
+                                    }
+                                    next.add(id);
+                                    accepted.push(id);
+                                }
+                                if (
+                                    accepted.length > 0 ||
+                                    (t.excludes?.length ?? 0) > 0
+                                ) {
+                                    t.excludes = Array.from(next);
+                                }
+
+                                if (t.includes) {
+                                    t.includes = t.includes.filter(
+                                        (x) => !accepted.includes(x),
+                                    );
+                                    if (t.includes.length === 0) {
+                                        delete t.includes;
+                                    }
+                                }
+                            }
+                        } else {
+                            const accepted: string[] = [];
+                            const current =
+                                p.excludes_for_buttons?.[receiverId] ?? [];
+                            const next = new Set(current);
+                            for (const id of ids) {
+                                if (
+                                    this.wouldCreateIncludeExcludeCycle(
+                                        p,
+                                        receiverId,
+                                        id,
+                                    )
+                                ) {
+                                    this.emit("editor:error", {
+                                        message: `Cycle detected: ${receiverId} excluding ${id} would create a cycle.`,
+                                        code: "cycle_detected",
+                                        meta: {
+                                            receiverId,
+                                            targetId: id,
+                                            type: "exclude",
+                                        },
+                                    });
+                                    continue;
+                                }
+                                next.add(id);
+                                accepted.push(id);
+                            }
+                            if (
+                                accepted.length > 0 ||
+                                current.length > 0
+                            ) {
+                                if (!p.excludes_for_buttons)
+                                    p.excludes_for_buttons = {};
+                                p.excludes_for_buttons[receiverId] =
+                                    Array.from(next);
+                            }
+
+                            if (p.includes_for_buttons?.[receiverId]) {
+                                p.includes_for_buttons[receiverId] =
+                                    p.includes_for_buttons[receiverId].filter(
+                                        (x) => !accepted.includes(x),
+                                    );
+                                if (
+                                    p.includes_for_buttons[receiverId]
+                                        .length === 0
+                                ) {
+                                    delete p.includes_for_buttons[receiverId];
+                                }
+                            }
+                        }
+
+                        // ensure normalise doesn't drop it (test environment might not have all nodes)
+                        if (!p.fields) p.fields = [];
+                        if (!p.filters) p.filters = [];
+                    } else {
+                        throw new Error(
+                            "Receiver must be a tag, button field, or option",
+                        );
+                    }
+                }),
+            undo: () => this.api.undo(),
+        });
+    }
+
     /* ──────────────────────────────────────────────────────────────────────────
      * CONNECT
      * ────────────────────────────────────────────────────────────────────────── */
@@ -1668,11 +1949,7 @@ export class Editor {
         });
     }
 
-    setConstraint(
-        tagId: string,
-        flag: "refill" | "cancel" | "dripfeed",
-        value: boolean | undefined,
-    ) {
+    setConstraint(tagId: string, flag: string, value: boolean | undefined) {
         let prev: boolean | undefined;
         this.exec({
             name: "setConstraint",
@@ -1697,11 +1974,107 @@ export class Editor {
         // After mutation, normalise() will propagate effective constraints & meta
     }
 
+    /**
+     * Clear a constraint override by removing the local constraint that conflicts with an ancestor.
+     */
+    clearConstraintOverride(tagId: string, flag: string) {
+        let prev: boolean | undefined;
+        let prevOverride: any;
+        this.exec({
+            name: "clearConstraintOverride",
+            do: () =>
+                this.patchProps((p) => {
+                    const t = (p.filters ?? []).find((x) => x.id === tagId);
+                    if (!t) return;
+                    prev = t.constraints?.[flag];
+                    prevOverride = t.constraints_overrides?.[flag];
+
+                    if (t.constraints) delete t.constraints[flag];
+                    if (t.constraints_overrides)
+                        delete t.constraints_overrides[flag];
+                }),
+            undo: () =>
+                this.patchProps((p) => {
+                    const t = (p.filters ?? []).find((x) => x.id === tagId);
+                    if (!t) return;
+                    if (prev !== undefined) {
+                        if (!t.constraints) t.constraints = {};
+                        t.constraints[flag] = prev;
+                    }
+                    if (prevOverride !== undefined) {
+                        if (!t.constraints_overrides)
+                            t.constraints_overrides = {};
+                        t.constraints_overrides[flag] = prevOverride;
+                    }
+                }),
+        });
+    }
+
+    /**
+     * Clear a constraint from a tag and its descendants.
+     * If a descendant has an override, it assigns that override's value as local.
+     */
+    clearConstraint(tagId: string, flag: string) {
+        this.exec({
+            name: "clearConstraint",
+            do: () =>
+                this.patchProps((p) => {
+                    const tags = p.filters ?? [];
+                    const byId = new Map(tags.map((t) => [t.id, t]));
+                    const children = new Map<string, string[]>();
+                    for (const t of tags) {
+                        if (t.bind_id) {
+                            if (!children.has(t.bind_id))
+                                children.set(t.bind_id, []);
+                            children.get(t.bind_id)!.push(t.id);
+                        }
+                    }
+
+                    const process = (id: string) => {
+                        const t = byId.get(id);
+                        if (!t) return;
+
+                        const override = t.constraints_overrides?.[flag];
+                        if (override) {
+                            if (!t.constraints) t.constraints = {};
+                            t.constraints[flag] = override.from;
+                            delete t.constraints_overrides![flag];
+                            if (
+                                Object.keys(t.constraints_overrides ?? {})
+                                    .length === 0
+                            ) {
+                                delete t.constraints_overrides;
+                            }
+                        } else {
+                            if (t.constraints) {
+                                delete t.constraints[flag];
+                                if (Object.keys(t.constraints).length === 0) {
+                                    delete t.constraints;
+                                }
+                            }
+                        }
+
+                        for (const childId of children.get(id) ?? []) {
+                            process(childId);
+                        }
+                    };
+
+                    process(tagId);
+                }),
+            undo: () => this.api.undo(),
+        });
+    }
+
     /* ───────────────────── Internals ───────────────────── */
 
     private replaceProps(next: ServiceProps): void {
         // Ensure canonical shape + constraint propagation
-        const norm = normalise(next);
+        const norm = normalise(next, {
+            constraints: this.builder
+                .getConstraints()
+                .map((item) => item.label),
+            defaultPricingRole: "base",
+        });
         this.builder.load(norm);
         this.api.refreshGraph();
     }

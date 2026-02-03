@@ -6,19 +6,31 @@ describe('normalise() constraint propagation', () => {
     it('overrides child flags with nearest ancestor explicit values', () => {
         const props: ServiceProps = {
             filters: [
-                {id: 'root', label: 'Root', constraints: {refill: true}},
-                {id: 'A', label: 'A', bind_id: 'root', constraints: {refill: false, cancel: true}},
-                {id: 'B', label: 'B', bind_id: 'A', constraints: {dripfeed: true}},
+                { id: "root", label: "Root", constraints: { refill: true } },
+                {
+                    id: "A",
+                    label: "A",
+                    bind_id: "root",
+                    constraints: { refill: false, cancel: true },
+                },
+                {
+                    id: "B",
+                    label: "B",
+                    bind_id: "A",
+                    constraints: { dripfeed: true },
+                },
             ],
             fields: [],
         };
 
         const out = normalise(props);
-        const A = out.filters.find(t => t.id === 'A')!;
-        const B = out.filters.find(t => t.id === 'B')!;
+        const A = out.filters.find((t) => t.id === "A")!;
+        const B = out.filters.find((t) => t.id === "B")!;
 
         // Parent refill:true overrides A.refill=false
         expect(A.constraints?.refill).toBe(true);
+        console.log(A.constraints_overrides)
+        expect(A.constraints_overrides?.refill?.from).toBe(false);
         // A.cancel:true is preserved (root didn’t set cancel), and passed to B
         expect(A.constraints?.cancel).toBe(true);
 

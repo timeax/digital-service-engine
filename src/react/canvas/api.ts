@@ -3,9 +3,9 @@ import type {
     CanvasEvents,
     CanvasOptions,
     CanvasState,
+    DraftWire,
     NodePositions,
     Viewport,
-    DraftWire,
 } from "@/schema/canvas-types";
 import type { Builder } from "@/core";
 import type { EdgeKind, GraphSnapshot } from "@/schema/graph";
@@ -14,10 +14,11 @@ import { CanvasBackendOptions } from "./backend";
 import { Editor } from "./editor";
 import { Selection } from "./selection";
 import type { BackendScope } from "@/react/workspace/context/backend";
+
 export class CanvasAPI {
     private bus = new EventBus<CanvasEvents>();
     private readonly state: CanvasState;
-    private builder: Builder;
+    public readonly builder: Builder;
     public readonly editor: Editor;
     private readonly autoEmit: boolean;
     readonly comments: CommentsAPI;
@@ -33,6 +34,7 @@ export class CanvasAPI {
             env: "workspace",
             rootTagId: "t:root",
         });
+
         const graph = builder.tree();
         this.state = {
             graph,
@@ -42,6 +44,18 @@ export class CanvasAPI {
             viewport: { x: 0, y: 0, zoom: 1, ...opts.initialViewport },
             version: 1,
         };
+
+        this.selection.onChange(({ ids }) => {
+            // mirror into CanvasState for snapshot/versioning consumers
+            this.state.selection = new Set(ids);
+            this.bump();
+
+            // keep existing event contract
+            this.bus.emit("selection:change", { ids });
+
+            // keep existing auto-emit behaviour
+            if (this.autoEmit) this.bus.emit("state:change", this.snapshot());
+        });
 
         // compose comments with backend (if provided)
         const scopeProvider: (() => BackendScope | undefined) | undefined =
@@ -140,33 +154,31 @@ export class CanvasAPI {
 
     /* ─── Selection ─────────────────────────────────────────── */
     select(ids: string[] | Set<string>): void {
-        this.state.selection = new Set(ids as any);
-        this.bump();
-        this.bus.emit("selection:change", { ids: this.getSelection() });
+        this.selection.many(ids);
+    }
+
+    addToSelection(ids: string[] | Set<string>): void {
+        const next = new Set(this.selection.all());
+        let primary: string | undefined;
+
+        for (const id of ids as any) {
+            next.add(id);
+            primary = id;
+        }
+
+        this.selection.many(next, primary);
+    }
+
+    toggleSelection(id: string): void {
+        this.selection.toggle(id);
+    }
+
+    clearSelection(): void {
+        this.selection.clear();
     }
 
     selectComments(threadId?: string): void {
         this.bus.emit("comment:select", { threadId });
-    }
-
-    addToSelection(ids: string[] | Set<string>): void {
-        for (const id of ids as any) this.state.selection.add(id);
-        this.bump();
-        this.bus.emit("selection:change", { ids: this.getSelection() });
-    }
-
-    toggleSelection(id: string): void {
-        if (this.state.selection.has(id)) this.state.selection.delete(id);
-        else this.state.selection.add(id);
-        this.bump();
-        this.bus.emit("selection:change", { ids: this.getSelection() });
-    }
-
-    clearSelection(): void {
-        if (this.state.selection.size === 0) return;
-        this.state.selection.clear();
-        this.bump();
-        this.bus.emit("selection:change", { ids: [] });
     }
 
     /* ─── Highlight / Hover ─────────────────────────────────── */
@@ -306,6 +318,10 @@ export class CanvasAPI {
     }
 
     getConstraints() {
+        return this.builder.getConstraints();
+    }
 
+    getServiceProps() {
+        return this.builder.getProps();
     }
 }

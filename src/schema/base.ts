@@ -151,6 +151,7 @@ export type Field = BaseFieldUI & {
     bind_id?: string | string[];
     name?: string; // omit if options map to services
     options?: FieldOption[];
+    description?: string;
     component?: string; // required if type === 'custom'
     pricing_role?: PricingRole; // default 'base'
     meta?: Record<string, unknown> &
@@ -161,10 +162,10 @@ export type Field = BaseFieldUI & {
               button?: false;
               service_id?: undefined;
           }
-        | {
+        | ({
               button: true;
               service_id?: number;
-          }
+          } & WithQuantityDefault)
     );
 
 export type ConstraintKey = string;

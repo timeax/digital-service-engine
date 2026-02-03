@@ -1,6 +1,6 @@
 // src/react/canvas/selection.ts
 import type { Builder } from "@/core";
-import type { ServiceProps, Tag, Field } from "@/schema";
+import type { Field, PricingRole, ServiceProps, Tag } from "@/schema";
 import type { DgpServiceCapability } from "@/schema/provider";
 
 export type Env = "client" | "workspace";
@@ -43,7 +43,7 @@ export class Selection {
 
     constructor(
         private readonly builder: Builder,
-        private readonly opts: SelectionOptions = {},
+        private readonly opts: SelectionOptions,
     ) {}
 
     // ── Public mutators ──────────────────────────────────────────────────────
@@ -221,6 +221,26 @@ export class Selection {
         return this.opts.rootTagId;
     }
 
+    private selectedButtonTriggerIds(props: ServiceProps): string[] {
+        const fields = props.fields ?? [];
+        const fieldById = new Map(fields.map((f) => [f.id, f]));
+
+        const out: string[] = [];
+        for (const selId of this.set) {
+            // option ids are triggers
+            if (selId.startsWith("o:")) {
+                out.push(selId);
+                continue;
+            }
+
+            // field ids are triggers ONLY if the field is a button
+            const f = fieldById.get(selId);
+            if (f?.button === true) out.push(selId);
+        }
+
+        return out;
+    }
+
     private computeGroupForTag(
         props: ServiceProps,
         tagId: string,
@@ -230,44 +250,16 @@ export class Selection {
         const tagById = new Map(tags.map((t) => [t.id, t]));
         const tag = tagById.get(tagId);
 
-        // selection-aware include/exclude via BUTTON TRIGGERS (options + button fields)
+        // ---- delegate visible fields to builder
         const selectedTriggerIds = this.selectedButtonTriggerIds(props);
-        const incMap = props.includes_for_buttons ?? {};
-        const excMap = props.excludes_for_buttons ?? {};
+        const fieldIds = this.builder.visibleFields(tagId, selectedTriggerIds);
 
-        const trigInclude = new Set<string>();
-        const trigExclude = new Set<string>();
-        for (const triggerId of selectedTriggerIds) {
-            for (const id of incMap[triggerId] ?? []) trigInclude.add(id);
-            for (const id of excMap[triggerId] ?? []) trigExclude.add(id);
-        }
+        const fieldById = new Map(fields.map((f) => [f.id, f]));
+        const visible = fieldIds
+            .map((id) => fieldById.get(id))
+            .filter(Boolean) as Field[];
 
-        const tagInclude = new Set(tag?.includes ?? []);
-        const tagExclude = new Set(tag?.excludes ?? []);
-
-        // field pool
-        const pool = new Map<string, Field>();
-        for (const f of fields) {
-            if (this.isBoundTo(f, tagId)) pool.set(f.id, f);
-            if (tagInclude.has(f.id)) pool.set(f.id, f);
-            if (trigInclude.has(f.id)) pool.set(f.id, f);
-        }
-        for (const id of tagExclude) pool.delete(id);
-        for (const id of trigExclude) pool.delete(id);
-
-        // optional order_for_tags
-        const order = props.order_for_tags?.[tagId];
-        const visible = order
-            ? (
-                  order.map((fid) => pool.get(fid)).filter(Boolean) as Field[]
-              ).concat(
-                  Array.from(pool.values()).filter(
-                      (f) => !order.includes(f.id),
-                  ),
-              )
-            : Array.from(pool.values());
-
-        // ancestry & immediate children
+        // ---- ancestry & immediate children (unchanged)
         const parentTags: Tag[] = [];
         let cur = tag?.bind_id;
         const guard = new Set<string>();
@@ -280,49 +272,56 @@ export class Selection {
         }
         const childrenTags = tags.filter((t) => t.bind_id === tagId);
 
-        // services: tag base (unless overridden by base option) → selected options with service_id
+        // ---- services: tag base (unless overridden) → selected OPTIONs + selected BUTTON FIELDs (in insertion order)
         const services: DgpServiceCapability[] = [];
         const resolve = this.opts.resolveService;
 
-        // 1) Start with tag base (if any)
+        // 1) tag base
         let baseAddedFromTag = false;
         if (tag?.service_id != null) {
-            const cap =
+            services.push(
                 resolve?.(tag.service_id) ??
-                ({ id: tag.service_id } as DgpServiceCapability);
-            services.push(cap);
+                    ({ id: tag.service_id } as DgpServiceCapability),
+            );
             baseAddedFromTag = true;
         }
 
-        // 2) Walk selected ids in insertion order; if an OPTION maps to a service, add it.
-        //    If the FIRST base-role option is encountered, it overrides the tag base (if any).
+        // 2) walk selected ids in insertion order
         let baseOverridden = false;
         for (const selId of this.set) {
+            // OPTION selected
             const opt = this.findOptionById(fields, selId);
-            if (!opt || opt.service_id == null) continue;
+            if (opt?.service_id != null) {
+                const role = (opt.pricing_role ?? "base") as PricingRole;
+                const cap =
+                    resolve?.(opt.service_id) ??
+                    ({ id: opt.service_id } as DgpServiceCapability);
 
-            const role = (opt.pricing_role ?? (opt as any).role ?? "base") as
-                | "base"
-                | "utility"
-                | "addon";
-            const cap =
-                resolve?.(opt.service_id) ??
-                ({ id: opt.service_id } as DgpServiceCapability);
+                baseOverridden = this.addServiceByRole(
+                    services,
+                    cap,
+                    role,
+                    baseAddedFromTag,
+                    baseOverridden,
+                );
+                continue;
+            }
 
-            if (role === "base") {
-                if (!baseOverridden) {
-                    if (baseAddedFromTag && services.length > 0) {
-                        services[0] = cap; // override tag base
-                    } else {
-                        services.unshift(cap);
-                    }
-                    baseOverridden = true;
-                } else {
-                    // additional base entries (rare) — append after
-                    services.push(cap);
-                }
-            } else {
-                services.push(cap);
+            // BUTTON FIELD selected
+            const f = fieldById.get(selId);
+            if (f?.button === true && f.service_id != null) {
+                const role = (f.pricing_role ?? "base") as PricingRole;
+                const cap =
+                    resolve?.(f.service_id) ??
+                    ({ id: f.service_id } as DgpServiceCapability);
+
+                baseOverridden = this.addServiceByRole(
+                    services,
+                    cap,
+                    role,
+                    baseAddedFromTag,
+                    baseOverridden,
+                );
             }
         }
 
@@ -330,57 +329,35 @@ export class Selection {
             tagId,
             tag,
             fields: visible,
-            fieldIds: visible.map((f) => f.id),
+            fieldIds,
             parentTags,
             childrenTags,
             services,
         };
     }
 
-    private isBoundTo(f: Field, tagId: string): boolean {
-        if (!f.bind_id) return false;
-        return Array.isArray(f.bind_id)
-            ? f.bind_id.includes(tagId)
-            : f.bind_id === tagId;
-    }
-
-    /**
-     * Return the selected "button trigger" ids that drive includes/excludes:
-     *  - option ids (o:*)
-     *  - field ids where field.button === true (option-less buttons)
-     *  - legacy bridge for "fieldId::optionId"
-     */
-    private selectedButtonTriggerIds(props: ServiceProps): string[] {
-        const out: string[] = [];
-        const fields = props.fields ?? [];
-
-        for (const id of this.set) {
-            // option buttons
-            if (isOptionId(id)) {
-                out.push(id);
-                continue;
+    private addServiceByRole(
+        services: DgpServiceCapability[],
+        cap: DgpServiceCapability,
+        role: PricingRole,
+        baseAddedFromTag: boolean,
+        baseOverridden: boolean,
+    ): boolean {
+        if (role === "base") {
+            if (!baseOverridden) {
+                if (baseAddedFromTag && services.length > 0) {
+                    services[0] = cap;
+                } else {
+                    services.unshift(cap);
+                }
+                return true;
+            } else {
+                services.push(cap);
             }
-
-            // field-as-button (option-less buttons)
-            const f = fields.find((x) => x.id === id);
-            // guard via `as any` in case older builds don't have .button normalized yet
-            if ((f as any)?.button === true) {
-                out.push(id);
-                continue;
-            }
-
-            // legacy bridge: "fieldId::optionId"
-            if (id.includes("::")) {
-                const [fid, legacyOid] = id.split("::");
-                if (!fid || !legacyOid) continue;
-                const host = fields.find((x) => x.id === fid);
-                const global =
-                    host?.options?.find((o) => o.id === legacyOid)?.id ??
-                    legacyOid;
-                out.push(global);
-            }
+        } else {
+            services.push(cap);
         }
-        return out;
+        return baseOverridden;
     }
 
     private findOptionById(fields: Field[], selId: string) {

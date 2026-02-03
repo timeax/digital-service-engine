@@ -4,14 +4,16 @@ import React, {
     useEffect,
     useMemo,
     useRef,
-    type ReactNode,
+    type ReactNode, useState,
 } from "react";
-import { CanvasAPI } from "@/react";
+import { CanvasAPI, Field, GraphSnapshot, Tag } from "@/react";
 import { Builder, BuilderOptions, createBuilder } from "@/core";
 import type { CanvasOptions } from "@/schema/canvas-types";
 import type { CanvasBackendOptions } from "../../canvas/backend";
 import type { ServiceProps } from "@/schema";
 import { useWorkspaceMaybe } from ".";
+import { Editor } from "@/react/canvas/editor";
+import { VisibleGroup, VisibleGroupResult } from "@/react/canvas/selection";
 
 /* ───────────────────────── context ───────────────────────── */
 

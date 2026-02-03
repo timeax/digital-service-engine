@@ -8,6 +8,10 @@ export {
 
 export { WorkspaceProvider } from "./provider/provider";
 
+export * from "./context";
+export * from "./hooks/use-canvas";
+export * from "./hooks/use-errors";
+
 export type {
     WorkspaceAPI,
     WorkspaceProviderProps,

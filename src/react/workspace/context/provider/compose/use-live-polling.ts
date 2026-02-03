@@ -9,7 +9,7 @@ import type {
     WorkspaceLiveStatus,
     WorkspaceLiveTick,
 } from "../live/types";
-import { createPollAdapter } from "../live/adapters/poll";
+import { createPollAdapter } from "@/react/workspace";
 
 export interface LiveControl {
     readonly connected: boolean;

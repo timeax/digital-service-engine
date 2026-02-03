@@ -93,19 +93,19 @@ describe("Builder", () => {
                     type: "radio",
                     bind_id: "T",
                     options: [
-                        { id: "on", label: "On" },
-                        { id: "off", label: "Off" },
+                        { id: "o:on", label: "On" },
+                        { id: "o:off", label: "Off" },
                     ],
                 },
                 { id: "base", label: "Base", type: "text", bind_id: "T" },
                 { id: "util", label: "Util", type: "text" }, // not bound; will be included by option map
             ],
-            includes_for_buttons: { "toggle::on": ["util"] },
-            excludes_for_buttons: { "toggle::on": ["base"] },
+            includes_for_buttons: { "o:on": ["util"] },
+            excludes_for_buttons: { "o:on": ["base"] },
         });
 
-        const visOn = b.visibleFields("T", ["toggle::on"]);
-        const visOff = b.visibleFields("T", ["toggle::off"]);
+        const visOn = b.visibleFields("T", ["o:on"]);
+        const visOff = b.visibleFields("T", ["o:off"]);
 
         expect(visOn).toContain("util"); // included by option
         expect(visOn).not.toContain("base"); // excluded by option
@@ -127,16 +127,16 @@ describe("Builder", () => {
                     type: "radio",
                     bind_id: "T",
                     options: [
-                        { id: "on", label: "On" },
-                        { id: "off", label: "Off" },
+                        { id: "o:on", label: "On" },
+                        { id: "o:off", label: "Off" },
                     ],
                 },
                 { id: "showme", label: "ShowMe", type: "text" },
             ],
-            includes_for_buttons: { "toggle::on": ["showme"] },
+            includes_for_buttons: { "o:on": ["showme"] },
         });
 
-        b.setOptions({ selectedOptionKeys: ["toggle::on"] });
+        b.setOptions({ selectedOptionKeys: ["o:on"] });
         const vis = b.visibleFields("T"); // no arg; uses options
         expect(vis).toContain("showme");
     });

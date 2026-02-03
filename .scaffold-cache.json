@@ -287,6 +287,13 @@
       "sizeAtCreate": 0,
       "groupName": "default",
       "groupRoot": "."
+    },
+    "src/core/tag-relations.ts": {
+      "path": "src/core/tag-relations.ts",
+      "createdAt": "2026-01-24T06:33:22.430Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
     }
   }
 }

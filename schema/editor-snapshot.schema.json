@@ -198,6 +198,9 @@
                 "$ref": "#/definitions/FieldOption"
               }
             },
+            "description": {
+              "type": "string"
+            },
             "component": {
               "type": "string"
             },
@@ -315,6 +318,9 @@
         {
           "type": "object",
           "properties": {
+            "quantityDefault": {
+              "type": "number"
+            },
             "button": {
               "type": "boolean",
               "const": true
@@ -349,6 +355,9 @@
               "items": {
                 "$ref": "#/definitions/FieldOption"
               }
+            },
+            "description": {
+              "type": "string"
             },
             "component": {
               "type": "string"

@@ -1,5 +1,6 @@
 src/
   core/
+    tag-relations.ts
     validate/
       index.ts
       shared.ts
@@ -24,7 +25,6 @@ src/
   react/
     workspace/
       context/
-        index.tsx                      # original (fallback) provider impl (left as-is for now)
         backend.ts                     # backend contracts
         context.tsx                    # CanvasProvider currently imports workspace from "."
         ctxmenu.tsx

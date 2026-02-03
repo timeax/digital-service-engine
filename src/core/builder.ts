@@ -3,17 +3,17 @@ import { normalise } from "./normalise";
 import { validate } from "./validate";
 
 import type {
-    ServiceProps,
-    Tag,
+    DgpServiceMap,
+    EdgeKind,
     Field,
-    GraphNode,
     GraphEdge,
+    GraphNode,
     GraphSnapshot,
     NodeKind,
-    EdgeKind,
-    DgpServiceMap,
+    ServiceProps,
+    Tag,
     ValidationError,
-    ValidatorOptions,
+    ValidatorOptions
 } from "@/schema";
 
 /** Options you can set on the builder (used for validation/visibility) */
@@ -62,7 +62,12 @@ export interface Builder {
     /** Service map for validation/rules */
     getServiceMap(): DgpServiceMap;
 
-    getConstraints(): string[];
+    getConstraints(): {
+        id: string;
+        label: string;
+        description: string;
+        value: string;
+    }[];
 }
 
 export function createBuilder(opts: BuilderOptions = {}): Builder {
@@ -94,7 +99,10 @@ class BuilderImpl implements Builder {
     /* ───── lifecycle ─────────────────────────────────────────────────────── */
 
     load(raw: ServiceProps): void {
-        const next = normalise(raw, { defaultPricingRole: "base" });
+        const next = normalise(raw, {
+            defaultPricingRole: "base",
+            constraints: this.getConstraints().map((item) => item.label),
+        });
         this.pushHistory(this.props);
         this.future.length = 0; // clear redo stack
         this.props = next;
@@ -113,20 +121,33 @@ class BuilderImpl implements Builder {
         return this.options.serviceMap ?? {};
     }
 
-    getConstraints(): string[] {
+    getConstraints() {
         const serviceMap = this.getServiceMap();
 
-        const out = new Set<string>();
+        const out = new Set<{
+            label: string;
+            id: string;
+            value: string;
+            description: string;
+        }>();
+        const guard = new Set<string>();
 
         for (const svc of Object.values(serviceMap)) {
             const flags = svc.flags ?? {};
             for (const flagId of Object.keys(flags)) {
-                out.add(flagId);
+                if (guard.has(flagId)) continue;
+                guard.add(flagId);
+                out.add({
+                    id: flagId,
+                    value: flagId,
+                    label: flagId,
+                    description: flags[flagId].description,
+                });
             }
         }
 
         // if you want deterministic ordering in UI:
-        return Array.from(out).sort();
+        return Array.from(out);
     }
 
     /* ───── querying ─────────────────────────────────────────────────────── */
@@ -377,68 +398,179 @@ class BuilderImpl implements Builder {
 
     visibleFields(tagId: string, selectedKeys?: string[]): string[] {
         const props = this.props;
-        const selected = new Set(
-            selectedKeys ?? this.options.selectedOptionKeys ?? [],
-        );
+        const tags = props.filters ?? [];
+        const fields = props.fields ?? [];
 
-        const tag = (props.filters ?? []).find((t) => t.id === tagId);
+        const tagById = new Map(tags.map((t) => [t.id, t]));
+        const tag = tagById.get(tagId);
         if (!tag) return [];
 
+        // ---- lineage with depth: self=0, parent=1, grandparent=2 ...
+        const lineageDepth = new Map<string, number>();
+        {
+            const guard = new Set<string>();
+            let cur: Tag | undefined = tag;
+            let d = 0;
+            while (cur && !guard.has(cur.id)) {
+                lineageDepth.set(cur.id, d++);
+                guard.add(cur.id);
+                const parentId: string | undefined = cur.bind_id;
+                cur = parentId ? tagById.get(parentId) : undefined;
+            }
+        }
+
+        const isTagInLineage = (id: string) => lineageDepth.has(id);
+
+        const fieldById = new Map(fields.map((f) => [f.id, f]));
+
+        // Build optionId -> owner field (so we can infer what tag group the option belongs to)
+        const optionOwnerFieldId = new Map<string, string>();
+        for (const f of fields) {
+            for (const o of f.options ?? []) optionOwnerFieldId.set(o.id, f.id);
+        }
+
+        const ownerDepthForField = (f: Field): number | undefined => {
+            const b = f.bind_id;
+            if (!b) return undefined;
+
+            if (typeof b === "string") return lineageDepth.get(b);
+
+            // if multiple binds, take closest in the lineage
+            let best: number | undefined = undefined;
+            for (const id of b) {
+                const d = lineageDepth.get(id);
+                if (d == null) continue;
+                if (best == null || d < best) best = d;
+            }
+            return best;
+        };
+
+        const ownerDepthForTrigger = (
+            triggerId: string,
+        ): number | undefined => {
+            // option trigger -> use owner field bind(s)
+            if (triggerId.startsWith("o:")) {
+                const fid = optionOwnerFieldId.get(triggerId);
+                if (!fid) return undefined;
+                const f = fieldById.get(fid);
+                if (!f) return undefined;
+                return ownerDepthForField(f);
+            }
+
+            // field trigger (button field id) -> use field bind(s)
+            const f = fieldById.get(triggerId);
+            if (!f || f.button !== true) return undefined;
+            return ownerDepthForField(f);
+        };
+
+        // ---- current tag includes/excludes (NOT inherited)
         const tagInclude = new Set(tag.includes ?? []);
         const tagExclude = new Set(tag.excludes ?? []);
 
-        // Button maps (can be keyed by fieldId OR "fieldId::optionId")
+        // ---- selection triggers (buttons + options)
+        const selected = new Set(
+            selectedKeys ?? this.options.selectedOptionKeys ?? [],
+        );
         const incMap = props.includes_for_buttons ?? {};
         const excMap = props.excludes_for_buttons ?? {};
 
-        // Collect includes/excludes coming from the current selection,
-        // and keep an ordered list of *revealed* ids to preserve determinism.
-        const revealedOrder: string[] = [];
-        const includeFromSelection = new Set<string>();
-        const excludeFromSelection = new Set<string>();
-
+        // We only apply triggers that belong to (self ∪ ancestors), so their effects inherit down.
+        // Also keep reveal order (determinism) but only among relevant triggers.
+        const relevantTriggersInOrder: string[] = [];
         for (const key of selected) {
-            const inc = incMap[key] ?? [];
-            for (const id of inc) {
-                if (!includeFromSelection.has(id)) revealedOrder.push(id);
-                includeFromSelection.add(id);
+            const d = ownerDepthForTrigger(key);
+            if (d == null) continue; // cannot place it in a tag group => ignore
+            // d exists means it belongs to lineage => inherited down
+            relevantTriggersInOrder.push(key);
+        }
+
+        // ---- base candidates: bound fields inherited + current tag includes
+        const visible = new Set<string>();
+        const isBoundToLineage = (f: Field): boolean => {
+            const b = f.bind_id;
+            if (!b) return false;
+            if (typeof b === "string") return isTagInLineage(b);
+            for (const id of b) if (isTagInLineage(id)) return true;
+            return false;
+        };
+
+        for (const f of fields) {
+            if (isBoundToLineage(f)) visible.add(f.id);
+            if (tagInclude.has(f.id)) visible.add(f.id);
+        }
+
+        // apply current tag excludes (tag-level only)
+        for (const id of tagExclude) visible.delete(id);
+
+        // ---- button decisions with precedence:
+        // closest depth wins; if same depth and conflict => exclude wins
+        type ButtonDecision = { depth: number; kind: "include" | "exclude" };
+        const decide = new Map<string, ButtonDecision>();
+
+        const applyDecision = (fieldId: string, next: ButtonDecision) => {
+            const prev = decide.get(fieldId);
+            if (!prev) {
+                decide.set(fieldId, next);
+                return;
             }
-            const exc = excMap[key] ?? [];
-            for (const id of exc) excludeFromSelection.add(id);
+            // closer (smaller depth) overrides farther
+            if (next.depth < prev.depth) {
+                decide.set(fieldId, next);
+                return;
+            }
+            if (next.depth > prev.depth) return;
+
+            // same depth: exclude wins
+            if (prev.kind === "include" && next.kind === "exclude") {
+                decide.set(fieldId, next);
+            }
+        };
+
+        // also track reveal order (first time a field is included by buttons, at the best known depth)
+        const revealedOrder: string[] = [];
+        const revealedSeen = new Set<string>();
+
+        for (const triggerId of relevantTriggersInOrder) {
+            const depth = ownerDepthForTrigger(triggerId);
+            if (depth == null) continue;
+
+            for (const id of incMap[triggerId] ?? []) {
+                applyDecision(id, { depth, kind: "include" });
+
+                // determinism: record reveal attempt in trigger order (not final visibility)
+                if (!revealedSeen.has(id)) {
+                    revealedSeen.add(id);
+                    revealedOrder.push(id);
+                }
+            }
+
+            for (const id of excMap[triggerId] ?? []) {
+                applyDecision(id, { depth, kind: "exclude" });
+            }
         }
 
-        // Build candidate pool
-        const pool = new Map<string, Field>();
-        for (const f of props.fields ?? []) {
-            if (isBoundTo(f, tagId)) pool.set(f.id, f);
-            if (tagInclude.has(f.id)) pool.set(f.id, f);
-            if (includeFromSelection.has(f.id)) pool.set(f.id, f);
+        // apply button decisions (buttons override tag state)
+        for (const [fid, d] of decide) {
+            if (d.kind === "include") visible.add(fid);
+            else visible.delete(fid);
         }
 
-        // Remove excludes
-        for (const id of tagExclude) pool.delete(id);
-        for (const id of excludeFromSelection) pool.delete(id);
+        // ---- natural visible ids (props.fields order)
+        const base = fields.filter((f) => visible.has(f.id)).map((f) => f.id);
 
-        // Optional explicit ordering per tag
+        // ---- order_for_tags: pin-first ordering (ordering-only; never adds invisible)
         const order = props.order_for_tags?.[tagId];
-
         if (order && order.length) {
-            // 1) tag order
-            const ordered: string[] = [];
-            for (const fid of order) if (pool.has(fid)) ordered.push(fid);
-            // 2) any remaining (preserve insertion order)
-            for (const fid of pool.keys())
-                if (!ordered.includes(fid)) ordered.push(fid);
-            return ordered;
+            const ordered = order.filter((fid) => visible.has(fid));
+            const orderedSet = new Set(ordered);
+            const rest = base.filter((fid) => !orderedSet.has(fid));
+            return [...ordered, ...rest];
         }
 
-        // No tag order → promote revealed fields FIRST (in the exact reveal order),
-        // then anything else in the natural field order.
-        const promoted = revealedOrder.filter((fid) => pool.has(fid));
-        const rest: string[] = [];
-        for (const fid of pool.keys()) {
-            if (!promoted.includes(fid)) rest.push(fid);
-        }
+        // no explicit order: revealed-first (but only final-visible)
+        const promoted = revealedOrder.filter((fid) => visible.has(fid));
+        const promotedSet = new Set(promoted);
+        const rest = base.filter((fid) => !promotedSet.has(fid));
         return [...promoted, ...rest];
     }
 
@@ -488,13 +620,6 @@ class BuilderImpl implements Builder {
 }
 
 /* ───────────────────────── helpers ───────────────────────── */
-
-function isBoundTo(f: Field, tagId: string): boolean {
-    const b = f.bind_id;
-    if (!b) return false;
-    return Array.isArray(b) ? b.includes(tagId) : b === tagId;
-}
-
 function structuredCloneSafe<T>(v: T): T {
     if (typeof (globalThis as any).structuredClone === "function") {
         return (globalThis as any).structuredClone(v);
