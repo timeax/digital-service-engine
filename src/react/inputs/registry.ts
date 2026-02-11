@@ -1,5 +1,6 @@
 import type React from 'react';
 import type {Scalar} from "@/schema/order";
+import { Ui } from "@/schema";
 
 /** Matches your InputWrapper’s expectations */
 export type InputKind = string;               // e.g. "text", "number", "select", "custom:Rating"
@@ -21,6 +22,7 @@ export type InputDescriptor = {
     Component: React.ComponentType<Record<string, unknown>>;
     adapter?: InputAdapter;
     defaultProps?: Record<string, unknown>;
+    ui?: Record<string, Ui>;
 };
 
 type VariantMap = Map<InputVariant, InputDescriptor>;

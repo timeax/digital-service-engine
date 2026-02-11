@@ -1,16 +1,18 @@
 // src/core/validate/shared.ts
-import type { ServiceProps, Tag, Field } from "@/schema";
+import type { Field, ServiceProps, Tag } from "@/schema";
 import type { DgpServiceMap } from "@/schema/provider";
 import type { ValidationError, ValidatorOptions } from "@/schema/validation";
+import { NodeMap } from "@/core/node-map";
 
 export interface ValidationCtx {
     readonly props: ServiceProps;
+    readonly nodeMap: NodeMap;
     readonly options: ValidatorOptions;
 
     readonly errors: ValidationError[];
 
     readonly serviceMap: DgpServiceMap;
-    readonly selectedKeys: Set<string>;
+    selectedKeys: Set<string>;
 
     readonly tags: Tag[];
     readonly fields: Field[];

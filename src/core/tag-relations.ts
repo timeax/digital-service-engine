@@ -100,10 +100,9 @@ const toBindList = (b: Field["bind_id"]): string[] => {
     return typeof b === "string" ? [b] : [...b];
 };
 
-export function createNodeIndex(
-    builder: Builder
-): NodeIndex {
+export function createNodeIndex(builder: Builder): NodeIndex {
     const props = builder.getProps();
+    const nodeMap = builder.getNodeMap();
     //---
     const tags = props.filters ?? [];
     const fields = props.fields ?? [];
@@ -154,7 +153,10 @@ export function createNodeIndex(
 
     const emptySet = Object.freeze(new Set<string>());
 
-    const isFieldBoundDirectToTag = (fieldId: string, tagId: string): boolean => {
+    const isFieldBoundDirectToTag = (
+        fieldId: string,
+        tagId: string,
+    ): boolean => {
         const field = fieldById.get(fieldId);
         if (!field) return false;
         const bind = field.bind_id;
@@ -167,7 +169,7 @@ export function createNodeIndex(
         id: string,
         includes: ReadonlySet<string>,
         tagId?: string,
-        forceSimple?: boolean
+        forceSimple?: boolean,
     ): readonly FieldNode[] => {
         if (!tagId || forceSimple) {
             const results: FieldNode[] = [];
@@ -390,7 +392,9 @@ export function createNodeIndex(
             },
 
             getDescendant(descendantId) {
-                return this.getDescendants().find(item => item.id == descendantId)
+                return this.getDescendants().find(
+                    (item) => item.id == descendantId,
+                );
             },
 
             getDescendants() {
@@ -403,7 +407,9 @@ export function createNodeIndex(
                     const explicit =
                         includes.has(fieldId) ||
                         isFieldBoundDirectToTag(fieldId, id);
-                    results.push(explicit ? node : { ...node, isInherited: true });
+                    results.push(
+                        explicit ? node : { ...node, isInherited: true },
+                    );
                 }
 
                 return Object.freeze(results);
@@ -473,7 +479,9 @@ export function createNodeIndex(
             },
 
             getDescendant(descendantId, context) {
-                return this.getDescendants(context).find(item => item.id == descendantId);
+                return this.getDescendants(context).find(
+                    (item) => item.id == descendantId,
+                );
             },
 
             getDescendants(tagId?: string) {
@@ -528,7 +536,9 @@ export function createNodeIndex(
             },
 
             getDescendant(descendantId, context) {
-                return this.getDescendants(context).find(item => item.id == descendantId);
+                return this.getDescendants(context).find(
+                    (item) => item.id == descendantId,
+                );
             },
 
             getDescendants(tagId?: string) {
@@ -553,13 +563,7 @@ export function createNodeIndex(
         const cached = nodeCache.get(input);
         if (cached) return cached;
 
-        const id = input;
-
-        if (id.startsWith("t:")) return getTag(id) ?? mkUnknown(id);
-        if (id.startsWith("f:")) return getField(id) ?? mkUnknown(id);
-        if (id.startsWith("o:")) return getOption(id) ?? mkUnknown(id);
-
-        return getTag(id) ?? getField(id) ?? getOption(id) ?? mkUnknown(id);
+        return (nodeMap.get(input)?.node ?? mkUnknown(input)) as AnyNode;
     };
 
     const mkUnknown = (id: string): UnknownNode => {

@@ -15,6 +15,8 @@ import type {
     ValidationError,
     ValidatorOptions
 } from "@/schema";
+import { visibleFieldIdsUnder } from "@/core/visibility";
+import { buildNodeMap, NodeMap } from "@/core/node-map";
 
 /** Options you can set on the builder (used for validation/visibility) */
 export type BuilderOptions = Omit<ValidatorOptions, "serviceMap"> & {
@@ -68,6 +70,11 @@ export interface Builder {
         description: string;
         value: string;
     }[];
+
+    isTagId(id: string): boolean;
+    isFieldId(id: string): boolean;
+    isOptionId(id: string): boolean;
+    getNodeMap(): NodeMap;
 }
 
 export function createBuilder(opts: BuilderOptions = {}): Builder {
@@ -90,6 +97,7 @@ class BuilderImpl implements Builder {
     private readonly history: ServiceProps[] = [];
     private readonly future: ServiceProps[] = [];
     private readonly historyLimit: number;
+    private _nodemap: NodeMap | null = null;
 
     constructor(opts: BuilderOptions = {}) {
         this.options = { ...opts };
@@ -97,6 +105,15 @@ class BuilderImpl implements Builder {
     }
 
     /* ───── lifecycle ─────────────────────────────────────────────────────── */
+    isTagId(id: string) {
+        return this.tagById.has(id);
+    }
+    isFieldId(id: string) {
+        return this.fieldById.has(id);
+    }
+    isOptionId(id: string) {
+        return this.optionOwnerById.has(id);
+    }
 
     load(raw: ServiceProps): void {
         const next = normalise(raw, {
@@ -397,181 +414,17 @@ class BuilderImpl implements Builder {
     }
 
     visibleFields(tagId: string, selectedKeys?: string[]): string[] {
-        const props = this.props;
-        const tags = props.filters ?? [];
-        const fields = props.fields ?? [];
+        return visibleFieldIdsUnder(this.props, tagId, {
+            selectedKeys: new Set(
+                selectedKeys ?? this.options.selectedOptionKeys ?? [],
+            ),
+        });
+    }
 
-        const tagById = new Map(tags.map((t) => [t.id, t]));
-        const tag = tagById.get(tagId);
-        if (!tag) return [];
-
-        // ---- lineage with depth: self=0, parent=1, grandparent=2 ...
-        const lineageDepth = new Map<string, number>();
-        {
-            const guard = new Set<string>();
-            let cur: Tag | undefined = tag;
-            let d = 0;
-            while (cur && !guard.has(cur.id)) {
-                lineageDepth.set(cur.id, d++);
-                guard.add(cur.id);
-                const parentId: string | undefined = cur.bind_id;
-                cur = parentId ? tagById.get(parentId) : undefined;
-            }
-        }
-
-        const isTagInLineage = (id: string) => lineageDepth.has(id);
-
-        const fieldById = new Map(fields.map((f) => [f.id, f]));
-
-        // Build optionId -> owner field (so we can infer what tag group the option belongs to)
-        const optionOwnerFieldId = new Map<string, string>();
-        for (const f of fields) {
-            for (const o of f.options ?? []) optionOwnerFieldId.set(o.id, f.id);
-        }
-
-        const ownerDepthForField = (f: Field): number | undefined => {
-            const b = f.bind_id;
-            if (!b) return undefined;
-
-            if (typeof b === "string") return lineageDepth.get(b);
-
-            // if multiple binds, take closest in the lineage
-            let best: number | undefined = undefined;
-            for (const id of b) {
-                const d = lineageDepth.get(id);
-                if (d == null) continue;
-                if (best == null || d < best) best = d;
-            }
-            return best;
-        };
-
-        const ownerDepthForTrigger = (
-            triggerId: string,
-        ): number | undefined => {
-            // option trigger -> use owner field bind(s)
-            if (triggerId.startsWith("o:")) {
-                const fid = optionOwnerFieldId.get(triggerId);
-                if (!fid) return undefined;
-                const f = fieldById.get(fid);
-                if (!f) return undefined;
-                return ownerDepthForField(f);
-            }
-
-            // field trigger (button field id) -> use field bind(s)
-            const f = fieldById.get(triggerId);
-            if (!f || f.button !== true) return undefined;
-            return ownerDepthForField(f);
-        };
-
-        // ---- current tag includes/excludes (NOT inherited)
-        const tagInclude = new Set(tag.includes ?? []);
-        const tagExclude = new Set(tag.excludes ?? []);
-
-        // ---- selection triggers (buttons + options)
-        const selected = new Set(
-            selectedKeys ?? this.options.selectedOptionKeys ?? [],
-        );
-        const incMap = props.includes_for_buttons ?? {};
-        const excMap = props.excludes_for_buttons ?? {};
-
-        // We only apply triggers that belong to (self ∪ ancestors), so their effects inherit down.
-        // Also keep reveal order (determinism) but only among relevant triggers.
-        const relevantTriggersInOrder: string[] = [];
-        for (const key of selected) {
-            const d = ownerDepthForTrigger(key);
-            if (d == null) continue; // cannot place it in a tag group => ignore
-            // d exists means it belongs to lineage => inherited down
-            relevantTriggersInOrder.push(key);
-        }
-
-        // ---- base candidates: bound fields inherited + current tag includes
-        const visible = new Set<string>();
-        const isBoundToLineage = (f: Field): boolean => {
-            const b = f.bind_id;
-            if (!b) return false;
-            if (typeof b === "string") return isTagInLineage(b);
-            for (const id of b) if (isTagInLineage(id)) return true;
-            return false;
-        };
-
-        for (const f of fields) {
-            if (isBoundToLineage(f)) visible.add(f.id);
-            if (tagInclude.has(f.id)) visible.add(f.id);
-        }
-
-        // apply current tag excludes (tag-level only)
-        for (const id of tagExclude) visible.delete(id);
-
-        // ---- button decisions with precedence:
-        // closest depth wins; if same depth and conflict => exclude wins
-        type ButtonDecision = { depth: number; kind: "include" | "exclude" };
-        const decide = new Map<string, ButtonDecision>();
-
-        const applyDecision = (fieldId: string, next: ButtonDecision) => {
-            const prev = decide.get(fieldId);
-            if (!prev) {
-                decide.set(fieldId, next);
-                return;
-            }
-            // closer (smaller depth) overrides farther
-            if (next.depth < prev.depth) {
-                decide.set(fieldId, next);
-                return;
-            }
-            if (next.depth > prev.depth) return;
-
-            // same depth: exclude wins
-            if (prev.kind === "include" && next.kind === "exclude") {
-                decide.set(fieldId, next);
-            }
-        };
-
-        // also track reveal order (first time a field is included by buttons, at the best known depth)
-        const revealedOrder: string[] = [];
-        const revealedSeen = new Set<string>();
-
-        for (const triggerId of relevantTriggersInOrder) {
-            const depth = ownerDepthForTrigger(triggerId);
-            if (depth == null) continue;
-
-            for (const id of incMap[triggerId] ?? []) {
-                applyDecision(id, { depth, kind: "include" });
-
-                // determinism: record reveal attempt in trigger order (not final visibility)
-                if (!revealedSeen.has(id)) {
-                    revealedSeen.add(id);
-                    revealedOrder.push(id);
-                }
-            }
-
-            for (const id of excMap[triggerId] ?? []) {
-                applyDecision(id, { depth, kind: "exclude" });
-            }
-        }
-
-        // apply button decisions (buttons override tag state)
-        for (const [fid, d] of decide) {
-            if (d.kind === "include") visible.add(fid);
-            else visible.delete(fid);
-        }
-
-        // ---- natural visible ids (props.fields order)
-        const base = fields.filter((f) => visible.has(f.id)).map((f) => f.id);
-
-        // ---- order_for_tags: pin-first ordering (ordering-only; never adds invisible)
-        const order = props.order_for_tags?.[tagId];
-        if (order && order.length) {
-            const ordered = order.filter((fid) => visible.has(fid));
-            const orderedSet = new Set(ordered);
-            const rest = base.filter((fid) => !orderedSet.has(fid));
-            return [...ordered, ...rest];
-        }
-
-        // no explicit order: revealed-first (but only final-visible)
-        const promoted = revealedOrder.filter((fid) => visible.has(fid));
-        const promotedSet = new Set(promoted);
-        const rest = base.filter((fid) => !promotedSet.has(fid));
-        return [...promoted, ...rest];
+    getNodeMap(): NodeMap {
+        if (!this._nodemap) this._nodemap = buildNodeMap(this.getProps());
+        ///--
+        return this._nodemap;
     }
 
     /* ───── history ─────────────────────────────────────────────────────── */
@@ -600,6 +453,7 @@ class BuilderImpl implements Builder {
         this.tagById.clear();
         this.fieldById.clear();
         this.optionOwnerById.clear();
+        this._nodemap = null;
 
         for (const t of this.props.filters) this.tagById.set(t.id, t);
         for (const f of this.props.fields) {

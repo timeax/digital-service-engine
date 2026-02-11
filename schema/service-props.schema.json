@@ -49,6 +49,9 @@
         },
         "fallbacks": {
           "$ref": "#/definitions/ServiceFallback"
+        },
+        "name": {
+          "type": "string"
         }
       },
       "required": [

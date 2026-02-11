@@ -23,6 +23,32 @@ src/
         ops.ts
         apply-policies.ts
   react/
+    inputs/
+      entries/
+        shared.ts
+        text.tsx
+        textarea.tsx
+        number.tsx
+        select.tsx
+        multiselect.tsx
+        checkbox.tsx
+        toggle.tsx
+        radio.tsx
+        chips.tsx
+        treeselect.tsx
+        date.tsx
+        file.tsx
+        color.tsx
+        phone.tsx
+        password.tsx
+        keyvalue.tsx
+        custom.tsx
+        slider.tsx
+        toggle-group.tsx
+        json-editor.tsx
+        lister.tsx
+        icon.tsx
+        image-icon.tsx
     workspace/
       context/
         backend.ts                     # backend contracts

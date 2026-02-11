@@ -294,6 +294,174 @@
       "sizeAtCreate": 0,
       "groupName": "default",
       "groupRoot": "."
+    },
+    "src/react/inputs/defaults/shared.ts": {
+      "path": "src/react/inputs/defaults/shared.ts",
+      "createdAt": "2026-02-11T11:09:59.027Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/text.tsx": {
+      "path": "src/react/inputs/defaults/text.tsx",
+      "createdAt": "2026-02-11T11:09:59.032Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/textarea.tsx": {
+      "path": "src/react/inputs/defaults/textarea.tsx",
+      "createdAt": "2026-02-11T11:09:59.034Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/number.tsx": {
+      "path": "src/react/inputs/defaults/number.tsx",
+      "createdAt": "2026-02-11T11:09:59.035Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/select.tsx": {
+      "path": "src/react/inputs/defaults/select.tsx",
+      "createdAt": "2026-02-11T11:09:59.036Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/multiselect.tsx": {
+      "path": "src/react/inputs/defaults/multiselect.tsx",
+      "createdAt": "2026-02-11T11:09:59.037Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/checkbox.tsx": {
+      "path": "src/react/inputs/defaults/checkbox.tsx",
+      "createdAt": "2026-02-11T11:09:59.039Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/toggle.tsx": {
+      "path": "src/react/inputs/defaults/toggle.tsx",
+      "createdAt": "2026-02-11T11:09:59.041Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/radio.tsx": {
+      "path": "src/react/inputs/defaults/radio.tsx",
+      "createdAt": "2026-02-11T11:09:59.044Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/chips.tsx": {
+      "path": "src/react/inputs/defaults/chips.tsx",
+      "createdAt": "2026-02-11T11:09:59.046Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/treeselect.tsx": {
+      "path": "src/react/inputs/defaults/treeselect.tsx",
+      "createdAt": "2026-02-11T11:09:59.047Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/date.tsx": {
+      "path": "src/react/inputs/defaults/date.tsx",
+      "createdAt": "2026-02-11T11:09:59.049Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/file.tsx": {
+      "path": "src/react/inputs/defaults/file.tsx",
+      "createdAt": "2026-02-11T11:09:59.050Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/color.tsx": {
+      "path": "src/react/inputs/defaults/color.tsx",
+      "createdAt": "2026-02-11T11:09:59.052Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/phone.tsx": {
+      "path": "src/react/inputs/defaults/phone.tsx",
+      "createdAt": "2026-02-11T11:09:59.054Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/password.tsx": {
+      "path": "src/react/inputs/defaults/password.tsx",
+      "createdAt": "2026-02-11T11:09:59.056Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/keyvalue.tsx": {
+      "path": "src/react/inputs/defaults/keyvalue.tsx",
+      "createdAt": "2026-02-11T11:09:59.058Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/custom.tsx": {
+      "path": "src/react/inputs/defaults/custom.tsx",
+      "createdAt": "2026-02-11T11:09:59.059Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/slider.tsx": {
+      "path": "src/react/inputs/defaults/slider.tsx",
+      "createdAt": "2026-02-11T11:09:59.062Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/toggle-group.tsx": {
+      "path": "src/react/inputs/defaults/toggle-group.tsx",
+      "createdAt": "2026-02-11T11:09:59.063Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/json-editor.tsx": {
+      "path": "src/react/inputs/defaults/json-editor.tsx",
+      "createdAt": "2026-02-11T11:09:59.064Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/lister.tsx": {
+      "path": "src/react/inputs/defaults/lister.tsx",
+      "createdAt": "2026-02-11T11:09:59.066Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/icon.tsx": {
+      "path": "src/react/inputs/defaults/icon.tsx",
+      "createdAt": "2026-02-11T11:09:59.069Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/inputs/defaults/image-icon.tsx": {
+      "path": "src/react/inputs/defaults/image-icon.tsx",
+      "createdAt": "2026-02-11T11:09:59.071Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
     }
   }
 }

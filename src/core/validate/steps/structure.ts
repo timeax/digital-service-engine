@@ -8,7 +8,7 @@ export function validateStructure(v: ValidationCtx): void {
     const fields = v.fields;
 
     // root present
-    if (!tags.some((t) => t.id === "root")) {
+    if (!tags.some((t) => t.id === "t:root")) {
         v.errors.push({
             code: "root_missing",
             severity: "error",

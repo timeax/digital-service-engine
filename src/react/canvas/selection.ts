@@ -24,10 +24,6 @@ export type VisibleGroupResult =
 type ChangeEvt = { ids: string[]; primary?: string };
 type Listener = (e: ChangeEvt) => void;
 
-const isTagId = (id: string) => typeof id === "string" && id.startsWith("t:");
-const isOptionId = (id: string) =>
-    typeof id === "string" && id.startsWith("o:");
-
 export type SelectionOptions = {
     env?: Env;
     rootTagId?: string;
@@ -122,7 +118,7 @@ export class Selection {
 
         // WORKSPACE: >1 tag selected → return raw selection set
         if ((this.opts.env ?? "client") === "workspace") {
-            const tagIds = Array.from(this.set).filter(isTagId);
+            const tagIds = Array.from(this.set).filter(this.builder.isTagId.bind(this.builder));
             if (tagIds.length > 1) {
                 return { kind: "multi", groups: Array.from(this.set) };
             }
@@ -162,7 +158,7 @@ export class Selection {
             return;
         }
 
-        if (isOptionId(id)) {
+        if (this.builder.isOptionId(id)) {
             const host = fields.find((x) =>
                 (x.options ?? []).some((o) => o.id === id),
             );
@@ -189,7 +185,7 @@ export class Selection {
     private resolveTagContextId(props: ServiceProps): string | undefined {
         if (this.currentTagId) return this.currentTagId;
 
-        for (const id of this.set) if (isTagId(id)) return id;
+        for (const id of this.set) if (this.builder.isTagId(id)) return id;
 
         const fields = props.fields ?? [];
         for (const id of this.set) {
@@ -199,7 +195,7 @@ export class Selection {
         }
 
         for (const id of this.set) {
-            if (isOptionId(id)) {
+            if (this.builder.isOptionId(id)) {
                 const host = fields.find((x) =>
                     (x.options ?? []).some((o) => o.id === id),
                 );
@@ -361,7 +357,7 @@ export class Selection {
     }
 
     private findOptionById(fields: Field[], selId: string) {
-        if (isOptionId(selId)) {
+        if (this.builder.isOptionId(selId)) {
             for (const f of fields) {
                 const o = f.options?.find((x) => x.id === selId);
                 if (o) return o;

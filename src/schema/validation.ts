@@ -1,4 +1,5 @@
 import { DgpServiceMap } from "./provider";
+import { NodeMap } from "@/core/node-map";
 
 export type ValidationCode =
     // structure
@@ -124,6 +125,7 @@ export type DynamicRule = {
 
 export type ValidatorOptions = {
     serviceMap?: DgpServiceMap;
+    nodeMap?: NodeMap;
     allowUnsafe?: boolean;
     selectedOptionKeys?: string[];
     globalUtilityGuard?: boolean;

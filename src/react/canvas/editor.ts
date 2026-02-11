@@ -41,10 +41,6 @@ export type DuplicateOptions = {
     optionIdStrategy?: (old: string) => string; // for options; default add "_copy"
 };
 
-const isTagId = (id: string) => id.startsWith("t:");
-const isFieldId = (id: string) => id.startsWith("f:");
-const isOptionId = (id: string) => id.startsWith("o:");
-
 // owner lookup (linear, OK for editor; index if you want later)
 function ownerOfOption(
     props: ServiceProps,
@@ -99,6 +95,16 @@ export class Editor {
     }
 
     /* ───────────────────────── Public API ───────────────────────── */
+
+    isTagId(id: string) {
+        return this.builder.isTagId(id);
+    }
+    isFieldId(id: string) {
+        return this.builder.isFieldId(id);
+    }
+    isOptionId(id: string) {
+        return this.builder.isOptionId(id);
+    }
 
     getProps(): ServiceProps {
         return this.builder.getProps();
@@ -204,7 +210,7 @@ export class Editor {
             do: () =>
                 this.patchProps((p) => {
                     // Tag
-                    if (isTagId(id)) {
+                    if (this.isTagId(id)) {
                         const t = (p.filters ?? []).find((x) => x.id === id);
                         if (!t) return;
                         if ((t.label ?? "") === label) return;
@@ -215,7 +221,7 @@ export class Editor {
                     }
 
                     // Option (find owner field → option)
-                    if (isOptionId(id)) {
+                    if (this.isOptionId(id)) {
                         const own = ownerOfOption(p, id);
                         if (!own) return;
                         const f = (p.fields ?? []).find(
@@ -592,7 +598,7 @@ export class Editor {
             index?: number;
         },
     ) {
-        if (isTagId(id)) {
+        if (this.isTagId(id)) {
             // … your existing tag sibling reorder logic …
             this.exec({
                 name: "placeTag",
@@ -646,7 +652,7 @@ export class Editor {
                     }),
                 undo: () => this.api.undo(),
             });
-        } else if (isFieldId(id)) {
+        } else if (this.isFieldId(id)) {
             if (!opts.scopeTagId)
                 throw new Error("placeNode(field): scopeTagId is required");
             const fieldId = id;
@@ -679,7 +685,7 @@ export class Editor {
                     }),
                 undo: () => this.api.undo(),
             });
-        } else if (isOptionId(id)) {
+        } else if (this.isOptionId(id)) {
             // defer to placeOption for options
             this.placeOption(id, opts);
         } else {
@@ -691,7 +697,7 @@ export class Editor {
         optionId: string,
         opts: { beforeId?: string; afterId?: string; index?: number },
     ) {
-        if (!isOptionId(optionId))
+        if (!this.isOptionId(optionId))
             throw new Error('placeOption: optionId must start with "o:"');
 
         this.exec({
@@ -778,7 +784,7 @@ export class Editor {
             } & Record<string, any>
         >,
     ) {
-        if (!isOptionId(optionId))
+        if (!this.isOptionId(optionId))
             throw new Error('updateOption: optionId must start with "o:"');
         this.exec({
             name: "updateOption",
@@ -798,7 +804,7 @@ export class Editor {
     }
 
     removeOption(optionId: string) {
-        if (!isOptionId(optionId))
+        if (!this.isOptionId(optionId))
             throw new Error('removeOption: optionId must start with "o:"');
         this.exec({
             name: "removeOption",
@@ -837,17 +843,17 @@ export class Editor {
             name: "editLabel",
             do: () =>
                 this.patchProps((p) => {
-                    if (isTagId(id)) {
+                    if (this.isTagId(id)) {
                         const t = (p.filters ?? []).find((x) => x.id === id);
                         if (t) t.label = next;
                         return;
                     }
-                    if (isFieldId(id)) {
+                    if (this.isFieldId(id)) {
                         const f = (p.fields ?? []).find((x) => x.id === id);
                         if (f) f.label = next;
                         return;
                     }
-                    if (isOptionId(id)) {
+                    if (this.isOptionId(id)) {
                         const own = ownerOfOption(p, id);
                         if (!own) return;
                         const f = (p.fields ?? []).find(
@@ -898,7 +904,7 @@ export class Editor {
                     const nextRole = input.pricing_role;
 
                     // ── TAG ───────────────────────────────────────────────────
-                    if (isTagId(id)) {
+                    if (this.isTagId(id)) {
                         const t = (p.filters ?? []).find((x) => x.id === id);
                         if (!t) return;
 
@@ -911,7 +917,7 @@ export class Editor {
                     }
 
                     // ── OPTION ───────────────────────────────────────────────
-                    if (isOptionId(id)) {
+                    if (this.isOptionId(id)) {
                         const own = ownerOfOption(p, id);
                         if (!own) return;
                         const f = (p.fields ?? []).find(
@@ -1167,7 +1173,7 @@ export class Editor {
     }
 
     remove(id: string) {
-        if (isTagId(id)) {
+        if (this.isTagId(id)) {
             this.exec({
                 name: "removeTag",
                 do: () =>
@@ -1214,7 +1220,7 @@ export class Editor {
             return;
         }
 
-        if (isFieldId(id)) {
+        if (this.isFieldId(id)) {
             this.exec({
                 name: "removeField",
                 do: () =>
@@ -1263,7 +1269,7 @@ export class Editor {
             return;
         }
 
-        if (isOptionId(id)) {
+        if (this.isOptionId(id)) {
             this.removeOption(id);
             return;
         }
@@ -1278,7 +1284,7 @@ export class Editor {
         | { kind: "field"; data?: Field; owners: { bindTagIds: string[] } }
         | { kind: "option"; data?: any; owners: { fieldId?: string } } {
         const props = this.builder.getProps();
-        if (isTagId(id)) {
+        if (this.isTagId(id)) {
             const t = (props.filters ?? []).find((x) => x.id === id);
             return {
                 kind: "tag",
@@ -1286,7 +1292,7 @@ export class Editor {
                 owners: { parentTagId: t?.bind_id },
             };
         }
-        if (isFieldId(id)) {
+        if (this.isFieldId(id)) {
             const f = (props.fields ?? []).find((x) => x.id === id);
             const bind = Array.isArray(f?.bind_id)
                 ? (f!.bind_id as string[])
@@ -1295,7 +1301,7 @@ export class Editor {
                   : [];
             return { kind: "field", data: f, owners: { bindTagIds: bind } };
         }
-        if (isOptionId(id)) {
+        if (this.isOptionId(id)) {
             const own = ownerOfOption(props, id);
             const f = own
                 ? (props.fields ?? []).find((x) => x.id === own.fieldId)
@@ -1401,7 +1407,7 @@ export class Editor {
 
         // We want to prevent A including/excluding B if B includes/excludes A.
         const getDirectRelations = (id: string): string[] => {
-            if (isTagId(id)) {
+            if (this.isTagId(id)) {
                 const t = (p.filters ?? []).find((x) => x.id === id);
                 return [...(t?.includes ?? []), ...(t?.excludes ?? [])];
             }
@@ -1511,10 +1517,7 @@ export class Editor {
                                 next.add(id);
                                 accepted.push(id);
                             }
-                            if (
-                                accepted.length > 0 ||
-                                current.length > 0
-                            ) {
+                            if (accepted.length > 0 || current.length > 0) {
                                 if (!p.includes_for_buttons)
                                     p.includes_for_buttons = {};
                                 p.includes_for_buttons[receiverId] =
@@ -1633,10 +1636,7 @@ export class Editor {
                                 next.add(id);
                                 accepted.push(id);
                             }
-                            if (
-                                accepted.length > 0 ||
-                                current.length > 0
-                            ) {
+                            if (accepted.length > 0 || current.length > 0) {
                                 if (!p.excludes_for_buttons)
                                     p.excludes_for_buttons = {};
                                 p.excludes_for_buttons[receiverId] =
@@ -1681,7 +1681,7 @@ export class Editor {
                     /* ── BIND ─────────────────────────────────────────────── */
                     if (kind === "bind") {
                         // Tag → Tag: set child.bind_id = parent (cycle-safe)
-                        if (isTagId(fromId) && isTagId(toId)) {
+                        if (this.isTagId(fromId) && this.isTagId(toId)) {
                             if (this.wouldCreateTagCycle(p, fromId, toId)) {
                                 throw new Error(
                                     `bind would create a cycle: ${fromId} → ${toId}`,
@@ -1695,11 +1695,11 @@ export class Editor {
                         }
                         // Tag → Field (or Field → Tag): ensure field.bind_id contains the tag
                         if (
-                            (isTagId(fromId) && isFieldId(toId)) ||
-                            (isFieldId(fromId) && isTagId(toId))
+                            (this.isTagId(fromId) && this.isFieldId(toId)) ||
+                            (this.isFieldId(fromId) && this.isTagId(toId))
                         ) {
-                            const fieldId = isFieldId(toId) ? toId : fromId;
-                            const tagId = isTagId(fromId) ? fromId : toId;
+                            const fieldId = this.isFieldId(toId) ? toId : fromId;
+                            const tagId = this.isTagId(fromId) ? fromId : toId;
                             const f = (p.fields ?? []).find(
                                 (x) => x.id === fieldId,
                             );
@@ -1728,7 +1728,7 @@ export class Editor {
                             kind === "include" ? "includes" : "excludes";
 
                         // Tag → Field: mutate tag.includes/excludes
-                        if (isTagId(fromId) && isFieldId(toId)) {
+                        if (this.isTagId(fromId) && this.isFieldId(toId)) {
                             const t = (p.filters ?? []).find(
                                 (x) => x.id === fromId,
                             );
@@ -1739,7 +1739,7 @@ export class Editor {
                         }
 
                         // Option → Field: mutate includes_for_options / excludes_for_options using optionId
-                        if (isOptionId(fromId) && isFieldId(toId)) {
+                        if (this.isOptionId(fromId) && this.isFieldId(toId)) {
                             const mapKey =
                                 kind === "include"
                                     ? "includes_for_options"
@@ -1823,7 +1823,7 @@ export class Editor {
                     /* ── BIND ─────────────────────────────────────────────── */
                     if (kind === "bind") {
                         // Tag → Tag
-                        if (isTagId(fromId) && isTagId(toId)) {
+                        if (this.isTagId(fromId) && this.isTagId(toId)) {
                             const child = (p.filters ?? []).find(
                                 (t) => t.id === toId,
                             );
@@ -1832,11 +1832,11 @@ export class Editor {
                         }
                         // Tag ↔ Field
                         if (
-                            (isTagId(fromId) && isFieldId(toId)) ||
-                            (isFieldId(fromId) && isTagId(toId))
+                            (this.isTagId(fromId) && this.isFieldId(toId)) ||
+                            (this.isFieldId(fromId) && this.isTagId(toId))
                         ) {
-                            const fieldId = isFieldId(toId) ? toId : fromId;
-                            const tagId = isTagId(fromId) ? fromId : toId;
+                            const fieldId = this.isFieldId(toId) ? toId : fromId;
+                            const tagId = this.isTagId(fromId) ? fromId : toId;
                             const f = (p.fields ?? []).find(
                                 (x) => x.id === fieldId,
                             );
@@ -1862,7 +1862,7 @@ export class Editor {
                             kind === "include" ? "includes" : "excludes";
 
                         // Tag → Field
-                        if (isTagId(fromId) && isFieldId(toId)) {
+                        if (this.isTagId(fromId) && this.isFieldId(toId)) {
                             const t = (p.filters ?? []).find(
                                 (x) => x.id === fromId,
                             );
@@ -1873,7 +1873,7 @@ export class Editor {
                         }
 
                         // Option → Field
-                        if (isOptionId(fromId) && isFieldId(toId)) {
+                        if (this.isOptionId(fromId) && this.isFieldId(toId)) {
                             const mapKey =
                                 kind === "include"
                                     ? "includes_for_options"

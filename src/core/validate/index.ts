@@ -21,7 +21,66 @@ import { validateFallbacks } from "./steps/fallbacks";
 
 import { applyPolicies } from "./policies/apply-policies";
 import type { ValidationCtx } from "./shared";
+import { buildNodeMap } from "@/core/node-map";
 
+/**
+ * We read simulation options from ctx without changing the public ValidatorOptions type.
+ * (So UI can pass these without needing schema/type changes immediately.)
+ */
+type VisibilitySimOpts = Readonly<{
+    simulate?: boolean;
+    maxStates?: number;
+    maxDepth?: number;
+    simulateAllRoots?: boolean;
+    onlyEffectfulTriggers?: boolean;
+}>;
+
+function readVisibilitySimOpts(ctx: ValidatorOptions): VisibilitySimOpts {
+    const c = ctx as any;
+
+    const simulate =
+        c.simulateVisibility === true ||
+        c.visibilitySimulate === true ||
+        c.simulate === true;
+
+    const maxStates =
+        typeof c.maxVisibilityStates === "number"
+            ? c.maxVisibilityStates
+            : typeof c.visibilityMaxStates === "number"
+              ? c.visibilityMaxStates
+              : typeof c.maxStates === "number"
+                ? c.maxStates
+                : undefined;
+
+    const maxDepth =
+        typeof c.maxVisibilityDepth === "number"
+            ? c.maxVisibilityDepth
+            : typeof c.visibilityMaxDepth === "number"
+              ? c.visibilityMaxDepth
+              : typeof c.maxDepth === "number"
+                ? c.maxDepth
+                : undefined;
+
+    const simulateAllRoots =
+        c.simulateAllRoots === true || c.visibilitySimulateAllRoots === true;
+
+    const onlyEffectfulTriggers =
+        c.onlyEffectfulTriggers === false
+            ? false
+            : c.visibilityOnlyEffectfulTriggers !== false; // default true
+
+    return {
+        simulate,
+        maxStates,
+        maxDepth,
+        simulateAllRoots,
+        onlyEffectfulTriggers,
+    };
+}
+
+/**
+ * Core synchronous validate.
+ */
 export function validate(
     props: ServiceProps,
     ctx: ValidatorOptions = {},
@@ -43,6 +102,7 @@ export function validate(
 
     const v: ValidationCtx = {
         props,
+        nodeMap: ctx.nodeMap ?? buildNodeMap(props),
         options: ctx,
         errors,
         serviceMap,
@@ -63,9 +123,11 @@ export function validate(
     // 3) option maps
     validateOptionMaps(v);
 
-    // 4) visibility helpers + visibility rules
+    // 4) visibility helpers + visibility rules (optionally simulated)
     v.fieldsVisibleUnder = createFieldsVisibleUnder(v);
-    validateVisibility(v);
+
+    const visSim = readVisibilitySimOpts(ctx);
+    validateVisibility(v, visSim);
 
     // --------- Dynamic policies (super-admin) --------------------------
     applyPolicies(
@@ -102,4 +164,30 @@ export function validate(
     validateFallbacks(v);
 
     return v.errors;
+}
+
+/**
+ * UI-friendly async wrapper:
+ * - yields to microtask queue
+ * - then yields to the next animation frame (so paint can happen)
+ * - then runs validate()
+ */
+export async function validateAsync(
+    props: ServiceProps,
+    ctx: ValidatorOptions = {},
+): Promise<ValidationError[]> {
+    // microtask yield
+    await Promise.resolve();
+
+    // next paint/frame yield (browser environments)
+    if (typeof requestAnimationFrame === "function") {
+        await new Promise<void>((resolve) =>
+            requestAnimationFrame(() => resolve()),
+        );
+    } else {
+        // non-browser fallback
+        await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    }
+
+    return validate(props, ctx);
 }

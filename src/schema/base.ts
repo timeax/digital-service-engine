@@ -31,13 +31,18 @@ export interface BaseFieldUI {
     name?: string;
     label: string;
     required?: boolean;
-    /** Host-defined prop names → typed UI nodes */
-    ui?: Record<string, Ui>;
     /** Host-defined prop names → runtime default values (untyped base) */
     defaults?: Record<string, unknown>;
 }
 
-export type Ui = UiString | UiNumber | UiBoolean | UiAnyOf | UiArray | UiObject;
+export type Ui = (
+    | UiString
+    | UiNumber
+    | UiBoolean
+    | UiAnyOf
+    | UiArray
+    | UiObject
+) & { description: string; label: string };
 
 /** string */
 export interface UiString {
@@ -77,19 +82,42 @@ export interface UiAnyOf {
 /** arrays: homogeneous (item) or tuple (items) */
 export interface UiArray {
     type: "array";
-    item?: Ui; // schema for each element (homogeneous)
-    items?: Ui[]; // tuple form
+    label: string;
+    description: string;
+
+    item?: Ui;
+    items?: Ui[];
+    editable?: boolean;
+
+    /**
+     * Optional: allowed shapes for new items.
+     * Key = label shown in UI picker
+     * Value = schema for the new element
+     */
+    shape?: Record<string, Ui>;
+
     minItems?: number;
     maxItems?: number;
     uniqueItems?: boolean;
 }
-
 /** objects: nested props */
 export interface UiObject {
     type: "object";
+    label: string;
+    description: string;
+
+    editable?: boolean;
     fields: Record<string, Ui>;
-    required?: string[]; // nested required
-    order?: string[]; // render hint
+
+    /**
+     * Optional: allowed shapes for dynamically added keys.
+     * Key = human-readable name shown in UI picker
+     * Value = schema applied to the value of the new key
+     */
+    shape?: Record<string, Ui>;
+
+    required?: string[];
+    order?: string[];
 }
 
 /** ---------------- Typed defaults helpers ---------------- */
@@ -213,6 +241,7 @@ export type ServiceProps = {
     excludes_for_buttons?: Record<string, string[]>;
     schema_version?: string;
     fallbacks?: ServiceFallback;
+    name?: string;
 };
 
 // Ids
