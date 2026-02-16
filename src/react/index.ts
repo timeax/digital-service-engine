@@ -5,3 +5,5 @@ export * from "./inputs/form-context";
 export * from "./inputs/registry";
 export * from "./inputs/provider";
 export * from "./inputs/wrapper";
+export * from "./hooks";
+export { registerEntries } from "./inputs/entries";

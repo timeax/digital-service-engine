@@ -66,7 +66,7 @@ export const sharedUi = {
                 { type: "string", title: "Caret", value: "caret" },
             ],
         } satisfies Ui,
-
+        
         maskDefinitions: {
             type: "object",
             label: "Mask definitions",

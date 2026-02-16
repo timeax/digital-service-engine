@@ -2,53 +2,61 @@
 > Note for LLMs: `Lx-Ly` ranges refer to lines in this Prodex trace file, not the original source files. Index metadata is provided via the HTML comment markers in this section.
 
 # Index
-<!-- PRODEX_INDEX_RANGE: L8-L51 -->
-<!-- PRODEX_FILE_COUNT: 44 -->
+<!-- PRODEX_INDEX_RANGE: L8-L59 -->
+<!-- PRODEX_FILE_COUNT: 52 -->
 <!-- PRODEX_INDEX_LIST_START -->
-- [src/react/workspace/__tests__/provider.test.tsx](#1)  L55-L318
-- [src/react/workspace/app.tsx](#2)  L319-L406
-- [src/react/workspace/components/canvas.tsx](#3)  L407-L527
-- [src/react/workspace/components/context-menu-renderer.tsx](#4)  L528-L733
-- [src/react/workspace/components/reactflow/edge.tsx](#5)  L734-L743
-- [src/react/workspace/components/reactflow/index.tsx](#6)  L744-L765
-- [src/react/workspace/components/reactflow/nodes/comments.tsx](#7)  L766-L775
-- [src/react/workspace/components/reactflow/nodes/field.tsx](#8)  L776-L810
-- [src/react/workspace/components/reactflow/nodes/node.tsx](#9)  L811-L979
-- [src/react/workspace/components/reactflow/nodes/options.tsx](#10)  L980-L998
-- [src/react/workspace/components/reactflow/nodes/tags.tsx](#11)  L999-L1021
-- [src/react/workspace/context/backend.ts](#12)  L1022-L1582
-- [src/react/workspace/context/context.tsx](#13)  L1583-L1894
-- [src/react/workspace/context/ctxmenu.tsx](#14)  L1895-L2193
-- [src/react/workspace/context/index.tsx](#15)  L2194-L2239
-- [src/react/workspace/context/memory/errors.ts](#16)  L2240-L2292
-- [src/react/workspace/context/memory/ids.ts](#17)  L2293-L2353
-- [src/react/workspace/context/memory/index.ts](#18)  L2354-L2373
-- [src/react/workspace/context/memory/memory-backend.ts](#19)  L2374-L3674
-- [src/react/workspace/context/memory/seed.ts](#20)  L3675-L3772
-- [src/react/workspace/context/memory/store.ts](#21)  L3773-L3898
-- [src/react/workspace/context/memory/time.ts](#22)  L3899-L3923
-- [src/react/workspace/context/provider/compose/use-branch-cache.ts](#23)  L3924-L4205
-- [src/react/workspace/context/provider/compose/use-live-polling.ts](#24)  L4206-L4493
-- [src/react/workspace/context/provider/compose/use-workspace-refresh.ts](#25)  L4494-L4713
-- [src/react/workspace/context/provider/context.ts](#26)  L4714-L4741
-- [src/react/workspace/context/provider/helpers.ts](#27)  L4742-L4852
-- [src/react/workspace/context/provider/live/adapters/manual.ts](#28)  L4853-L4862
-- [src/react/workspace/context/provider/live/adapters/poll.ts](#29)  L4863-L4943
-- [src/react/workspace/context/provider/live/adapters/sse.ts](#30)  L4944-L4953
-- [src/react/workspace/context/provider/live/adapters/ws.ts](#31)  L4954-L4963
-- [src/react/workspace/context/provider/live/types.ts](#32)  L4964-L5046
-- [src/react/workspace/context/provider/provider.tsx](#33)  L5047-L5565
-- [src/react/workspace/context/provider/runtime/use-backend-runtime.ts](#34)  L5566-L5613
-- [src/react/workspace/context/provider/slices/use-authors-slice.ts](#35)  L5614-L5683
-- [src/react/workspace/context/provider/slices/use-branches-slice.ts](#36)  L5684-L5899
-- [src/react/workspace/context/provider/slices/use-comments-slice.ts](#37)  L5900-L6349
-- [src/react/workspace/context/provider/slices/use-permissions-slice.ts](#38)  L6350-L6427
-- [src/react/workspace/context/provider/slices/use-policies-slice.ts](#39)  L6428-L6644
-- [src/react/workspace/context/provider/slices/use-services-slice.ts](#40)  L6645-L6721
-- [src/react/workspace/context/provider/slices/use-snapshots-slice.ts](#41)  L6722-L7168
-- [src/react/workspace/context/provider/slices/use-templates-slice.ts](#42)  L7169-L7408
-- [src/react/workspace/context/provider/types.ts](#43)  L7409-L7653
-- [src/react/workspace/index.ts](#44)  L7654-L7671
+- [src/react/workspace/__tests__/provider.test.tsx](#1)  L63-L326
+- [src/react/workspace/adapters/reactflow/adapter.ts](#2)  L327-L834
+- [src/react/workspace/adapters/reactflow/toolbar.tsx](#3)  L835-L1293
+- [src/react/workspace/adapters/reactflow/toolbar/icons.tsx](#4)  L1294-L1357
+- [src/react/workspace/adapters/reactflow/toolbar/merge.ts](#5)  L1358-L1431
+- [src/react/workspace/adapters/reactflow/toolbar/types.ts](#6)  L1432-L1516
+- [src/react/workspace/app.tsx](#7)  L1517-L1604
+- [src/react/workspace/components/canvas.tsx](#8)  L1605-L1725
+- [src/react/workspace/components/context-menu-renderer.tsx](#9)  L1726-L1931
+- [src/react/workspace/components/index.tsx](#10)  L1932-L2001
+- [src/react/workspace/components/reactflow/edge.tsx](#11)  L2002-L2011
+- [src/react/workspace/components/reactflow/index.tsx](#12)  L2012-L2033
+- [src/react/workspace/components/reactflow/nodes/comments.tsx](#13)  L2034-L2043
+- [src/react/workspace/components/reactflow/nodes/field.tsx](#14)  L2044-L2078
+- [src/react/workspace/components/reactflow/nodes/node.tsx](#15)  L2079-L2247
+- [src/react/workspace/components/reactflow/nodes/options.tsx](#16)  L2248-L2266
+- [src/react/workspace/components/reactflow/nodes/tags.tsx](#17)  L2267-L2289
+- [src/react/workspace/context/backend.ts](#18)  L2290-L2852
+- [src/react/workspace/context/context.tsx](#19)  L2853-L3166
+- [src/react/workspace/context/ctxmenu.tsx](#20)  L3167-L3465
+- [src/react/workspace/context/hooks/use-canvas.ts](#21)  L3466-L3826
+- [src/react/workspace/context/hooks/use-errors.ts](#22)  L3827-L4166
+- [src/react/workspace/context/index.ts](#23)  L4167-L4217
+- [src/react/workspace/context/memory/errors.ts](#24)  L4218-L4270
+- [src/react/workspace/context/memory/ids.ts](#25)  L4271-L4331
+- [src/react/workspace/context/memory/index.ts](#26)  L4332-L4351
+- [src/react/workspace/context/memory/memory-backend.ts](#27)  L4352-L5652
+- [src/react/workspace/context/memory/seed.ts](#28)  L5653-L5750
+- [src/react/workspace/context/memory/store.ts](#29)  L5751-L5876
+- [src/react/workspace/context/memory/time.ts](#30)  L5877-L5901
+- [src/react/workspace/context/provider/compose/use-branch-cache.ts](#31)  L5902-L6183
+- [src/react/workspace/context/provider/compose/use-live-polling.ts](#32)  L6184-L6471
+- [src/react/workspace/context/provider/compose/use-workspace-refresh.ts](#33)  L6472-L6691
+- [src/react/workspace/context/provider/context.ts](#34)  L6692-L6719
+- [src/react/workspace/context/provider/helpers.ts](#35)  L6720-L6830
+- [src/react/workspace/context/provider/live/adapters/manual.ts](#36)  L6831-L6840
+- [src/react/workspace/context/provider/live/adapters/poll.ts](#37)  L6841-L6921
+- [src/react/workspace/context/provider/live/adapters/sse.ts](#38)  L6922-L6931
+- [src/react/workspace/context/provider/live/adapters/ws.ts](#39)  L6932-L6941
+- [src/react/workspace/context/provider/live/types.ts](#40)  L6942-L7024
+- [src/react/workspace/context/provider/provider.tsx](#41)  L7025-L7543
+- [src/react/workspace/context/provider/runtime/use-backend-runtime.ts](#42)  L7544-L7591
+- [src/react/workspace/context/provider/slices/use-authors-slice.ts](#43)  L7592-L7661
+- [src/react/workspace/context/provider/slices/use-branches-slice.ts](#44)  L7662-L7877
+- [src/react/workspace/context/provider/slices/use-comments-slice.ts](#45)  L7878-L8327
+- [src/react/workspace/context/provider/slices/use-permissions-slice.ts](#46)  L8328-L8405
+- [src/react/workspace/context/provider/slices/use-policies-slice.ts](#47)  L8406-L8622
+- [src/react/workspace/context/provider/slices/use-services-slice.ts](#48)  L8623-L8699
+- [src/react/workspace/context/provider/slices/use-snapshots-slice.ts](#49)  L8700-L9146
+- [src/react/workspace/context/provider/slices/use-templates-slice.ts](#50)  L9147-L9386
+- [src/react/workspace/context/provider/types.ts](#51)  L9387-L9633
+- [src/react/workspace/index.ts](#52)  L9634-L9651
 <!-- PRODEX_INDEX_LIST_END -->
 
 ---
@@ -67,9 +75,9 @@ import * as React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-import { WorkspaceProvider, useWorkspace } from "@/react";
-import type { Actor, Branch } from "../context/backend";
-import type { WorkspaceAPI } from "@/react";
+import { WorkspaceProvider, useWorkspace } from "@/react/workspace";
+import type { Actor, Branch } from "@/react/workspace";
+import type { WorkspaceAPI } from "@/react/workspace";
 
 import { createMemoryWorkspaceBackend } from "../context/memory";
 
@@ -320,6 +328,1196 @@ describe("WorkspaceProvider (integration)", () => {
 #### 2
 
 
+` File: src/react/workspace/adapters/reactflow/adapter.ts`  [↑ Back to top](#index)
+
+```ts
+// src/react/adapters/reactflow/adapter.ts
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type {
+    Node,
+    Edge,
+    OnConnect,
+    OnEdgesChange,
+    OnNodesChange,
+    Viewport as RFViewport,
+    IsValidConnection,
+    Connection,
+    OnConnectStart,
+    OnConnectEnd,
+} from "reactflow";
+import { applyNodeChanges, applyEdgeChanges } from "reactflow";
+import type { CanvasAPI } from "@/react";
+import type { CanvasState } from "@/schema/canvas-types";
+import type { EdgeKind } from "@/schema/graph";
+import { CommentThread } from "@/schema/comments";
+
+/* ───────────────────────────── Types & options ───────────────────────────── */
+
+export type AdapterOptions = {
+    // validation & policy
+    beforeConnect?: (arg: {
+        from: string;
+        to: string;
+        kind: EdgeKind;
+        api: CanvasAPI;
+    }) => { ok: boolean; reason?: string };
+    afterConnect?: (arg: {
+        from: string;
+        to: string;
+        kind: EdgeKind;
+        created: boolean;
+        api: CanvasAPI;
+    }) => void;
+
+    // behavior
+    allowEdgeDelete?: boolean; // reserved
+    enableShortcuts?: boolean; // reserved
+
+    // snapping & perf
+    snapToGrid?: boolean | { x: number; y: number };
+    throttleMs?: number; // default 80ms
+
+    // mapping/decoration
+    nodeDecorators?: (nodeId: string) => Partial<Node>;
+    edgeDecorators?: (edgeId: string) => Partial<Edge>;
+};
+
+type RFModel = { nodes: Node[]; edges: Edge[] };
+
+/* ───────────────────────────── Utilities ───────────────────────────── */
+
+function rafThrottle<T extends (...args: any[]) => void>(fn: T, minMs = 80): T {
+    let frame = 0;
+    let last = 0;
+    let queuedArgs: any[] | null = null;
+
+    const run = (now: number) => {
+        frame = 0;
+        last = now;
+        const args = queuedArgs!;
+        queuedArgs = null;
+        fn(...(args as Parameters<T>));
+    };
+
+    return ((...args: any[]) => {
+        queuedArgs = args;
+        const now = performance.now();
+        if (!frame) {
+            if (now - last >= minMs) {
+                run(now);
+            } else {
+                frame = requestAnimationFrame(run);
+            }
+        }
+    }) as T;
+}
+
+const isCommentId = (id: string) => id.startsWith("c::");
+
+function sameIdSet(a: string[], b: string[]): boolean {
+    if (a.length !== b.length) return false;
+    const s = new Set(a);
+    for (const id of b) if (!s.has(id)) return false;
+    return true;
+}
+
+/* ───────────────────────────── Mapping helpers ───────────────────────────── */
+
+function commentPosition(
+    th: CommentThread,
+    state: CanvasState,
+): { x: number; y: number } {
+    const a = th.anchor!;
+    if (a.type === "free") return { x: a.position.x, y: a.position.y };
+    if (a.type === "node") {
+        const base = state.positions[a.nodeId] ?? { x: 0, y: 0 };
+        const dx = a.offset?.dx ?? 32;
+        const dy = a.offset?.dy ?? -16;
+        return { x: base.x + dx, y: base.y + dy };
+    }
+    // edge-anchored: simple fallback (edge geometry not available here)
+    return { x: 0, y: 0 };
+}
+
+function commentNodes(state: CanvasState, api: CanvasAPI): Node[] {
+    return api.comments
+        .list()
+        .filter((item) => !!item.anchor)
+        .map((th) => ({
+            id: `c::${th.id}`,
+            type: "comment",
+            position: commentPosition(th, state),
+            draggable: true,
+            selectable: true,
+            data: { thread: th },
+        }));
+}
+
+function toRF(
+    state: CanvasState,
+    api: CanvasAPI,
+    opts?: Pick<AdapterOptions, "nodeDecorators" | "edgeDecorators">,
+): RFModel {
+    const nodes: Node[] = state.graph.nodes.map((n) => {
+        const base: Node = {
+            id: n.id,
+            type: n.kind,
+            data: { node: n },
+            position: state.positions[n.id] ?? { x: 0, y: 0 },
+            selected: state.selection.has(n.id),
+        };
+        return opts?.nodeDecorators
+            ? { ...base, ...(opts.nodeDecorators(n.id) ?? {}) }
+            : base;
+    });
+
+    const edges: Edge[] = state.graph.edges.map((e) => {
+        const id = `${e.kind}:${e.from}->${e.to}`;
+        const base: Edge = {
+            id,
+            source: e.from,
+            target: e.to,
+            type: e.kind,
+            data: { edge: e },
+            // @ts-ignore
+            selectable: true,
+        };
+        return opts?.edgeDecorators
+            ? { ...base, ...(opts.edgeDecorators(id) ?? {}) }
+            : base;
+    });
+
+    nodes.push(...commentNodes(state, api));
+    return { nodes, edges };
+}
+
+// Parse "kind:from->to"
+const parseEdgeId = (
+    id: string,
+): { kind: EdgeKind; from: string; to: string } | null => {
+    const [k, rest] = id.split(":");
+    if (!k || !rest) return null;
+    const [from, to] = rest.split("->");
+    if (!from || !to) return null;
+    return { kind: k as EdgeKind, from, to };
+};
+
+/* ───────────────────────────── Hook ───────────────────────────── */
+
+export function useReactFlowAdapter(
+    api: CanvasAPI,
+    options: AdapterOptions = {},
+) {
+    // derive, don’t mutate incoming options
+    const throttleMs = options.throttleMs ?? 80;
+    const snapToGridOpt = options.snapToGrid;
+    const nodeDecorators = options.nodeDecorators;
+    const edgeDecorators = options.edgeDecorators;
+
+    // Stable refs for validation callbacks
+    const beforeConnectRef = useRef(options.beforeConnect);
+    const afterConnectRef = useRef(options.afterConnect);
+    useEffect(() => {
+        beforeConnectRef.current = options.beforeConnect;
+    }, [options.beforeConnect]);
+    useEffect(() => {
+        afterConnectRef.current = options.afterConnect;
+    }, [options.afterConnect]);
+
+    const [rf, setRF] = useState<RFModel>(() =>
+        toRF(api.snapshot(), api, { nodeDecorators, edgeDecorators }),
+    );
+
+    const relRef = useRef<EdgeKind>(api.getEdgeRel());
+    const dragStartRef = useRef<{ from?: string } | null>(null);
+    const lastViewportRef = useRef<RFViewport | null>(null);
+
+    // snap grid tuple
+    const snapVector = useMemo<[number, number] | undefined>(() => {
+        if (!snapToGridOpt) return undefined;
+        if (snapToGridOpt === true) return [8, 8];
+        return [snapToGridOpt.x || 8, snapToGridOpt.y || 8];
+    }, [snapToGridOpt]);
+
+    // Subscribe to API *structural* changes only.
+    // Avoid re-mapping during drag/viewport churn (positions live update locally).
+    useEffect(() => {
+        const toModel = () =>
+            setRF(
+                toRF(api.snapshot(), api, { nodeDecorators, edgeDecorators }),
+            );
+
+        const offGraph = api.on("graph:update", toModel);
+        const offC1 = api.on("comment:thread:create", toModel);
+        const offC2 = api.on("comment:thread:update", toModel);
+        const offC3 = api.on("comment:thread:delete", toModel);
+        const offC4 = api.on("comment:move", toModel);
+        const offC5 = api.on("comment:resolve", toModel);
+
+        return () => {
+            offGraph();
+            offC1();
+            offC2();
+            offC3();
+            offC4();
+            offC5();
+        };
+    }, [api, nodeDecorators, edgeDecorators]);
+
+    /* ── handlers ── */
+
+    const applySnap = useCallback(
+        (p: { x: number; y: number }) => {
+            if (!snapVector) return p;
+            const [gx, gy] = snapVector;
+            return {
+                x: Math.round(p.x / gx) * gx,
+                y: Math.round(p.y / gy) * gy,
+            };
+        },
+        [snapVector],
+    );
+
+    const setPositionsThrottled = useMemo(
+        () =>
+            rafThrottle(
+                (pos: Record<string, { x: number; y: number }>) =>
+                    api.setPositions(pos),
+                throttleMs,
+            ),
+        [api, throttleMs],
+    );
+
+    const setViewportThrottled = useMemo(
+        () =>
+            rafThrottle(
+                (v: RFViewport) =>
+                    api.setViewport({ x: v.x, y: v.y, zoom: v.zoom }),
+                throttleMs,
+            ),
+        [api, throttleMs],
+    );
+
+    const onNodesChange: OnNodesChange = useCallback(
+        async (changes) => {
+            // 1) Update RF locally for buttery dragging
+            setRF((prev) => ({
+                nodes: applyNodeChanges(changes, prev.nodes),
+                edges: prev.edges,
+            }));
+
+            // 2) Collect batched position + selection updates for API
+            const posUpdates: Record<string, { x: number; y: number }> = {};
+            let selectionDirty = false;
+            const keep = new Set<string>(
+                Array.isArray(api.getSelection())
+                    ? (api.getSelection() as string[])
+                    : Array.from(api.getSelection() as unknown as Set<string>),
+            );
+
+            for (const c of changes) {
+                if (c.type === "position" && c.position) {
+                    // Comment dragging → move comment anchor in API
+                    if (isCommentId(c.id)) {
+                        const threadId = c.id.slice(3);
+                        const th = api.comments.get(threadId);
+                        if (!th || !th.anchor) continue;
+                        const a = th.anchor;
+                        if (a.type === "free") {
+                            await api.comments.move(threadId, {
+                                type: "free",
+                                position: c.position,
+                            });
+                        } else if (a.type === "node") {
+                            const nodePos = api.snapshot().positions[
+                                a.nodeId
+                            ] ?? { x: 0, y: 0 };
+                            await api.comments.move(threadId, {
+                                type: "node",
+                                nodeId: a.nodeId,
+                                offset: {
+                                    dx: c.position.x - nodePos.x,
+                                    dy: c.position.y - nodePos.y,
+                                },
+                            });
+                        }
+                        continue;
+                    }
+                    posUpdates[c.id] = applySnap(c.position);
+                } else if (c.type === "select") {
+                    if (!isCommentId(c.id)) {
+                        selectionDirty = true;
+                        if (c.selected) keep.add(c.id);
+                        else keep.delete(c.id);
+                    } else {
+                        api.selectComments(
+                            c.selected ? c.id.slice(3) : undefined,
+                        );
+                    }
+                }
+            }
+
+            if (Object.keys(posUpdates).length)
+                setPositionsThrottled(posUpdates);
+
+            if (selectionDirty) {
+                const next = Array.from(keep);
+                const currRaw = api.getSelection();
+                const curr = Array.isArray(currRaw)
+                    ? (currRaw as string[])
+                    : Array.from(currRaw as Set<string>);
+                if (!sameIdSet(next, curr)) {
+                    api.select(keep);
+                }
+            }
+        },
+        [api, applySnap, setPositionsThrottled],
+    );
+
+    const onEdgesChange: OnEdgesChange = useCallback(
+        (changes) => {
+            // 1) Update RF locally
+            setRF((prev) => ({
+                nodes: prev.nodes,
+                edges: applyEdgeChanges(changes, prev.edges),
+            }));
+
+            // 2) Highlight + deletions to API
+            const selectedEdgeIds: string[] = [];
+            const deletions: Array<{
+                kind: EdgeKind;
+                from: string;
+                to: string;
+            }> = [];
+
+            for (const c of changes) {
+                if (c.type === "select") {
+                    if (c.selected) selectedEdgeIds.push(c.id);
+                } else if (c.type === "remove") {
+                    const parsed = parseEdgeId(c.id);
+                    if (parsed) deletions.push(parsed);
+                }
+            }
+
+            if (selectedEdgeIds.length) {
+                const endpointIds = new Set<string>();
+                for (const id of selectedEdgeIds) {
+                    const p = parseEdgeId(id);
+                    if (!p) continue;
+                    endpointIds.add(p.from);
+                    endpointIds.add(p.to);
+                }
+                api.setHighlighted(endpointIds);
+            } else {
+                api.setHighlighted([]);
+            }
+
+            for (const d of deletions) {
+                api.emit("wire:delete" as any, d);
+            }
+        },
+        [api],
+    );
+
+    const currentRel = useCallback(() => {
+        const k = api.getEdgeRel();
+        relRef.current = k;
+        return k;
+    }, [api]);
+
+    const isValidConnection: IsValidConnection = useCallback(
+        (conn: Connection | Edge) => {
+            const kind = currentRel();
+            const from = conn.source ?? "";
+            const to = conn.target ?? "";
+            if (!from || !to) return false;
+            if (from === to) return false;
+            if (isCommentId(from) || isCommentId(to)) return false;
+
+            const check = beforeConnectRef.current;
+            if (check) {
+                try {
+                    return !!check({ from, to, kind, api }).ok;
+                } catch {
+                    return false;
+                }
+            }
+            return true;
+        },
+        [api, currentRel],
+    );
+
+    const onConnectStart: OnConnectStart = useCallback(
+        (_, { nodeId }) => {
+            if (!nodeId) return;
+            dragStartRef.current = { from: nodeId };
+            const kind = currentRel();
+            api.startWire(nodeId, kind);
+        },
+        [api, currentRel],
+    );
+
+    const onConnectEnd: OnConnectEnd = useCallback(() => {
+        dragStartRef.current = null;
+        api.cancelWire();
+    }, [api]);
+
+    const onConnect: OnConnect = useCallback(
+        (params) => {
+            const from = params.source!;
+            const to = params.target!;
+            const kind = currentRel();
+
+            const check = beforeConnectRef.current;
+            if (check) {
+                const res = check({ from, to, kind, api });
+                if (!res.ok) {
+                    api.cancelWire();
+                    return;
+                }
+            }
+
+            api.startWire(from, kind);
+            api.commitWire(to);
+            afterConnectRef.current?.({ from, to, kind, created: true, api });
+            dragStartRef.current = null;
+        },
+        [api, currentRel],
+    );
+
+    const onMoveEnd = useCallback(
+        (_evt: any, viewport: RFViewport) => {
+            const prev = lastViewportRef.current;
+            const changed =
+                !prev ||
+                Math.abs(prev.x - viewport.x) > 0.5 ||
+                Math.abs(prev.y - viewport.y) > 0.5 ||
+                Math.abs(prev.zoom - viewport.zoom) > 1e-4;
+
+            if (changed) {
+                lastViewportRef.current = viewport;
+                setViewportThrottled(viewport);
+            }
+        },
+        [setViewportThrottled],
+    );
+
+    const onSelectionChange = useCallback(
+        ({ nodes }: { nodes: Node[]; edges: Edge[] }) => {
+            console.log("onSelectionChange", nodes);
+            const next = nodes.map((n) => n.id);
+            const currRaw = api.getSelection();
+            const curr = Array.isArray(currRaw)
+                ? (currRaw as string[])
+                : Array.from(currRaw as Set<string>);
+            if (sameIdSet(next, curr)) return;
+            api.select(next);
+        },
+        [api],
+    );
+
+    return {
+        nodes: rf.nodes,
+        edges: rf.edges,
+        onNodesChange,
+        onEdgesChange,
+        onConnect,
+        onConnectStart,
+        onConnectEnd,
+        onMoveEnd,
+        onSelectionChange,
+        isValidConnection,
+        snapVector,
+    };
+}
+```
+
+---
+#### 3
+
+
+` File: src/react/workspace/adapters/reactflow/toolbar.tsx`  [↑ Back to top](#index)
+
+```tsx
+import React, { useMemo, useState, useCallback } from "react";
+import { useReactFlow } from "reactflow";
+import type { CanvasAPI } from "@/react";
+import { resolveTools } from "./toolbar/merge";
+import type {
+    ResolvedTools,
+    ToolContext,
+    ToolsConfig,
+    LabelPlacement,
+    ToolDescriptor,
+} from "./toolbar/types";
+import { Icons } from "./toolbar/icons";
+
+export type ToolbarProps = {
+    api: CanvasAPI;
+    mode?: "dev" | "prod";
+    showGrid: boolean;
+    setShowGrid: (v: boolean) => void;
+    showMiniMap: boolean;
+    setShowMiniMap: (v: boolean) => void;
+
+    tools?: ToolsConfig;
+    /** Default: 'tooltip' (hidden label, shown as native tooltip) */
+    labelPlacement?: LabelPlacement;
+    /** Optional custom button renderer */
+    renderButton?: (t: ToolRender, key: string) => React.ReactNode;
+};
+
+export type ToolRender = {
+    id: string;
+    label?: string;
+    icon?: React.ReactNode;
+    active: boolean;
+    disabled: boolean;
+    disabledReason?: string;
+    onClick: () => void;
+    group?: string;
+    hasMenu?: boolean;
+    open?: boolean;
+    onToggleMenu?: () => void;
+    children?: ToolRender[];
+};
+
+export function Toolbar({
+    api,
+    mode = "dev",
+    showGrid,
+    setShowGrid,
+    showMiniMap,
+    setShowMiniMap,
+    tools,
+    labelPlacement = "tooltip",
+    renderButton,
+}: ToolbarProps) {
+    const rf = useReactFlow();
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+    const selectionCount = api.getSelection().length;
+    const relation = api.getEdgeRel();
+    const canUndo = true;
+    const canRedo = true;
+
+    const ctx: ToolContext = useMemo(
+        () => ({
+            api,
+            env: { mode },
+            state: {
+                relation,
+                selectionCount,
+                canUndo,
+                canRedo,
+                showGrid,
+                showMiniMap,
+            },
+            flow: {
+                zoomIn: () => rf.zoomIn?.(),
+                zoomOut: () => rf.zoomOut?.(),
+                fitView: () => rf.fitView?.(),
+            },
+            setRelation: (rel) => api.setEdgeRel(rel),
+            toggleGrid: () => setShowGrid(!showGrid),
+            toggleMiniMap: () => setShowMiniMap(!showMiniMap),
+        }),
+        [
+            api,
+            mode,
+            relation,
+            selectionCount,
+            showGrid,
+            showMiniMap,
+            rf,
+            setShowGrid,
+            setShowMiniMap,
+        ],
+    );
+
+    const descriptors: ResolvedTools = useMemo(
+        () => resolveTools({ base: defaultTools(), ...(tools ?? {}) }),
+        [tools],
+    );
+
+    const buildRenderable = useCallback(
+        (defs: ToolDescriptor[]): ToolRender[] => {
+            return defs
+                .filter((t) => (t.when ? !!t.when(ctx) : true))
+                .map((t) => {
+                    const en = t.enabled ? t.enabled(ctx) : true;
+                    const enabledOk =
+                        typeof en === "boolean" ? en : en.ok !== false;
+                    const reason =
+                        typeof en === "boolean" ? undefined : en.reason;
+                    const active = t.active ? !!t.active(ctx) : false;
+
+                    let iconNode: React.ReactNode | undefined;
+                    if (typeof t.icon === "function")
+                        iconNode = t.icon(active, !enabledOk);
+                    else if (typeof t.icon === "string")
+                        iconNode = mapIcon(t.icon, active);
+
+                    const onClick = async () => {
+                        if (!enabledOk || !t.action) return;
+                        try {
+                            t.onBefore?.(ctx);
+                            await t.action(ctx);
+                            t.onAfter?.(ctx);
+                        } catch (err) {
+                            t.onError?.(ctx, err);
+                            api.emit("error", {
+                                message:
+                                    (err as any)?.message ??
+                                    "Tool action failed",
+                                meta: { tool: t.id },
+                            });
+                        }
+                    };
+
+                    const hasMenu = !!(t.children && t.children.length);
+                    const children = hasMenu
+                        ? buildRenderable(t.children!)
+                        : undefined;
+
+                    return {
+                        id: t.id,
+                        label: t.label,
+                        icon: iconNode,
+                        active,
+                        disabled: !enabledOk,
+                        disabledReason: reason,
+                        onClick,
+                        group: t.group,
+                        hasMenu,
+                        open: hasMenu && openMenuId === t.id,
+                        onToggleMenu: hasMenu
+                            ? () =>
+                                  setOpenMenuId(
+                                      openMenuId === t.id ? null : t.id,
+                                  )
+                            : undefined,
+                        children,
+                    } as ToolRender;
+                });
+        },
+        [ctx, api, openMenuId],
+    );
+
+    const items: ToolRender[] = buildRenderable(descriptors);
+    const groups = groupBy(items, (i) => i.group ?? "view");
+
+    return (
+        <div className="dsb-toolbar pointer-events-none absolute left-2 top-2 z-10 grid gap-2">
+            {Object.entries(groups).map(([g, arr]) => (
+                <div
+                    key={g}
+                    className="dsb-toolbar__group pointer-events-auto flex gap-1 rounded-lg border border-border bg-card/90 p-1 shadow-sm"
+                >
+                    {arr.map((btn) =>
+                        renderButton ? (
+                            renderButton(btn, btn.id)
+                        ) : (
+                            <DefaultTool
+                                key={btn.id}
+                                {...btn}
+                                labelPlacement={labelPlacement}
+                            />
+                        ),
+                    )}
+                </div>
+            ))}
+        </div>
+    );
+}
+
+/* ------------------- Built-in tools (with Tailwind icons) ------------------- */
+
+function defaultTools(): ToolDescriptor[] {
+    return [
+        {
+            id: "mode:bind",
+            kind: "mode",
+            group: "relation",
+            order: 10,
+            label: "Bind",
+            icon: (active) => Icons.bind(active),
+            active: (ctx) => ctx.state.relation === "bind",
+            action: (ctx) => ctx.setRelation("bind"),
+        },
+        {
+            id: "mode:include",
+            kind: "mode",
+            group: "relation",
+            order: 20,
+            label: "Include",
+            icon: (active) => Icons.include(active),
+            active: (ctx) => ctx.state.relation === "include",
+            action: (ctx) => ctx.setRelation("include"),
+        },
+        {
+            id: "mode:exclude",
+            kind: "mode",
+            group: "relation",
+            order: 30,
+            label: "Exclude",
+            icon: (active) => Icons.exclude(active),
+            active: (ctx) => ctx.state.relation === "exclude",
+            action: (ctx) => ctx.setRelation("exclude"),
+        },
+
+        {
+            id: "view:grid",
+            kind: "toggle",
+            group: "view",
+            order: 10,
+            label: "Grid",
+            icon: (a) => Icons.grid(a),
+            active: (ctx) => ctx.state.showGrid,
+            action: (ctx) => ctx.toggleGrid(),
+        },
+        {
+            id: "view:minimap",
+            kind: "toggle",
+            group: "view",
+            order: 20,
+            label: "Minimap",
+            icon: (a) => Icons.minimap(a),
+            active: (ctx) => ctx.state.showMiniMap,
+            action: (ctx) => ctx.toggleMiniMap(),
+        },
+
+        // Example dropdown (menu) with viewport controls
+        {
+            id: "zoom:menu",
+            kind: "menu",
+            group: "viewport",
+            order: 5,
+            label: "Viewport",
+            icon: () => Icons.fit(),
+            children: [
+                {
+                    id: "zoom:in",
+                    kind: "command",
+                    label: "Zoom In",
+                    icon: () => Icons.zoomIn(),
+                    action: (ctx) => ctx.flow.zoomIn(),
+                },
+                {
+                    id: "zoom:out",
+                    kind: "command",
+                    label: "Zoom Out",
+                    icon: () => Icons.zoomOut(),
+                    action: (ctx) => ctx.flow.zoomOut(),
+                },
+                {
+                    id: "zoom:fit",
+                    kind: "command",
+                    label: "Fit",
+                    icon: () => Icons.fit(),
+                    action: (ctx) => ctx.flow.fitView(),
+                },
+            ],
+        },
+    ];
+}
+
+/* ------------------- Renderers ------------------- */
+
+function DefaultTool({
+    id,
+    label,
+    icon,
+    active,
+    disabled,
+    disabledReason,
+    onClick,
+    hasMenu,
+    open,
+    onToggleMenu,
+    children,
+    group,
+    labelPlacement,
+}: ToolRender & { labelPlacement: LabelPlacement }) {
+    const baseBtn =
+        "dsb-tool inline-flex items-center justify-center rounded-md border border-border bg-card px-2 py-1 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground aria-pressed:bg-accent aria-pressed:text-accent-foreground " +
+        (active ? "ring-1 ring-ring bg-accent text-accent-foreground" : "") +
+        (disabled ? " opacity-50 cursor-not-allowed" : "");
+
+    const title =
+        labelPlacement === "tooltip"
+            ? disabled
+                ? (disabledReason ?? label)
+                : label
+            : undefined;
+
+    const content = (
+        <>
+            {icon ?? null}
+            {labelPlacement === "inline" && label && (
+                <span className="ml-1">{label}</span>
+            )}
+            {labelPlacement === "below" && label && (
+                <span className="mt-0.5 block text-[10px] leading-3 text-muted-foreground">
+                    {label}
+                </span>
+            )}
+            {hasMenu && <span className="ml-1">{Icons.chevronDown()}</span>}
+        </>
+    );
+
+    if (!hasMenu) {
+        return (
+            <button
+                type="button"
+                title={title}
+                aria-pressed={active}
+                disabled={disabled}
+                onClick={onClick}
+                className={
+                    baseBtn +
+                    " h-8 w-8 " +
+                    (labelPlacement === "below" ? "flex-col" : "")
+                }
+            >
+                {content}
+            </button>
+        );
+    }
+
+    // Menu root
+    return (
+        <div className="relative">
+            <button
+                type="button"
+                title={title}
+                aria-expanded={open ? "true" : "false"}
+                disabled={disabled}
+                onClick={onToggleMenu}
+                className={
+                    baseBtn +
+                    " h-8 w-8 " +
+                    (labelPlacement === "below" ? "flex-col" : "")
+                }
+            >
+                {content}
+            </button>
+
+            {open && (
+                <div
+                    className="absolute left-0 z-20 mt-1 min-w-[10rem] overflow-hidden rounded-md border border-border bg-popover shadow-lg"
+                    role="menu"
+                >
+                    <ul className="divide-y divide-border">
+                        {children?.map((ch) => (
+                            <li key={ch.id} className="p-0">
+                                <button
+                                    type="button"
+                                    role="menuitem"
+                                    title={
+                                        labelPlacement === "tooltip"
+                                            ? ch.disabled
+                                                ? (ch.disabledReason ??
+                                                  ch.label)
+                                                : ch.label
+                                            : undefined
+                                    }
+                                    disabled={ch.disabled}
+                                    onClick={ch.onClick}
+                                    className={
+                                        "flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground " +
+                                        (ch.disabled
+                                            ? "opacity-50 cursor-not-allowed"
+                                            : "")
+                                    }
+                                >
+                                    {ch.icon ?? null}
+                                    {labelText(ch.label, "inline")}
+                                </button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function labelText(label?: string, placement: LabelPlacement = "tooltip") {
+    if (!label || placement === "none" || placement === "tooltip") return null;
+    if (placement === "inline") return <span>{label}</span>;
+    if (placement === "below")
+        return (
+            <span className="block text-[10px] leading-3 text-muted-foreground">
+                {label}
+            </span>
+        );
+    return null;
+}
+
+function mapIcon(token: string, active: boolean): React.ReactNode {
+    switch (token) {
+        case "bind":
+            return Icons.bind(active);
+        case "include":
+            return Icons.include(active);
+        case "exclude":
+            return Icons.exclude(active);
+        case "zoom-in":
+            return Icons.zoomIn();
+        case "zoom-out":
+            return Icons.zoomOut();
+        case "fit":
+            return Icons.fit();
+        case "grid":
+            return Icons.grid(active);
+        case "minimap":
+            return Icons.minimap(active);
+        default:
+            return (
+                <span className="text-xs text-muted-foreground">{token}</span>
+            );
+    }
+}
+
+function groupBy<T>(arr: T[], key: (t: T) => string): Record<string, T[]> {
+    const out: Record<string, T[]> = {};
+    for (const x of arr) {
+        const k = key(x);
+        if (!out[k]) out[k] = [];
+        out[k].push(x);
+    }
+    return out;
+}
+```
+
+---
+#### 4
+
+
+` File: src/react/workspace/adapters/reactflow/toolbar/icons.tsx`  [↑ Back to top](#index)
+
+```tsx
+import React from 'react';
+
+export const Icons = {
+    bind: (active = false) => (
+        <svg className={`h-4 w-4 ${active ? 'text-primary' : 'text-muted-foreground'}`} viewBox="0 0 20 20" fill="none">
+            <path d="M6 8a4 4 0 014-4h2a4 4 0 110 8H9" stroke="currentColor" strokeWidth="2"/>
+            <path d="M14 12a4 4 0 01-4 4H8a4 4 0 110-8h3" stroke="currentColor" strokeWidth="2"/>
+        </svg>
+    ),
+    include: (active = false) => (
+        <svg className={`h-4 w-4 ${active ? 'text-primary' : 'text-muted-foreground'}`} viewBox="0 0 20 20" fill="none">
+            <path d="M8 10h8M8 14h8M8 6h8M4 6h.01M4 10h.01M4 14h.01" stroke="currentColor" strokeWidth="2"/>
+        </svg>
+    ),
+    exclude: (active = false) => (
+        <svg className={`h-4 w-4 ${active ? 'text-primary' : 'text-muted-foreground'}`} viewBox="0 0 20 20" fill="none">
+            <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" strokeWidth="2"/>
+        </svg>
+    ),
+    zoomIn: () => (
+        <svg className="h-4 w-4 text-muted-foreground" viewBox="0 0 20 20" fill="none">
+            <path d="M9 9V5m0 4H5m4 0h4m-4 0v4" stroke="currentColor" strokeWidth="2"/>
+            <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="2"/>
+            <path d="M13.5 13.5L18 18" stroke="currentColor" strokeWidth="2"/>
+        </svg>
+    ),
+    zoomOut: () => (
+        <svg className="h-4 w-4 text-muted-foreground" viewBox="0 0 20 20" fill="none">
+            <path d="M5 9h8" stroke="currentColor" strokeWidth="2"/>
+            <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="2"/>
+            <path d="M13.5 13.5L18 18" stroke="currentColor" strokeWidth="2"/>
+        </svg>
+    ),
+    fit: () => (
+        <svg className="h-4 w-4 text-muted-foreground" viewBox="0 0 20 20" fill="none">
+            <path d="M3 7V3h4M17 7V3h-4M3 13v4h4M17 13v4h-4" stroke="currentColor" strokeWidth="2"/>
+        </svg>
+    ),
+    grid: (active = false) => (
+        <svg className={`h-4 w-4 ${active ? 'text-primary' : 'text-muted-foreground'}`} viewBox="0 0 20 20" fill="none">
+            <path d="M3 7h14M3 13h14M7 3v14M13 3v14" stroke="currentColor" strokeWidth="2"/>
+        </svg>
+    ),
+    minimap: (active = false) => (
+        <svg className={`h-4 w-4 ${active ? 'text-primary' : 'text-muted-foreground'}`} viewBox="0 0 20 20" fill="none">
+            <rect x="3" y="4" width="14" height="12" rx="2" stroke="currentColor" strokeWidth="2"/>
+            <rect x="6" y="7" width="6" height="6" rx="1" fill="currentColor"/>
+        </svg>
+    ),
+    chevronDown: () => (
+        <svg className="h-3 w-3 text-muted-foreground" viewBox="0 0 20 20" fill="none">
+            <path d="M6 8l4 4 4-4" stroke="currentColor" strokeWidth="2"/>
+        </svg>
+    ),
+};
+```
+
+---
+#### 5
+
+
+` File: src/react/workspace/adapters/reactflow/toolbar/merge.ts`  [↑ Back to top](#index)
+
+```ts
+import type {ResolvedTools, ToolDescriptor, ToolsConfig} from './types';
+
+export function resolveTools(config: ToolsConfig): ResolvedTools {
+    const base = dedupeById(config.base ?? []);
+    const extended = dedupeById(config.extend ?? []);
+    const hidden = new Set(config.hidden ?? []);
+
+    const byId = new Map<string, ToolDescriptor>();
+    for (const t of base) byId.set(t.id, t);
+    for (const t of extended) byId.set(t.id, t);
+
+    let arr = Array.from(byId.values()).filter(t => !hidden.has(t.id));
+    arr = sortWithAnchors(arr);
+    arr.sort((a, b) => {
+        const ga = a.group ?? 'view';
+        const gb = b.group ?? 'view';
+        if (ga !== gb) return ga < gb ? -1 : 1;
+        const oa = a.order ?? 0;
+        const ob = b.order ?? 0;
+        return oa - ob;
+    });
+
+    return arr;
+}
+
+function dedupeById(list: ToolDescriptor[]): ToolDescriptor[] {
+    const seen = new Set<string>();
+    const out: ToolDescriptor[] = [];
+    for (const t of list) {
+        if (seen.has(t.id)) continue;
+        seen.add(t.id);
+        out.push(t);
+    }
+    return out;
+}
+
+function sortWithAnchors(list: ToolDescriptor[]): ToolDescriptor[] {
+    const byId = new Map(list.map(t => [t.id, t]));
+    const out: ToolDescriptor[] = [];
+    const placed = new Set<string>();
+
+    const place = (t: ToolDescriptor) => {
+        if (placed.has(t.id)) return;
+        if (t.insertBefore && byId.has(t.insertBefore)) {
+            const anchor = byId.get(t.insertBefore)!;
+            place(anchor);
+            const idx = out.findIndex(x => x.id === anchor.id);
+            out.splice(idx, 0, t);
+            placed.add(t.id);
+            return;
+        }
+        if (t.insertAfter && byId.has(t.insertAfter)) {
+            place(byId.get(t.insertAfter)!);
+            const idx = out.findIndex(x => x.id === t.insertAfter);
+            out.splice(idx + 1, 0, t);
+            placed.add(t.id);
+            return;
+        }
+        out.push(t);
+        placed.add(t.id);
+    };
+
+    for (const t of list) place(t);
+    return out;
+}
+```
+
+---
+#### 6
+
+
+` File: src/react/workspace/adapters/reactflow/toolbar/types.ts`  [↑ Back to top](#index)
+
+```ts
+import type {CanvasAPI} from "@/react";
+import type React from "react";
+
+export type ToolKind = 'command' | 'toggle' | 'mode' | 'menu';
+
+export type ToolGroup =
+    | 'relation'
+    | 'viewport'
+    | 'view'
+    | 'edit'
+    | (string & {});
+
+export type EnabledState = boolean | { ok: boolean; reason?: string };
+
+export type ToolbarIcon =
+    | string
+    | ((active: boolean, disabled: boolean) => React.ReactNode);
+
+export type LabelPlacement = 'tooltip' | 'inline' | 'below' | 'none';
+
+export type ToolDescriptor = {
+    id: string;
+    kind: ToolKind;
+    label?: string;
+    group?: ToolGroup;
+    order?: number;
+    icon?: ToolbarIcon;
+    hotkey?: string;
+
+    /** Optional dropdown children (rendered as a menu). */
+    children?: ToolDescriptor[];
+
+    // Visibility and state
+    when?: (ctx: ToolContext) => boolean;
+    enabled?: (ctx: ToolContext) => EnabledState;
+    active?: (ctx: ToolContext) => boolean;
+
+    // Mutations
+    action?: (ctx: ToolContext) => void | Promise<void>;
+    onBefore?: (ctx: ToolContext) => void;
+    onAfter?: (ctx: ToolContext) => void;
+    onError?: (ctx: ToolContext, err: unknown) => void;
+
+    // Placement helpers
+    insertBefore?: string;
+    insertAfter?: string;
+};
+
+export type ToolContext = {
+    api: CanvasAPI;
+    env: { mode: 'dev' | 'prod' };
+    state: {
+        relation: ReturnType<CanvasAPI['getEdgeRel']>;
+        selectionCount: number;
+        canUndo: boolean;
+        canRedo: boolean;
+        showGrid: boolean;
+        showMiniMap: boolean;
+    };
+    flow: {
+        zoomIn: () => void;
+        zoomOut: () => void;
+        fitView: () => void;
+    };
+    setRelation: (rel: ReturnType<CanvasAPI['getEdgeRel']>) => void;
+    toggleGrid: () => void;
+    toggleMiniMap: () => void;
+};
+
+export type ToolsConfig = {
+    base?: ToolDescriptor[];
+    extend?: ToolDescriptor[];
+    hidden?: string[];
+};
+
+export type ResolvedTools = ToolDescriptor[];
+```
+
+---
+#### 7
+
+
 ` File: src/react/workspace/app.tsx`  [↑ Back to top](#index)
 
 ```tsx
@@ -330,7 +1528,7 @@ import { WorkspaceProvider } from "./context";
 import type { WorkspaceProviderProps } from "./context";
 import type { Actor, WorkspaceBackend } from "./context/backend";
 
-import type { ToolsConfig } from "../adapters/reactflow";
+import type { ToolsConfig } from "./components";
 import { CanvasProvider } from "./context/context";
 
 /**
@@ -405,7 +1603,7 @@ export default Workspace;
 ```
 
 ---
-#### 3
+#### 8
 
 
 ` File: src/react/workspace/components/canvas.tsx`  [↑ Back to top](#index)
@@ -419,10 +1617,10 @@ import "reactflow/dist/style.css";
 import {
     type AdapterOptions,
     useReactFlowAdapter,
-} from "../../adapters/reactflow/adapter";
+} from "../adapters/reactflow/adapter";
 import type { CanvasAPI } from "@/react";
-import { Toolbar } from "../../adapters/reactflow/toolbar";
-import type { LabelPlacement, ToolsConfig } from "../../adapters/reactflow";
+import { Toolbar } from "../adapters/reactflow/toolbar";
+import type { LabelPlacement, ToolsConfig } from "./index";
 import { edgeTypes, nodeTypes } from "./reactflow";
 
 export type ReactFlowCanvasProps = {
@@ -526,7 +1724,7 @@ export function Canvas({
 ```
 
 ---
-#### 4
+#### 9
 
 
 ` File: src/react/workspace/components/context-menu-renderer.tsx`  [↑ Back to top](#index)
@@ -732,7 +1930,77 @@ function prevFocusable(
 ```
 
 ---
-#### 5
+#### 10
+
+
+` File: src/react/workspace/components/index.tsx`  [↑ Back to top](#index)
+
+```tsx
+// src/react/adapters/reactflow/index.tsx
+import React from "react";
+import type { AdapterOptions } from "../adapters/reactflow/adapter";
+import type { ToolsConfig, LabelPlacement } from "../adapters/reactflow/toolbar/types";
+import { useCanvasAPI } from "@/react/workspace/context/context";
+import { Canvas } from "@/react/workspace/components/canvas";
+
+export type FlowCanvasProps = {
+    tools?: ToolsConfig;
+    /** 'dev' enables richer UX; 'prod' can hide some helpers */
+    mode?: "dev" | "prod";
+    /** Show/position the toolbar (inside the ReactFlow surface) */
+    showToolbar?: boolean;
+    toolbarPositionClassName?: string; // e.g. "left-2 top-2"
+
+    /** How labels render on buttons: tooltip | inline | below | none */
+    labelPlacement?: LabelPlacement;
+
+    /** Pass custom renderer for individual tool buttons */
+    renderTool?: React.ComponentProps<typeof Canvas>["renderTool"];
+
+    /** Initial layer toggles */
+    initialShowGrid?: boolean;
+    initialShowMiniMap?: boolean;
+
+    /** Adapter options (snapping etc.) */
+    options?: AdapterOptions;
+};
+
+const FlowCanvas: React.FC<FlowCanvasProps> = ({
+    tools,
+    showToolbar = true,
+    toolbarPositionClassName,
+    labelPlacement = "tooltip",
+    renderTool,
+    initialShowGrid = true,
+    initialShowMiniMap = false,
+    options,
+}) => {
+    const api = useCanvasAPI();
+
+    return (
+        <Canvas
+            api={api}
+            tools={tools}
+            showToolbar={showToolbar}
+            toolbarPositionClassName={toolbarPositionClassName}
+            labelPlacement={labelPlacement}
+            renderTool={renderTool}
+            initialShowGrid={initialShowGrid}
+            initialShowMiniMap={initialShowMiniMap}
+            options={options}
+        />
+    );
+};
+
+export default FlowCanvas;
+
+// Optional convenience re-exports
+export { Canvas };
+export type { ToolsConfig, LabelPlacement, AdapterOptions };
+```
+
+---
+#### 11
 
 
 ` File: src/react/workspace/components/reactflow/edge.tsx`  [↑ Back to top](#index)
@@ -742,7 +2010,7 @@ function prevFocusable(
 ```
 
 ---
-#### 6
+#### 12
 
 
 ` File: src/react/workspace/components/reactflow/index.tsx`  [↑ Back to top](#index)
@@ -764,7 +2032,7 @@ export { nodeTypes, edgeTypes };
 ```
 
 ---
-#### 7
+#### 13
 
 
 ` File: src/react/workspace/components/reactflow/nodes/comments.tsx`  [↑ Back to top](#index)
@@ -774,7 +2042,7 @@ export { nodeTypes, edgeTypes };
 ```
 
 ---
-#### 8
+#### 14
 
 
 ` File: src/react/workspace/components/reactflow/nodes/field.tsx`  [↑ Back to top](#index)
@@ -809,7 +2077,7 @@ export default Field;
 ```
 
 ---
-#### 9
+#### 15
 
 
 ` File: src/react/workspace/components/reactflow/nodes/node.tsx`  [↑ Back to top](#index)
@@ -978,7 +2246,7 @@ export default Node;
 ```
 
 ---
-#### 10
+#### 16
 
 
 ` File: src/react/workspace/components/reactflow/nodes/options.tsx`  [↑ Back to top](#index)
@@ -997,7 +2265,7 @@ export default Options;
 ```
 
 ---
-#### 11
+#### 17
 
 
 ` File: src/react/workspace/components/reactflow/nodes/tags.tsx`  [↑ Back to top](#index)
@@ -1020,7 +2288,7 @@ export default Tag;
 ```
 
 ---
-#### 12
+#### 18
 
 
 ` File: src/react/workspace/context/backend.ts`  [↑ Back to top](#index)
@@ -1030,15 +2298,16 @@ export default Tag;
 // Transport-agnostic contracts for the Workspace layer.
 // Explicit types only (no implicit any). Result shape: { ok, value | error }.
 
-import type { EditorSnapshot } from "@/schema/editor";
-import type { DgpServiceCapability, DgpServiceMap } from "@/schema/provider";
-import {
+import type {
     CommentAnchor,
     CommentMessage,
     CommentThread,
-} from "@/schema/comments";
-import { DynamicRule } from "@/schema/validation";
-import { PolicyDiagnostic } from "@/core/policy";
+    DgpServiceCapability,
+    DgpServiceMap,
+    DynamicRule,
+    EditorSnapshot,
+} from "@/schema";
+import type { PolicyDiagnostic } from "@/core/policy";
 
 /* ---------------- core result & identity ---------------- */
 
@@ -1361,7 +2630,8 @@ export type WorkspaceEvent =
     | { type: "snapshot.saved"; branchId: string; commit: Commit }
     | { type: "snapshot.published"; branchId: string; commit: Commit }
     | { type: "snapshot.discarded"; branchId: string }
-    | { type: "policies.updated"; since?: number | string; branchId?: string };
+    | { type: "policies.updated"; since?: number | string; branchId?: string }
+    | { type: "comments.updated"; since?: number | string; branchId?: string };
 
 export type LiveOptions =
     | { mode: "off" }
@@ -1439,7 +2709,7 @@ export interface CommentsBackend<
     createThread(
         ctx: BackendScope,
         input: {
-            anchor: AnchorDTO;
+            anchor?: AnchorDTO;
             body: string;
             meta?: Record<string, unknown>;
         },
@@ -1581,7 +2851,7 @@ export interface WorkspaceBackend {
 ```
 
 ---
-#### 13
+#### 19
 
 
 ` File: src/react/workspace/context/context.tsx`  [↑ Back to top](#index)
@@ -1593,14 +2863,16 @@ import React, {
     useEffect,
     useMemo,
     useRef,
-    type ReactNode,
+    type ReactNode, useState,
 } from "react";
-import { CanvasAPI } from "@/react";
+import { CanvasAPI, Field, GraphSnapshot, Tag } from "@/react";
 import { Builder, BuilderOptions, createBuilder } from "@/core";
 import type { CanvasOptions } from "@/schema/canvas-types";
 import type { CanvasBackendOptions } from "../../canvas/backend";
 import type { ServiceProps } from "@/schema";
 import { useWorkspaceMaybe } from ".";
+import { Editor } from "@/react/canvas/editor";
+import { VisibleGroup, VisibleGroupResult } from "@/react/canvas/selection";
 
 /* ───────────────────────── context ───────────────────────── */
 
@@ -1893,7 +3165,7 @@ export function useCanvasOwned(
 ```
 
 ---
-#### 14
+#### 20
 
 
 ` File: src/react/workspace/context/ctxmenu.tsx`  [↑ Back to top](#index)
@@ -2192,12 +3464,713 @@ export const Ctxmenu: React.FC<{
 ```
 
 ---
-#### 15
+#### 21
 
 
-` File: src/react/workspace/context/index.tsx`  [↑ Back to top](#index)
+` File: src/react/workspace/context/hooks/use-canvas.ts`  [↑ Back to top](#index)
 
-```tsx
+```ts
+// src/react/workspace/context/use-canvas.ts
+
+import * as React from "react";
+import { useMemo } from "react";
+
+import type { CanvasAPI } from "@/react";
+import type { CanvasState } from "@/schema/canvas-types";
+import type { GraphSnapshot } from "@/schema/graph";
+import type { Field, FieldOption, ServiceProps, Tag } from "@/schema";
+
+import { useCanvasAPI } from "../context";
+import type { VisibleGroupResult } from "@/react/canvas/selection";
+import { Builder, createNodeIndex, NodeIndex } from "@/core";
+
+/** Tree node */
+export interface TreeNode<T = unknown> {
+    id: string | number;
+    title: string;
+    children?:
+        | Array<TreeNode<T>>
+        | (() => Array<TreeNode<T>> | Promise<Array<TreeNode<T>>>);
+    data?: T;
+}
+
+export type CanvasSelection = {
+    /** raw ids from CanvasState.selection */
+    ids: readonly string[];
+    tagIds: readonly string[];
+    fieldIds: readonly string[];
+    optionIds: readonly string[];
+};
+
+export interface UseCanvasReturn {
+    layers: {
+        tags: Array<TreeNode<Tag & { active: boolean }>>;
+        fields: Array<TreeNode<Field | FieldOption>>; // visible fields (+ option children)
+    };
+
+    selector: NodeIndex;
+
+    /** selection (stateful, raw) */
+    selection: readonly string[];
+
+    /** selection (stateful, derived) */
+    selectionInfo: CanvasSelection;
+
+    /** active (last-selected / focused) id (stateful) */
+    activeId: string | null;
+
+    /** imperative active setter (does NOT select; just “preference”) */
+    setActive: (id: string | null) => void;
+
+    graph: GraphSnapshot;
+    api: CanvasAPI;
+    props?: ServiceProps;
+}
+
+/** ---------------- helpers ---------------- */
+
+const isTagId = (id: string) => id.startsWith("t:");
+const isOptionId = (id: string) => id.startsWith("o:");
+
+function deriveSelectionInfo(
+    props: ServiceProps,
+    ids: readonly string[],
+): CanvasSelection {
+    const tags: string[] = [];
+    const fields: string[] = [];
+    const options: string[] = [];
+
+    const fieldById = new Map<string, Field>();
+    for (const f of props.fields ?? []) fieldById.set(f.id, f);
+
+    for (const id of ids) {
+        if (isTagId(id)) {
+            tags.push(id);
+            continue;
+        }
+
+        if (isOptionId(id)) {
+            options.push(id);
+            continue;
+        }
+
+        // legacy option selection: "fieldId::legacyOptionId"
+        if (id.includes("::")) {
+            const [fid, legacyOid] = id.split("::");
+            if (fid && legacyOid) {
+                const host = fieldById.get(fid);
+                const resolved =
+                    host?.options?.find((o) => o.id === legacyOid)?.id ??
+                    legacyOid;
+
+                options.push(resolved);
+
+                // often you still want the field id in fieldIds too
+                if (fieldById.has(fid)) fields.push(fid);
+            }
+            continue;
+        }
+
+        // plain field selection (only if it exists as a field)
+        if (fieldById.has(id)) {
+            fields.push(id);
+        }
+    }
+
+    // de-dupe while keeping order
+    const uniq = (arr: string[]) => {
+        const seen = new Set<string>();
+        const out: string[] = [];
+        for (const x of arr) if (!seen.has(x)) (seen.add(x), out.push(x));
+        return out;
+    };
+
+    return {
+        ids,
+        tagIds: uniq(tags),
+        fieldIds: uniq(fields),
+        optionIds: uniq(options),
+    };
+}
+
+function tagBindIds(tag: Tag): string[] {
+    const bind = (tag as any).bind_id as undefined | string | string[];
+    if (!bind) return [];
+    return Array.isArray(bind) ? bind : [bind];
+}
+
+function buildTagTree(
+    tags: readonly Tag[],
+    isActive: (tagId: string) => boolean,
+): Array<TreeNode<Tag & { active: boolean }>> {
+    const nodeById = new Map<string, TreeNode<Tag & { active: boolean }>>();
+    const childrenByParent = new Map<
+        string,
+        Array<TreeNode<Tag & { active: boolean }>>
+    >();
+
+    for (const t of tags) {
+        nodeById.set(t.id, {
+            id: t.id,
+            title: t.label,
+            data: { ...t, active: isActive(t.id) },
+        });
+    }
+
+    for (const t of tags) {
+        const child = nodeById.get(t.id);
+        if (!child) continue;
+
+        for (const parentId of tagBindIds(t)) {
+            if (!nodeById.has(parentId)) continue;
+            const list = childrenByParent.get(parentId) ?? [];
+            list.push(child);
+            childrenByParent.set(parentId, list);
+        }
+    }
+
+    for (const [parentId, kids] of childrenByParent) {
+        const parent = nodeById.get(parentId);
+        if (parent) parent.children = kids;
+    }
+
+    const roots: Array<TreeNode<Tag & { active: boolean }>> = [];
+    for (const t of tags) {
+        const parents = tagBindIds(t).filter((pid) => nodeById.has(pid));
+        if (parents.length === 0) roots.push(nodeById.get(t.id)!);
+    }
+
+    return roots;
+}
+
+function buildFieldTree(fields: Field[]): Array<TreeNode<Field | FieldOption>> {
+    return fields.map((f) => {
+        const node: TreeNode<Field | FieldOption> = {
+            id: f.id,
+            title: f.label,
+            data: f,
+        };
+
+        // children must exist if field supports options (options prop exists), even if []
+        if ("options" in f) {
+            const opts = Array.isArray(f.options) ? f.options : [];
+            node.children = opts.map((opt) => ({
+                id: opt.id,
+                title: opt.label,
+                data: opt,
+            }));
+        }
+
+        return node;
+    });
+}
+
+function computeLayersFromVisibleGroup(
+    props: ServiceProps,
+    vg: VisibleGroupResult,
+): UseCanvasReturn["layers"] {
+    const activeTagIds = new Set<string>();
+    let fields: Field[];
+
+    if (vg.kind === "single") {
+        if (vg.group.tagId) activeTagIds.add(vg.group.tagId);
+        fields = vg.group.fields ?? [];
+    } else {
+        for (const id of vg.groups) {
+            if (typeof id === "string" && id.startsWith("t:"))
+                activeTagIds.add(id);
+        }
+        fields = [];
+    }
+
+    return {
+        tags: buildTagTree(props.filters ?? [], (id) => activeTagIds.has(id)),
+        fields: buildFieldTree(fields),
+    };
+}
+
+/** active id resolution */
+function findNewId(
+    prev: readonly string[],
+    next: readonly string[],
+): string | undefined {
+    const prevSet = new Set(prev);
+    for (const id of next) if (!prevSet.has(id)) return id;
+    return undefined;
+}
+
+function resolveActiveId(
+    desiredActive: string | null,
+    prevSel: readonly string[],
+    nextSel: readonly string[],
+): string | null {
+    // 1) keep desired if it’s still selected
+    if (desiredActive && nextSel.includes(desiredActive)) return desiredActive;
+
+    // 2) prefer the “new guy” (first id that wasn’t in prev)
+    const added = findNewId(prevSel, nextSel);
+    if (added) return added;
+
+    // 3) fallback: last selection
+    if (nextSel.length) return nextSel[nextSel.length - 1] ?? null;
+
+    return null;
+}
+
+/** ---------------- hook ---------------- */
+
+export function useCanvas(): UseCanvasReturn {
+    const api = useCanvasAPI();
+
+    const snap0 = api.snapshot();
+    const props0 = api.editor.getProps() as ServiceProps;
+
+    const initialSelection = Array.from(snap0.selection as ReadonlySet<string>);
+
+    const [graph, setGraph] = React.useState<GraphSnapshot>(snap0.graph);
+    const [props, setProps] = React.useState<ServiceProps>(props0);
+
+    const [selection, setSelection] =
+        React.useState<readonly string[]>(initialSelection);
+
+    const [selectionInfo, setSelectionInfo] = React.useState<CanvasSelection>(
+        () => deriveSelectionInfo(props0, initialSelection),
+    );
+
+    const [layers, setLayers] = React.useState<UseCanvasReturn["layers"]>(() =>
+        computeLayersFromVisibleGroup(props0, api.selection.visibleGroup()),
+    );
+
+    // --- imperative active controller
+    const desiredActiveRef = React.useRef<string | null>(null);
+    const prevSelectionRef = React.useRef<readonly string[]>(initialSelection);
+
+    const [activeId, setActiveId] = React.useState<string | null>(() => {
+        return initialSelection.length
+            ? initialSelection[initialSelection.length - 1]
+            : null;
+    });
+
+    const setActive = React.useCallback(
+        (id: string | null) => {
+            desiredActiveRef.current = id;
+
+            // if already selected, reflect immediately
+            if (id && selection.includes(id)) setActiveId(id);
+            if (id === null) setActiveId(null);
+        },
+        [selection],
+    );
+
+    React.useEffect(() => {
+        const off = api.on("state:change", (snap: CanvasState) => {
+            setGraph(snap.graph);
+
+            const nextProps = api.editor.getProps() as ServiceProps;
+            setProps(nextProps);
+
+            const nextSelection = Array.from(
+                snap.selection as ReadonlySet<string>,
+            ) as readonly string[];
+
+            setSelection(nextSelection);
+            setSelectionInfo(deriveSelectionInfo(nextProps, nextSelection));
+
+            setLayers(
+                computeLayersFromVisibleGroup(
+                    nextProps,
+                    api.selection.visibleGroup(),
+                ),
+            );
+
+            // reconcile active
+            const prevSel = prevSelectionRef.current;
+            const desired = desiredActiveRef.current;
+            const nextActive = resolveActiveId(desired, prevSel, nextSelection);
+
+            prevSelectionRef.current = nextSelection;
+            setActiveId(nextActive);
+        });
+
+        return off;
+    }, [api]);
+
+    const selector = useMemo(() => createNodeIndex(api.builder), [props]);
+
+    return React.useMemo(
+        () => ({
+            api,
+            graph,
+            layers,
+            props,
+            selection,
+            selectionInfo,
+            selector,
+            activeId,
+            setActive,
+        }),
+        [
+            api,
+            graph,
+            layers,
+            props,
+            selection,
+            selectionInfo,
+            selector,
+            activeId,
+            setActive,
+        ],
+    );
+}
+```
+
+---
+#### 22
+
+
+` File: src/react/workspace/context/hooks/use-errors.ts`  [↑ Back to top](#index)
+
+```ts
+// src/react/workspace/context/use-errors.ts
+
+import * as React from "react";
+
+import { validate } from "@/core/validate"; // engine-only
+import type {
+    ServiceProps,
+    ValidationError as CoreValidationError,
+} from "@/schema";
+
+import { useCanvasAPI } from "../context";
+
+/** ---------------- Types ---------------- */
+
+export type ErrorKind = "validation" | "log";
+
+export type ValidationRow = CoreValidationError & {
+    id: string; // stable key
+    kind: "validation";
+};
+
+export type ErrorLog = {
+    id: string;
+    kind: "log";
+    message: string;
+    code?: string;
+    createdAt: number;
+    meta?: any;
+};
+
+export interface MergedErrors {
+    validation: readonly ValidationRow[];
+    logs: readonly ErrorLog[];
+
+    counts: {
+        validation: number;
+        logs: number;
+        total: number;
+    };
+
+    groups: Array<
+        | { kind: "validation"; title: string; rows: readonly ValidationRow[] }
+        | { kind: "log"; title: string; rows: readonly ErrorLog[] }
+    >;
+
+    forEach(
+        fn: (row: ValidationRow | ErrorLog, kind: "validation" | "log") => void,
+    ): void;
+}
+
+export type ClearTarget = "logs" | "merged";
+
+export interface UseErrorsReturn {
+    /** Unclearable (until validate() returns clean) */
+    validation: readonly ValidationRow[];
+
+    /** Clearable log stream (editor/runtime events) */
+    logs: readonly ErrorLog[];
+
+    /** Organised merged view */
+    merged: MergedErrors;
+
+    /** True while a validation run is pending/in-flight */
+    validating: boolean;
+
+    /** Clear logs; clearing merged clears logs too */
+    clear(target: ClearTarget): void;
+
+    /** Remove a single log row */
+    removeLog(id: string): void;
+}
+
+export type UseErrorsOptions = {
+    /** Keep last N logs */
+    logLimit?: number;
+
+    /** Dedupe identical consecutive logs within this window */
+    logDedupeWindowMs?: number;
+
+    /** Debounce validation triggered by state:change */
+    debounceMs?: number;
+
+    /**
+     * Prefer idle-time validation to avoid UI hitching.
+     * If requestIdleCallback isn't available, falls back to setTimeout(0).
+     */
+    useIdle?: boolean;
+
+    /** requestIdleCallback timeout */
+    idleTimeoutMs?: number;
+};
+
+/** ---------------- Helpers ---------------- */
+
+function makeId(prefix: string): string {
+    return `${prefix}:${Date.now()}:${Math.random().toString(16).slice(2)}`;
+}
+
+function stableKey(parts: Array<string | undefined | null>): string {
+    return parts.filter(Boolean).join("|");
+}
+
+function toValidationRows(list: CoreValidationError[]): ValidationRow[] {
+    return (list ?? []).map((e) => ({
+        ...e,
+        kind: "validation" as const,
+        id:
+            stableKey([
+                "v",
+                String((e as any).code ?? ""),
+                String((e as any).severity ?? ""),
+                String((e as any).nodeId ?? ""),
+                String((e as any).message ?? ""),
+            ]) || makeId("v"),
+    }));
+}
+
+function normalizeLog(e: any): Omit<ErrorLog, "id" | "createdAt" | "kind"> {
+    return {
+        message: e?.message ?? String(e),
+        code: e?.code,
+        meta: e?.meta ?? e,
+    };
+}
+
+function sameLog(
+    a: ErrorLog,
+    b: Omit<ErrorLog, "id" | "createdAt" | "kind">,
+): boolean {
+    return a.message === b.message && (a.code ?? "") === (b.code ?? "");
+}
+
+function schedule(fn: () => void, useIdle: boolean, idleTimeoutMs: number) {
+    if (useIdle && typeof (window as any).requestIdleCallback === "function") {
+        (window as any).requestIdleCallback(fn, { timeout: idleTimeoutMs });
+        return;
+    }
+    window.setTimeout(fn, 0);
+}
+
+/** ---------------- Hook ---------------- */
+
+export function useErrors(opts: UseErrorsOptions = {}): UseErrorsReturn {
+    const api = useCanvasAPI();
+
+    const logLimit = Math.max(1, Math.min(opts.logLimit ?? 200, 2000));
+    const dedupeWindowMs = Math.max(0, opts.logDedupeWindowMs ?? 400);
+    const debounceMs = Math.max(0, opts.debounceMs ?? 120);
+    const useIdle = opts.useIdle ?? true;
+    const idleTimeoutMs = Math.max(0, opts.idleTimeoutMs ?? 250);
+
+    const [validation, setValidation] = React.useState<ValidationRow[]>([]);
+    const [validating, setValidating] = React.useState(false);
+
+    const [logs, setLogs] = React.useState<ErrorLog[]>([]);
+
+    // ---- logs (clearable)
+    const pushLog = React.useCallback(
+        (entry: Omit<ErrorLog, "id" | "createdAt" | "kind">) => {
+            setLogs((prev) => {
+                const now = Date.now();
+                const last = prev[prev.length - 1];
+
+                if (
+                    last &&
+                    sameLog(last, entry) &&
+                    now - last.createdAt <= dedupeWindowMs
+                ) {
+                    const copy = prev.slice();
+                    copy[copy.length - 1] = { ...last, createdAt: now };
+                    return copy;
+                }
+
+                const next: ErrorLog = {
+                    id: makeId("log"),
+                    kind: "log",
+                    createdAt: now,
+                    ...entry,
+                };
+
+                const out = prev.concat(next);
+                return out.length > logLimit
+                    ? out.slice(out.length - logLimit)
+                    : out;
+            });
+        },
+        [dedupeWindowMs, logLimit],
+    );
+
+    React.useEffect(() => {
+        // editor emitted “logs”
+        const offEditorError = api.on("error", (e: any) => {
+            pushLog(normalizeLog(e));
+        });
+
+        // runtime emitted errors (optional but useful)
+        const offRuntimeError = api.on("error", (e: any) => {
+            pushLog(normalizeLog(e));
+        });
+
+        return () => {
+            offEditorError?.();
+            offRuntimeError?.();
+        };
+    }, [api, pushLog]);
+
+    // ---- validation (unclearable, derived via core/validate)
+    const runTokenRef = React.useRef(0);
+    const debounceTimerRef = React.useRef<number | null>(null);
+
+    const runValidation = React.useCallback(() => {
+        const token = ++runTokenRef.current;
+
+        setValidating(true);
+
+        schedule(
+            () => {
+                // if another run was queued, drop this one
+                if (token !== runTokenRef.current) return;
+
+                try {
+                    const props = api.editor.getProps() as ServiceProps;
+                    const res = validate(props); // sync engine
+                    if (token !== runTokenRef.current) return;
+
+                    setValidation(toValidationRows(res ?? []));
+                } catch (err: any) {
+                    if (token !== runTokenRef.current) return;
+
+                    // validator crash becomes a log, not a validation row
+                    pushLog({
+                        message: err?.message ?? "validate() threw",
+                        code: err?.code ?? "validate_throw",
+                        meta: err,
+                    });
+
+                    setValidation([]);
+                } finally {
+                    if (token == runTokenRef.current) setValidating(false);
+                }
+            },
+            useIdle,
+            idleTimeoutMs,
+        );
+    }, [api, pushLog, useIdle, idleTimeoutMs]);
+
+    const triggerValidation = React.useCallback(() => {
+        if (debounceTimerRef.current) {
+            window.clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = null;
+        }
+
+        // bump token so any scheduled run knows it’s obsolete
+        runTokenRef.current++;
+
+        if (debounceMs === 0) {
+            runValidation();
+            return;
+        }
+
+        debounceTimerRef.current = window.setTimeout(() => {
+            runValidation();
+        }, debounceMs);
+    }, [debounceMs, runValidation]);
+
+    React.useEffect(() => {
+        // initial validate
+        triggerValidation();
+
+        const off = api.on("state:change", () => {
+            triggerValidation();
+        });
+
+        return () => {
+            off?.();
+            if (debounceTimerRef.current) {
+                window.clearTimeout(debounceTimerRef.current);
+                debounceTimerRef.current = null;
+            }
+            runTokenRef.current++; // invalidate any scheduled work
+        };
+    }, [api, triggerValidation]);
+
+    // ---- merged (organised)
+    const merged = React.useMemo<MergedErrors>(() => {
+        const v = validation;
+        const l = logs;
+
+        return {
+            validation: v,
+            logs: l,
+
+            counts: {
+                validation: v.length,
+                logs: l.length,
+                total: v.length + l.length,
+            },
+
+            groups: [
+                { kind: "validation", title: "Validation", rows: v },
+                { kind: "log", title: "Logs", rows: l },
+            ],
+
+            forEach(fn) {
+                for (const row of v) fn(row, "validation");
+                for (const row of l) fn(row, "log");
+            },
+        };
+    }, [validation, logs]);
+
+    const clear = React.useCallback((target: ClearTarget) => {
+        // validation is unclearable by design
+        if (target === "logs" || target === "merged") setLogs([]);
+    }, []);
+
+    const removeLog = React.useCallback((id: string) => {
+        setLogs((prev) => prev.filter((x) => x.id !== id));
+    }, []);
+
+    return React.useMemo(
+        () => ({
+            validation,
+            logs,
+            merged,
+            validating,
+            clear,
+            removeLog,
+        }),
+        [validation, logs, merged, validating, clear, removeLog],
+    );
+}
+```
+
+---
+#### 23
+
+
+` File: src/react/workspace/context/index.ts`  [↑ Back to top](#index)
+
+```ts
 // src/react/workspace/context/index.ts
 
 export {
@@ -2207,6 +4180,10 @@ export {
 } from "./provider/context";
 
 export { WorkspaceProvider } from "./provider/provider";
+
+export * from "./context";
+export * from "./hooks/use-canvas";
+export * from "./hooks/use-errors";
 
 export type {
     WorkspaceAPI,
@@ -2235,10 +4212,11 @@ export type {
 export { createPollAdapter } from "./provider/live/adapters/poll";
 
 export * from "./memory";
+export * from "./backend";
 ```
 
 ---
-#### 16
+#### 24
 
 
 ` File: src/react/workspace/context/memory/errors.ts`  [↑ Back to top](#index)
@@ -2291,7 +4269,7 @@ export function asError(e: unknown): BackendError {
 ```
 
 ---
-#### 17
+#### 25
 
 
 ` File: src/react/workspace/context/memory/ids.ts`  [↑ Back to top](#index)
@@ -2352,7 +4330,7 @@ export function bumpEtag(prev?: string): string {
 ```
 
 ---
-#### 18
+#### 26
 
 
 ` File: src/react/workspace/context/memory/index.ts`  [↑ Back to top](#index)
@@ -2372,7 +4350,7 @@ export type {
 ```
 
 ---
-#### 19
+#### 27
 
 
 ` File: src/react/workspace/context/memory/memory-backend.ts`  [↑ Back to top](#index)
@@ -3673,7 +5651,7 @@ export function createMemoryWorkspaceBackend(
 ```
 
 ---
-#### 20
+#### 28
 
 
 ` File: src/react/workspace/context/memory/seed.ts`  [↑ Back to top](#index)
@@ -3771,7 +5749,7 @@ export interface CreateMemoryWorkspaceBackendOptions {
 ```
 
 ---
-#### 21
+#### 29
 
 
 ` File: src/react/workspace/context/memory/store.ts`  [↑ Back to top](#index)
@@ -3897,7 +5875,7 @@ export function setThreadAnchor(
 ```
 
 ---
-#### 22
+#### 30
 
 
 ` File: src/react/workspace/context/memory/time.ts`  [↑ Back to top](#index)
@@ -3922,7 +5900,7 @@ export function toIso(input?: string | number | Date): string {
 ```
 
 ---
-#### 23
+#### 31
 
 
 ` File: src/react/workspace/context/provider/compose/use-branch-cache.ts`  [↑ Back to top](#index)
@@ -4204,7 +6182,7 @@ export function useBranchCache(workspaceId: string): BranchCacheApi {
 ```
 
 ---
-#### 24
+#### 32
 
 
 ` File: src/react/workspace/context/provider/compose/use-live-polling.ts`  [↑ Back to top](#index)
@@ -4221,7 +6199,7 @@ import type {
     WorkspaceLiveStatus,
     WorkspaceLiveTick,
 } from "../live/types";
-import { createPollAdapter } from "../live/adapters/poll";
+import { createPollAdapter } from "@/react/workspace";
 
 export interface LiveControl {
     readonly connected: boolean;
@@ -4492,7 +6470,7 @@ export function useLivePolling(params: UseLivePollingParams): LiveControl {
 ```
 
 ---
-#### 25
+#### 33
 
 
 ` File: src/react/workspace/context/provider/compose/use-workspace-refresh.ts`  [↑ Back to top](#index)
@@ -4712,7 +6690,7 @@ export function useWorkspaceRefresh(
 ```
 
 ---
-#### 26
+#### 34
 
 
 ` File: src/react/workspace/context/provider/context.ts`  [↑ Back to top](#index)
@@ -4740,7 +6718,7 @@ export function useWorkspaceMaybe(): WorkspaceAPI | null {
 ```
 
 ---
-#### 27
+#### 35
 
 
 ` File: src/react/workspace/context/provider/helpers.ts`  [↑ Back to top](#index)
@@ -4851,7 +6829,7 @@ export function toServiceMap(
 ```
 
 ---
-#### 28
+#### 36
 
 
 ` File: src/react/workspace/context/provider/live/adapters/manual.ts`  [↑ Back to top](#index)
@@ -4861,7 +6839,7 @@ export function toServiceMap(
 ```
 
 ---
-#### 29
+#### 37
 
 
 ` File: src/react/workspace/context/provider/live/adapters/poll.ts`  [↑ Back to top](#index)
@@ -4942,7 +6920,7 @@ export function createPollAdapter(
 ```
 
 ---
-#### 30
+#### 38
 
 
 ` File: src/react/workspace/context/provider/live/adapters/sse.ts`  [↑ Back to top](#index)
@@ -4952,7 +6930,7 @@ export function createPollAdapter(
 ```
 
 ---
-#### 31
+#### 39
 
 
 ` File: src/react/workspace/context/provider/live/adapters/ws.ts`  [↑ Back to top](#index)
@@ -4962,7 +6940,7 @@ export function createPollAdapter(
 ```
 
 ---
-#### 32
+#### 40
 
 
 ` File: src/react/workspace/context/provider/live/types.ts`  [↑ Back to top](#index)
@@ -5045,7 +7023,7 @@ export type WorkspaceLiveAdapterRegistry = Readonly<
 ```
 
 ---
-#### 33
+#### 41
 
 
 ` File: src/react/workspace/context/provider/provider.tsx`  [↑ Back to top](#index)
@@ -5058,10 +7036,10 @@ import type {
     MergeResult,
     Result,
     TemplatesListParams,
-} from "../backend";
+} from "@/react/workspace";
 import type { DgpServiceMap } from "@/schema/provider";
 
-import { WorkspaceContext } from "@/react";
+import { WorkspaceContext } from "@/react/workspace";
 import type { WorkspaceAPI, WorkspaceProviderProps } from "./types";
 import { LIVE_OFF } from "./helpers";
 
@@ -5564,7 +7542,7 @@ export function WorkspaceProvider(
 ```
 
 ---
-#### 34
+#### 42
 
 
 ` File: src/react/workspace/context/provider/runtime/use-backend-runtime.ts`  [↑ Back to top](#index)
@@ -5572,7 +7550,7 @@ export function WorkspaceProvider(
 ```ts
 // src/react/workspace/context/provider/runtime/use-backend-runtime.ts
 import * as React from "react";
-import type { BackendError } from "../../backend";
+import type { BackendError } from "@/react/workspace";
 import type { RunResult } from "../types";
 import {
     runTasks as runTasksBase,
@@ -5612,7 +7590,7 @@ export function useBackendRuntime(): BackendRuntime {
 ```
 
 ---
-#### 35
+#### 43
 
 
 ` File: src/react/workspace/context/provider/slices/use-authors-slice.ts`  [↑ Back to top](#index)
@@ -5621,7 +7599,7 @@ export function useBackendRuntime(): BackendRuntime {
 // src/react/workspace/context/provider/slices/use-authors-slice.ts
 import * as React from "react";
 import type { Author, BackendError, WorkspaceBackend } from "../../backend";
-import type { Loadable } from "@/react";
+import type { Loadable } from "@/react/workspace";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
 
 export interface AuthorsSliceApi {
@@ -5682,7 +7660,7 @@ export function useAuthorsSlice(
 ```
 
 ---
-#### 36
+#### 44
 
 
 ` File: src/react/workspace/context/provider/slices/use-branches-slice.ts`  [↑ Back to top](#index)
@@ -5696,7 +7674,7 @@ import type {
     BranchParticipant,
     WorkspaceBackend,
 } from "../../backend";
-import type { BranchesSlice, Loadable } from "@/react";
+import type { BranchesSlice, Loadable } from "@/react/workspace";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
 
 export interface BranchesSliceApi {
@@ -5898,7 +7876,7 @@ export function useBranchesSlice(
 ```
 
 ---
-#### 37
+#### 45
 
 
 ` File: src/react/workspace/context/provider/slices/use-comments-slice.ts`  [↑ Back to top](#index)
@@ -5914,7 +7892,7 @@ import type {
     Result,
     WorkspaceBackend,
 } from "../../backend";
-import type { Loadable } from "@/react";
+import type { Loadable } from "@/react/workspace";
 
 import type {
     CommentAnchor,
@@ -5931,7 +7909,7 @@ export interface CommentsSliceApi {
 
     readonly createThread: (
         input: Readonly<{
-            anchor: CommentAnchor;
+            anchor?: CommentAnchor;
             body: string;
             meta?: Readonly<Record<string, unknown>>;
             branchId?: string;
@@ -6074,7 +8052,7 @@ export function useCommentsSlice(
     const createThread = React.useCallback(
         async (
             input: Readonly<{
-                anchor: CommentAnchor;
+                anchor?: CommentAnchor;
                 body: string;
                 meta?: Readonly<Record<string, unknown>>;
                 branchId?: string;
@@ -6348,7 +8326,7 @@ export function useCommentsSlice(
 ```
 
 ---
-#### 38
+#### 46
 
 
 ` File: src/react/workspace/context/provider/slices/use-permissions-slice.ts`  [↑ Back to top](#index)
@@ -6362,7 +8340,7 @@ import type {
     PermissionsMap,
     WorkspaceBackend,
 } from "../../backend";
-import type { Loadable } from "@/react";
+import type { Loadable } from "@/react/workspace";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
 
 export interface PermissionsSliceApi {
@@ -6426,7 +8404,7 @@ export function usePermissionsSlice(
 ```
 
 ---
-#### 39
+#### 47
 
 
 ` File: src/react/workspace/context/provider/slices/use-policies-slice.ts`  [↑ Back to top](#index)
@@ -6436,9 +8414,9 @@ export function usePermissionsSlice(
 import * as React from "react";
 
 import type { WorkspaceBackend, Result, BackendError } from "../../backend";
-import type { Loadable } from "@/react";
+import type { Loadable } from "@/react/workspace";
 
-import type { DynamicRule } from "@/schema/validation";
+import type { DynamicRule } from "@/schema";
 import { compilePolicies, type PolicyDiagnostic } from "@/core/policy";
 
 /* ---------------- helpers ---------------- */
@@ -6643,7 +8621,7 @@ export function usePoliciesSlice(
 ```
 
 ---
-#### 40
+#### 48
 
 
 ` File: src/react/workspace/context/provider/slices/use-services-slice.ts`  [↑ Back to top](#index)
@@ -6652,8 +8630,8 @@ export function usePoliciesSlice(
 // src/react/workspace/context/provider/slices/use-services-slice.ts
 import * as React from "react";
 import type { BackendError, WorkspaceBackend } from "../../backend";
-import type { DgpServiceMap } from "@/schema/provider";
-import type { Loadable } from "@/react";
+import type { DgpServiceMap } from "@/schema";
+import type { Loadable } from "@/react/workspace";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
 import { toServiceMap } from "../helpers";
 
@@ -6720,7 +8698,7 @@ export function useServicesSlice(
 ```
 
 ---
-#### 41
+#### 49
 
 
 ` File: src/react/workspace/context/provider/slices/use-snapshots-slice.ts`  [↑ Back to top](#index)
@@ -6737,8 +8715,8 @@ import type {
     SnapshotsLoadResult,
     WorkspaceBackend,
 } from "../../backend";
-import type { EditorSnapshot } from "@/schema/editor";
-import type { SnapshotSlice, WorkspaceAPI } from "@/react";
+import type { EditorSnapshot } from "@/schema";
+import type { SnapshotSlice, WorkspaceAPI } from "@/react/workspace";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
 
 export interface SnapshotsSliceApi {
@@ -7167,7 +9145,7 @@ export function useSnapshotsSlice(
 ```
 
 ---
-#### 42
+#### 50
 
 
 ` File: src/react/workspace/context/provider/slices/use-templates-slice.ts`  [↑ Back to top](#index)
@@ -7183,7 +9161,7 @@ import type {
     TemplatesListParams,
     WorkspaceBackend,
 } from "../../backend";
-import type { Loadable, WorkspaceAPI } from "@/react";
+import type { Loadable, WorkspaceAPI } from "@/react/workspace";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
 
 export interface TemplatesSliceApi {
@@ -7407,7 +9385,7 @@ export function useTemplatesSlice(
 ```
 
 ---
-#### 43
+#### 51
 
 
 ` File: src/react/workspace/context/provider/types.ts`  [↑ Back to top](#index)
@@ -7435,13 +9413,15 @@ import type {
     WorkspaceBackend,
     WorkspaceInfo,
 } from "../backend";
-import type { EditorSnapshot } from "@/schema/editor";
-import type { DgpServiceMap } from "@/schema/provider";
+import type {
+    EditorSnapshot,
+    DgpServiceMap,
+    DynamicRule,
+    CommentThread,
+} from "@/schema";
 import React from "react";
 import { WorkspaceLiveAdapterRegistry } from "@/react/workspace/context/provider/live/types";
 import { CommentsSliceApi } from "@/react/workspace/context/provider/slices/use-comments-slice";
-import { DynamicRule } from "@/schema/validation";
-import type { CommentThread } from "@/schema/comments";
 import { PoliciesSlice } from "@/react/workspace/context/provider/slices/use-policies-slice";
 export interface Loadable<T> {
     readonly data: T | null;
@@ -7652,7 +9632,7 @@ export interface WorkspaceAPI {
 ```
 
 ---
-#### 44
+#### 52
 
 
 ` File: src/react/workspace/index.ts`  [↑ Back to top](#index)
@@ -7669,4 +9649,4 @@ export * from "./context";
 
 ---
 *Generated with [Prodex](https://github.com/emxhive/prodex) — Codebase decoded.*
-<!-- PRODEx v1.4.11 | 2026-01-22T02:55:14.253Z -->
+<!-- PRODEx v1.4.11 | 2026-02-14T12:43:13.364Z -->

@@ -242,6 +242,7 @@ export type ServiceProps = {
     schema_version?: string;
     fallbacks?: ServiceFallback;
     name?: string;
+    notices?: ServicePropsNotice[];
 };
 
 // Ids
@@ -254,3 +255,44 @@ export type ServiceFallback = {
     /** Primary→fallback list used when no node-scoped entry is present */
     global?: Record<ServiceIdRef, ServiceIdRef[]>;
 };
+
+//--- notices
+export type NoticeType = "public" | "private"; // client-facing vs workspace/admin
+
+export type NoticeSeverity = "info" | "warning" | "error";
+
+/**
+ * “label” is lightweight + UI-friendly (best, sale, hot, etc).
+ * Others remain semantic / governance oriented.
+ */
+export type NoticeKind =
+    | "label"
+    | "warning"
+    | "deprecation"
+    | "compat"
+    | "migration"
+    | "policy";
+
+export type NoticeTarget =
+    | { scope: "global" }
+    | { scope: "node"; node_kind: "tag" | "field" | "option"; node_id: string };
+
+export interface ServicePropsNotice {
+    id: string; // stable unique ID
+    type: NoticeType; // public/private
+    kind: NoticeKind; // includes "label"
+    severity: NoticeSeverity;
+
+    target: NoticeTarget;
+
+    title: string; // what to show (e.g. "Best", "50% off", "Deprecated")
+    description?: string;
+    reason?: string; // more internal / audit wording
+
+    marked_at?: string; // ISO string (when applied / introduced)
+
+    // optional for UI
+    icon?: string; // e.g. "sparkles", "badge-percent", etc (client decides)
+    color?: string; // token string e.g. "gold", "danger", "muted" (avoid hardcoding palettes)
+    meta?: Record<string, unknown>;
+}

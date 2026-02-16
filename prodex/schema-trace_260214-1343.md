@@ -2,24 +2,332 @@
 > Note for LLMs: `Lx-Ly` ranges refer to lines in this Prodex trace file, not the original source files. Index metadata is provided via the HTML comment markers in this section.
 
 # Index
-<!-- PRODEX_INDEX_RANGE: L8-L17 -->
-<!-- PRODEX_FILE_COUNT: 10 -->
+<!-- PRODEX_INDEX_RANGE: L8-L18 -->
+<!-- PRODEX_FILE_COUNT: 11 -->
 <!-- PRODEX_INDEX_LIST_START -->
-- [src/schema/canvas-types.ts](#1)  L21-L93
-- [src/schema/comments.ts](#2)  L94-L136
-- [src/schema/editor.ts](#3)  L137-L172
-- [src/schema/editor.types.ts](#4)  L173-L215
-- [src/schema/graph.ts](#5)  L216-L256
-- [src/schema/index.ts](#6)  L257-L491
-- [src/schema/order.ts](#7)  L492-L637
-- [src/schema/policies.ts](#8)  L638-L654
-- [src/schema/provider.ts](#9)  L655-L714
-- [src/schema/validation.ts](#10)  L715-L876
+- [src/schema/base.ts](#1)  L22-L328
+- [src/schema/canvas-types.ts](#2)  L329-L401
+- [src/schema/comments.ts](#3)  L402-L440
+- [src/schema/editor.ts](#4)  L441-L476
+- [src/schema/editor.types.ts](#5)  L477-L519
+- [src/schema/graph.ts](#6)  L520-L560
+- [src/schema/index.ts](#7)  L561-L579
+- [src/schema/order.ts](#8)  L580-L728
+- [src/schema/policies.ts](#9)  L729-L745
+- [src/schema/provider.ts](#10)  L746-L805
+- [src/schema/validation.ts](#11)  L806-L970
 <!-- PRODEX_INDEX_LIST_END -->
 
 ---
 ---
 #### 1
+
+
+` File: src/schema/base.ts`  [↑ Back to top](#index)
+
+```ts
+// persisted schema + shared types
+export type PricingRole = "base" | "utility";
+export type FieldType = "custom" | (string & {});
+
+/** ── Marker types (live inside meta; non-breaking) ───────────────────── */
+export type QuantityMark = {
+    quantity?: {
+        valueBy: "value" | "length" | "eval";
+        code?: string;
+        multiply?: number;
+        clamp?: { min?: number; max?: number };
+        fallback?: number;
+    };
+};
+
+export type UtilityMark = {
+    utility?: {
+        rate: number;
+        mode: "flat" | "per_quantity" | "per_value" | "percent";
+        valueBy?: "value" | "length"; // only for per_value; default 'value'
+        percentBase?: "service_total" | "base_service" | "all";
+        label?: string;
+    };
+};
+
+export type WithQuantityDefault = { quantityDefault?: number };
+
+/** ---------------- Core schema (as you designed) ---------------- */
+
+export interface BaseFieldUI {
+    name?: string;
+    label: string;
+    required?: boolean;
+    /** Host-defined prop names → runtime default values (untyped base) */
+    defaults?: Record<string, unknown>;
+}
+
+export type Ui = (
+    | UiString
+    | UiNumber
+    | UiBoolean
+    | UiAnyOf
+    | UiArray
+    | UiObject
+) & { description: string; label: string };
+
+/** string */
+export interface UiString {
+    type: "string";
+    enum?: string[];
+    minLength?: number;
+    maxLength?: number;
+    pattern?: string;
+    format?: string;
+}
+
+/** number */
+export interface UiNumber {
+    type: "number";
+    minimum?: number;
+    maximum?: number;
+    multipleOf?: number;
+}
+
+/** boolean */
+export interface UiBoolean {
+    type: "boolean";
+}
+
+/** enumerated choices */
+export interface UiAnyOf {
+    type: "anyOf";
+    multiple?: boolean;
+    items: Array<{
+        type: "string" | "number" | "boolean";
+        title?: string;
+        description?: string;
+        value: string | number | boolean;
+    }>;
+}
+
+/** arrays: homogeneous (item) or tuple (items) */
+export interface UiArray {
+    type: "array";
+    label: string;
+    description: string;
+
+    item?: Ui;
+    items?: Ui[];
+    editable?: boolean;
+
+    /**
+     * Optional: allowed shapes for new items.
+     * Key = label shown in UI picker
+     * Value = schema for the new element
+     */
+    shape?: Record<string, Ui>;
+
+    minItems?: number;
+    maxItems?: number;
+    uniqueItems?: boolean;
+}
+/** objects: nested props */
+export interface UiObject {
+    type: "object";
+    label: string;
+    description: string;
+
+    editable?: boolean;
+    fields: Record<string, Ui>;
+
+    /**
+     * Optional: allowed shapes for dynamically added keys.
+     * Key = human-readable name shown in UI picker
+     * Value = schema applied to the value of the new key
+     */
+    shape?: Record<string, Ui>;
+
+    required?: string[];
+    order?: string[];
+}
+
+/** ---------------- Typed defaults helpers ---------------- */
+
+/**
+ * UiValue<U>: given a Ui node U, infer the runtime value type.
+ */
+export type UiValue<U extends Ui> =
+    // primitives
+    U extends { type: "string" }
+        ? string
+        : U extends { type: "number" }
+          ? number
+          : U extends { type: "boolean" }
+            ? boolean
+            : // anyOf
+              U extends { type: "anyOf"; multiple: true }
+              ? Array<U["items"][number]["value"]>
+              : U extends { type: "anyOf" }
+                ? U["items"][number]["value"]
+                : // array (homogeneous vs tuple)
+                  U extends { type: "array"; item: infer I extends Ui }
+                  ? Array<UiValue<I>>
+                  : U extends { type: "array"; items: infer T extends Ui[] }
+                    ? { [K in keyof T]: UiValue<T[K]> }
+                    : // object (nested fields)
+                      U extends {
+                            type: "object";
+                            fields: infer F extends Record<string, Ui>;
+                        }
+                      ? { [K in keyof F]?: UiValue<F[K]> }
+                      : unknown;
+
+/**
+ * FieldWithTypedDefaults<T>: same shape as BaseFieldUI, but:
+ *  - ui is a concrete map T (propName → Ui node)
+ *  - defaults are auto-typed from T via UiValue
+ */
+export type FieldWithTypedDefaults<T extends Record<string, Ui>> = Omit<
+    BaseFieldUI,
+    "ui" | "defaults"
+> & {
+    ui: T;
+    defaults?: Partial<{ [K in keyof T]: UiValue<T[K]> }>;
+};
+
+export type FieldOption = {
+    id: string;
+    label: string;
+    value?: string | number;
+    service_id?: number;
+    pricing_role?: PricingRole;
+    meta?: Record<string, unknown> & UtilityMark & WithQuantityDefault;
+};
+
+export type Field = BaseFieldUI & {
+    id: string;
+    type: FieldType; // only 'custom' is reserved
+    bind_id?: string | string[];
+    name?: string; // omit if options map to services
+    options?: FieldOption[];
+    description?: string;
+    component?: string; // required if type === 'custom'
+    pricing_role?: PricingRole; // default 'base'
+    meta?: Record<string, unknown> &
+        QuantityMark &
+        UtilityMark & { multi?: boolean };
+} & (
+        | {
+              button?: false;
+              service_id?: undefined;
+          }
+        | ({
+              button: true;
+              service_id?: number;
+          } & WithQuantityDefault)
+    );
+
+export type ConstraintKey = string;
+
+/**
+ * Back-compat alias: older code may still import FlagKey.
+ * Keeping this prevents a wave of TS errors while still allowing any string key.
+ */
+export type FlagKey = ConstraintKey;
+
+export type Tag = {
+    id: string;
+    label: string;
+    bind_id?: string;
+    service_id?: number;
+    includes?: string[];
+    excludes?: string[];
+    meta?: Record<string, unknown> & WithQuantityDefault;
+
+    /**
+     * Which flags are set for this tag. If a flag is not set, it's inherited from the nearest ancestor with a value set.
+     */
+    constraints?: Partial<Record<ConstraintKey, boolean>>;
+
+    /** Which ancestor defined the *effective* value for each flag (nearest source). */
+    constraints_origin?: Partial<Record<ConstraintKey, string>>; // tagId
+
+    /**
+     * Present only when a child explicitly set a different value but was overridden
+     * by an ancestor during normalisation.
+     */
+    constraints_overrides?: Partial<
+        Record<
+            ConstraintKey,
+            { from: boolean; to: boolean; origin: string } // child explicit -> effective + where it came from
+        >
+    >;
+};
+
+export type ServiceProps = {
+    order_for_tags?: Record<string, string[]>;
+    filters: Tag[];
+    fields: Field[];
+    includes_for_buttons?: Record<string, string[]>;
+    excludes_for_buttons?: Record<string, string[]>;
+    schema_version?: string;
+    fallbacks?: ServiceFallback;
+    name?: string;
+    notices?: ServicePropsNotice[];
+};
+
+// Ids
+export type ServiceIdRef = number | string; // provider service id
+export type NodeIdRef = string; // tag.id or option.id
+
+export type ServiceFallback = {
+    /** Node-scoped fallbacks: prefer these when that node’s primary service fails */
+    nodes?: Record<NodeIdRef, ServiceIdRef[]>;
+    /** Primary→fallback list used when no node-scoped entry is present */
+    global?: Record<ServiceIdRef, ServiceIdRef[]>;
+};
+
+//--- notices
+export type NoticeType = "public" | "private"; // client-facing vs workspace/admin
+
+export type NoticeSeverity = "info" | "warning" | "error";
+
+/**
+ * “label” is lightweight + UI-friendly (best, sale, hot, etc).
+ * Others remain semantic / governance oriented.
+ */
+export type NoticeKind =
+    | "label"
+    | "warning"
+    | "deprecation"
+    | "compat"
+    | "migration"
+    | "policy";
+
+export type NoticeTarget =
+    | { scope: "global" }
+    | { scope: "node"; node_kind: "tag" | "field" | "option"; node_id: string };
+
+export interface ServicePropsNotice {
+    id: string; // stable unique ID
+    type: NoticeType; // public/private
+    kind: NoticeKind; // includes "label"
+    severity: NoticeSeverity;
+
+    target: NoticeTarget;
+
+    title: string; // what to show (e.g. "Best", "50% off", "Deprecated")
+    description?: string;
+    reason?: string; // more internal / audit wording
+
+    marked_at?: string; // ISO string (when applied / introduced)
+
+    // optional for UI
+    icon?: string; // e.g. "sparkles", "badge-percent", etc (client decides)
+    color?: string; // token string e.g. "gold", "danger", "muted" (avoid hardcoding palettes)
+    meta?: Record<string, unknown>;
+}
+```
+
+---
+#### 2
 
 
 ` File: src/schema/canvas-types.ts`  [↑ Back to top](#index)
@@ -92,17 +400,12 @@ export type CanvasOptions = {
 ```
 
 ---
-#### 2
+#### 3
 
 
 ` File: src/schema/comments.ts`  [↑ Back to top](#index)
 
 ```ts
-import type { EventBus } from "@/react";
-import type { CanvasEvents } from "@/schema/canvas-types";
-import { RetryQueue } from "@/utils/retry-queue";
-import type { BackendError } from "@/react/workspace/context/backend";
-
 export type CommentId = string;
 export type ThreadId = string;
 
@@ -113,6 +416,7 @@ export type CommentAnchor =
 
 export type CommentMessage = {
     id: CommentId;
+    isMain?: boolean;
     authorId?: string;
     authorName?: string;
     body: string;
@@ -123,7 +427,7 @@ export type CommentMessage = {
 
 export type CommentThread = {
     id: ThreadId;
-    anchor: CommentAnchor;
+    anchor?: CommentAnchor;
     resolved: boolean;
     createdAt: number;
     updatedAt: number;
@@ -135,7 +439,7 @@ export type CommentThread = {
 ```
 
 ---
-#### 3
+#### 4
 
 
 ` File: src/schema/editor.ts`  [↑ Back to top](#index)
@@ -171,7 +475,7 @@ export type EditorSnapshot = {
 ```
 
 ---
-#### 4
+#### 5
 
 
 ` File: src/schema/editor.types.ts`  [↑ Back to top](#index)
@@ -214,7 +518,7 @@ export type ConnectKind = "bind" | "include" | "exclude";
 ```
 
 ---
-#### 5
+#### 6
 
 
 ` File: src/schema/graph.ts`  [↑ Back to top](#index)
@@ -255,242 +559,26 @@ export type FlowNode = NodeProps<{
 ```
 
 ---
-#### 6
+#### 7
 
 
 ` File: src/schema/index.ts`  [↑ Back to top](#index)
 
 ```ts
-// persisted schema + shared types
-export type PricingRole = "base" | "utility";
-export type FieldType = "custom" | (string & {});
-
-/** ── Marker types (live inside meta; non-breaking) ───────────────────── */
-export type QuantityMark = {
-    quantity?: {
-        valueBy: "value" | "length" | "eval";
-        code?: string;
-        multiply?: number;
-        clamp?: { min?: number; max?: number };
-        fallback?: number;
-    };
-};
-
-export type UtilityMark = {
-    utility?: {
-        rate: number;
-        mode: "flat" | "per_quantity" | "per_value" | "percent";
-        valueBy?: "value" | "length"; // only for per_value; default 'value'
-        percentBase?: "service_total" | "base_service" | "all";
-        label?: string;
-    };
-};
-
-export type WithQuantityDefault = { quantityDefault?: number };
-
-/** ---------------- Core schema (as you designed) ---------------- */
-
-export interface BaseFieldUI {
-    name?: string;
-    label: string;
-    required?: boolean;
-    /** Host-defined prop names → typed UI nodes */
-    ui?: Record<string, Ui>;
-    /** Host-defined prop names → runtime default values (untyped base) */
-    defaults?: Record<string, unknown>;
-}
-
-export type Ui = UiString | UiNumber | UiBoolean | UiAnyOf | UiArray | UiObject;
-
-/** string */
-export interface UiString {
-    type: "string";
-    enum?: string[];
-    minLength?: number;
-    maxLength?: number;
-    pattern?: string;
-    format?: string;
-}
-
-/** number */
-export interface UiNumber {
-    type: "number";
-    minimum?: number;
-    maximum?: number;
-    multipleOf?: number;
-}
-
-/** boolean */
-export interface UiBoolean {
-    type: "boolean";
-}
-
-/** enumerated choices */
-export interface UiAnyOf {
-    type: "anyOf";
-    multiple?: boolean;
-    items: Array<{
-        type: "string" | "number" | "boolean";
-        title?: string;
-        description?: string;
-        value: string | number | boolean;
-    }>;
-}
-
-/** arrays: homogeneous (item) or tuple (items) */
-export interface UiArray {
-    type: "array";
-    item?: Ui; // schema for each element (homogeneous)
-    items?: Ui[]; // tuple form
-    minItems?: number;
-    maxItems?: number;
-    uniqueItems?: boolean;
-}
-
-/** objects: nested props */
-export interface UiObject {
-    type: "object";
-    fields: Record<string, Ui>;
-    required?: string[]; // nested required
-    order?: string[]; // render hint
-}
-
-/** ---------------- Typed defaults helpers ---------------- */
-
-/**
- * UiValue<U>: given a Ui node U, infer the runtime value type.
- */
-export type UiValue<U extends Ui> =
-    // primitives
-    U extends { type: "string" }
-        ? string
-        : U extends { type: "number" }
-          ? number
-          : U extends { type: "boolean" }
-            ? boolean
-            : // anyOf
-              U extends { type: "anyOf"; multiple: true }
-              ? Array<U["items"][number]["value"]>
-              : U extends { type: "anyOf" }
-                ? U["items"][number]["value"]
-                : // array (homogeneous vs tuple)
-                  U extends { type: "array"; item: infer I extends Ui }
-                  ? Array<UiValue<I>>
-                  : U extends { type: "array"; items: infer T extends Ui[] }
-                    ? { [K in keyof T]: UiValue<T[K]> }
-                    : // object (nested fields)
-                      U extends {
-                            type: "object";
-                            fields: infer F extends Record<string, Ui>;
-                        }
-                      ? { [K in keyof F]?: UiValue<F[K]> }
-                      : unknown;
-
-/**
- * FieldWithTypedDefaults<T>: same shape as BaseFieldUI, but:
- *  - ui is a concrete map T (propName → Ui node)
- *  - defaults are auto-typed from T via UiValue
- */
-export type FieldWithTypedDefaults<T extends Record<string, Ui>> = Omit<
-    BaseFieldUI,
-    "ui" | "defaults"
-> & {
-    ui: T;
-    defaults?: Partial<{ [K in keyof T]: UiValue<T[K]> }>;
-};
-
-export type FieldOption = {
-    id: string;
-    label: string;
-    value?: string | number;
-    service_id?: number;
-    pricing_role?: PricingRole;
-    meta?: Record<string, unknown> & UtilityMark & WithQuantityDefault;
-};
-
-export type Field = BaseFieldUI & {
-    id: string;
-    type: FieldType; // only 'custom' is reserved
-    bind_id?: string | string[];
-    name?: string; // omit if options map to services
-    options?: FieldOption[];
-    component?: string; // required if type === 'custom'
-    pricing_role?: PricingRole; // default 'base'
-    meta?: Record<string, unknown> &
-        QuantityMark &
-        UtilityMark & { multi?: boolean };
-} & (
-        | {
-              button?: false;
-              service_id?: undefined;
-          }
-        | {
-              button: true;
-              service_id?: number;
-          }
-    );
-
-export type ConstraintKey = string;
-
-/**
- * Back-compat alias: older code may still import FlagKey.
- * Keeping this prevents a wave of TS errors while still allowing any string key.
- */
-export type FlagKey = ConstraintKey;
-
-export type Tag = {
-    id: string;
-    label: string;
-    bind_id?: string;
-    service_id?: number;
-    includes?: string[];
-    excludes?: string[];
-    meta?: Record<string, unknown> & WithQuantityDefault;
-
-    /**
-     * Which flags are set for this tag. If a flag is not set, it's inherited from the nearest ancestor with a value set.
-     */
-    constraints?: Partial<Record<ConstraintKey, boolean>>;
-
-    /** Which ancestor defined the *effective* value for each flag (nearest source). */
-    constraints_origin?: Partial<Record<ConstraintKey, string>>; // tagId
-
-    /**
-     * Present only when a child explicitly set a different value but was overridden
-     * by an ancestor during normalisation.
-     */
-    constraints_overrides?: Partial<
-        Record<
-            ConstraintKey,
-            { from: boolean; to: boolean; origin: string } // child explicit -> effective + where it came from
-        >
-    >;
-};
-
-export type ServiceProps = {
-    order_for_tags?: Record<string, string[]>;
-    filters: Tag[];
-    fields: Field[];
-    includes_for_buttons?: Record<string, string[]>;
-    excludes_for_buttons?: Record<string, string[]>;
-    schema_version?: string;
-    fallbacks?: ServiceFallback;
-};
-
-// Ids
-export type ServiceIdRef = number | string; // provider service id
-export type NodeIdRef = string; // tag.id or option.id
-
-export type ServiceFallback = {
-    /** Node-scoped fallbacks: prefer these when that node’s primary service fails */
-    nodes?: Record<NodeIdRef, ServiceIdRef[]>;
-    /** Primary→fallback list used when no node-scoped entry is present */
-    global?: Record<ServiceIdRef, ServiceIdRef[]>;
-};
+export * from "./base";
+export * from "./canvas-types";
+export * from "./comments";
+export * from "./editor";
+export * from "./editor.types";
+export * from "./graph";
+export * from "./order";
+export * from "./policies";
+export * from "./provider";
+export * from "./validation";
 ```
 
 ---
-#### 7
+#### 8
 
 
 ` File: src/schema/order.ts`  [↑ Back to top](#index)
@@ -606,6 +694,9 @@ export type OrderSnapshot = {
         defaultedFromHost?: boolean; // true if host default used
     };
 
+    min: number;
+    max: number;
+
     // ── Selected primaries ──
     services: Array<string | number>; // deduped union of all primaries
     serviceMap: Record<string, Array<string | number>>; // nodeId -> primary ids[]
@@ -636,7 +727,7 @@ export type OrderSnapshot = {
 ```
 
 ---
-#### 8
+#### 9
 
 
 ` File: src/schema/policies.ts`  [↑ Back to top](#index)
@@ -653,7 +744,7 @@ export type { DynamicRule };
 ```
 
 ---
-#### 9
+#### 10
 
 
 ` File: src/schema/provider.ts`  [↑ Back to top](#index)
@@ -713,13 +804,14 @@ export type DgpServiceMap = Record<string, DgpServiceCapability> &
 ```
 
 ---
-#### 10
+#### 11
 
 
 ` File: src/schema/validation.ts`  [↑ Back to top](#index)
 
 ```ts
 import { DgpServiceMap } from "./provider";
+import { NodeMap } from "@/core/node-map";
 
 export type ValidationCode =
     // structure
@@ -784,7 +876,8 @@ export type ServiceWhereOp =
     | "nin"
     | "exists"
     | "truthy"
-    | "falsy";
+    | "falsy"
+    | "sw";
 
 /**
  * Host-extensible service filter clause.
@@ -844,6 +937,7 @@ export type DynamicRule = {
 
 export type ValidatorOptions = {
     serviceMap?: DgpServiceMap;
+    nodeMap?: NodeMap;
     allowUnsafe?: boolean;
     selectedOptionKeys?: string[];
     globalUtilityGuard?: boolean;
@@ -874,4 +968,4 @@ export type FallbackSettings = {
 
 ---
 *Generated with [Prodex](https://github.com/emxhive/prodex) — Codebase decoded.*
-<!-- PRODEx v1.4.11 | 2026-01-22T02:55:14.253Z -->
+<!-- PRODEx v1.4.11 | 2026-02-14T12:43:13.364Z -->

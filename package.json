@@ -46,7 +46,6 @@
         "test": "vitest run",
         "build:schema": "node scripts/generate-schemas.mjs",
         "prepublishOnly": "npm run typecheck && npm test && npm run build",
-        "prepublish": "npm version patch -m \"chore(release): %s\"",
         "postpublish": "git push --follow-tags"
     },
     "repository": {
@@ -66,13 +65,20 @@
         "reactflow": "^11.11.4"
     },
     "devDependencies": {
+        "@radix-ui/react-label": "^2.1.8",
+        "@radix-ui/react-popover": "^1.1.15",
+        "@radix-ui/react-select": "^2.2.6",
+        "@radix-ui/react-slot": "^1.2.4",
         "@types/lodash-es": "^4.17.12",
         "@types/node": "^25.0.9",
-        "@types/react": "^18.3.24",
+        "@types/react": "^18.3.28",
         "@types/react-dom": "^18.3.7",
         "@vitejs/plugin-react": "^5.1.2",
         "jsdom": "^27.4.0",
         "prettier": "^3.6.2",
+        "react": "^19.2.4",
+        "react-dom": "^19.2.4",
+        "reactflow": "^11.11.4",
         "rimraf": "^5.0.10",
         "ts-json-schema-generator": "^2.4.0",
         "tsup": "^8.5.0",
@@ -83,7 +89,6 @@
         "@radix-ui/react-dialog": "^1.1.15",
         "@radix-ui/react-dropdown-menu": "^2.1.16",
         "@radix-ui/react-separator": "^1.1.7",
-        "@radix-ui/react-slot": "^1.2.3",
         "@radix-ui/react-tabs": "^1.1.13",
         "@timeax/cache-store": "^0.0.1",
         "@timeax/form-palette": "^0.1.28",

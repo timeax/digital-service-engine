@@ -52,6 +52,12 @@
         },
         "name": {
           "type": "string"
+        },
+        "notices": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ServicePropsNotice"
+          }
         }
       },
       "required": [
@@ -275,13 +281,6 @@
             "required": {
               "type": "boolean"
             },
-            "ui": {
-              "type": "object",
-              "additionalProperties": {
-                "$ref": "#/definitions/Ui"
-              },
-              "description": "Host-defined prop names → typed UI nodes"
-            },
             "defaults": {
               "type": "object",
               "additionalProperties": {},
@@ -433,13 +432,6 @@
             "required": {
               "type": "boolean"
             },
-            "ui": {
-              "type": "object",
-              "additionalProperties": {
-                "$ref": "#/definitions/Ui"
-              },
-              "description": "Host-defined prop names → typed UI nodes"
-            },
             "defaults": {
               "type": "object",
               "additionalProperties": {},
@@ -539,207 +531,6 @@
         "utility"
       ]
     },
-    "Ui": {
-      "anyOf": [
-        {
-          "$ref": "#/definitions/UiString"
-        },
-        {
-          "$ref": "#/definitions/UiNumber"
-        },
-        {
-          "$ref": "#/definitions/UiBoolean"
-        },
-        {
-          "$ref": "#/definitions/UiAnyOf"
-        },
-        {
-          "$ref": "#/definitions/UiArray"
-        },
-        {
-          "$ref": "#/definitions/UiObject"
-        }
-      ]
-    },
-    "UiString": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string",
-          "const": "string"
-        },
-        "enum": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "minLength": {
-          "type": "number"
-        },
-        "maxLength": {
-          "type": "number"
-        },
-        "pattern": {
-          "type": "string"
-        },
-        "format": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "type"
-      ],
-      "description": "string"
-    },
-    "UiNumber": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string",
-          "const": "number"
-        },
-        "minimum": {
-          "type": "number"
-        },
-        "maximum": {
-          "type": "number"
-        },
-        "multipleOf": {
-          "type": "number"
-        }
-      },
-      "required": [
-        "type"
-      ],
-      "description": "number"
-    },
-    "UiBoolean": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string",
-          "const": "boolean"
-        }
-      },
-      "required": [
-        "type"
-      ],
-      "description": "boolean"
-    },
-    "UiAnyOf": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string",
-          "const": "anyOf"
-        },
-        "multiple": {
-          "type": "boolean"
-        },
-        "items": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "type": {
-                "type": "string",
-                "enum": [
-                  "string",
-                  "number",
-                  "boolean"
-                ]
-              },
-              "title": {
-                "type": "string"
-              },
-              "description": {
-                "type": "string"
-              },
-              "value": {
-                "type": [
-                  "string",
-                  "number",
-                  "boolean"
-                ]
-              }
-            },
-            "required": [
-              "type",
-              "value"
-            ]
-          }
-        }
-      },
-      "required": [
-        "type",
-        "items"
-      ],
-      "description": "enumerated choices"
-    },
-    "UiArray": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string",
-          "const": "array"
-        },
-        "item": {
-          "$ref": "#/definitions/Ui"
-        },
-        "items": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/Ui"
-          }
-        },
-        "minItems": {
-          "type": "number"
-        },
-        "maxItems": {
-          "type": "number"
-        },
-        "uniqueItems": {
-          "type": "boolean"
-        }
-      },
-      "required": [
-        "type"
-      ],
-      "description": "arrays: homogeneous (item) or tuple (items)"
-    },
-    "UiObject": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string",
-          "const": "object"
-        },
-        "fields": {
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/definitions/Ui"
-          }
-        },
-        "required": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "order": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "required": [
-        "type",
-        "fields"
-      ],
-      "description": "objects: nested props"
-    },
     "ServiceFallback": {
       "type": "object",
       "properties": {
@@ -769,6 +560,124 @@
       "type": [
         "number",
         "string"
+      ]
+    },
+    "ServicePropsNotice": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "type": {
+          "$ref": "#/definitions/NoticeType"
+        },
+        "kind": {
+          "$ref": "#/definitions/NoticeKind"
+        },
+        "severity": {
+          "$ref": "#/definitions/NoticeSeverity"
+        },
+        "target": {
+          "$ref": "#/definitions/NoticeTarget"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "marked_at": {
+          "type": "string"
+        },
+        "icon": {
+          "type": "string"
+        },
+        "color": {
+          "type": "string"
+        },
+        "meta": {
+          "type": "object",
+          "additionalProperties": {}
+        }
+      },
+      "required": [
+        "id",
+        "type",
+        "kind",
+        "severity",
+        "target",
+        "title"
+      ]
+    },
+    "NoticeType": {
+      "type": "string",
+      "enum": [
+        "public",
+        "private"
+      ]
+    },
+    "NoticeKind": {
+      "type": "string",
+      "enum": [
+        "label",
+        "warning",
+        "deprecation",
+        "compat",
+        "migration",
+        "policy"
+      ],
+      "description": "“label” is lightweight + UI-friendly (best, sale, hot, etc). Others remain semantic / governance oriented."
+    },
+    "NoticeSeverity": {
+      "type": "string",
+      "enum": [
+        "info",
+        "warning",
+        "error"
+      ]
+    },
+    "NoticeTarget": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "string",
+              "const": "global"
+            }
+          },
+          "required": [
+            "scope"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "scope": {
+              "type": "string",
+              "const": "node"
+            },
+            "node_kind": {
+              "type": "string",
+              "enum": [
+                "tag",
+                "field",
+                "option"
+              ]
+            },
+            "node_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "scope",
+            "node_kind",
+            "node_id"
+          ]
+        }
       ]
     }
   }

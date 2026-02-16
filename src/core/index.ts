@@ -3,4 +3,5 @@ export * from "./validate";
 export * from "./builder";
 export * from "./fallback";
 export * from "./rate-coherence";
-export * from './tag-relations'
+export * from "./tag-relations";
+export { buildOrderSnapshot } from "@/utils/build-order-snapshot";

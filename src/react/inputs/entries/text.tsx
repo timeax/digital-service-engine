@@ -74,4 +74,4 @@ export const textDescriptor: InputDescriptor = {
         // shared masking knobs
         ...sharedUi.textMask,
     },
-};
+}; 

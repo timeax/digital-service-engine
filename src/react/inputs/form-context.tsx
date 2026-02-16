@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import React, {
     createContext,
     useCallback,
@@ -6,7 +7,6 @@ import React, {
     useRef,
     useState,
 } from "react";
-import type { ReactNode } from "react";
 import type { Scalar } from "@/schema/order";
 
 export type FormSnapshot = {
@@ -23,6 +23,13 @@ export type FormApi = {
     getSelections: (fieldId: string) => string[];
     setSelections: (fieldId: string, optionIds: string[]) => void;
     toggleSelection: (fieldId: string, optionId: string) => void;
+    removeSelectionToken(token: string): void;
+
+    /** Clears everything (values + selections). */
+    clear: () => void;
+
+    /** Alias for clear (or “reset to initial” if initial was provided). */
+    reset: (opts?: { toInitial?: boolean }) => void;
 
     /** Read-only snapshot for debugging */
     snapshot: () => FormSnapshot;
@@ -40,6 +47,11 @@ export function FormProvider({
     initial?: Partial<FormSnapshot>;
     children: ReactNode;
 }) {
+    const initialRef = useRef<FormSnapshot>({
+        values: (initial?.values ?? {}) as Record<string, Scalar | Scalar[]>,
+        selections: (initial?.selections ?? {}) as Record<string, string[]>,
+    });
+
     const [values, setValues] = useState<Record<string, Scalar | Scalar[]>>(
         initial?.values ?? {},
     );
@@ -69,7 +81,35 @@ export function FormProvider({
                 });
                 publish();
             },
+            removeSelectionToken: (token: string) => {
+                if (!token) return;
 
+                setSelections((prev) => {
+                    if (!(token in prev)) return prev;
+                    const next = { ...prev };
+                    delete next[token];
+                    return next;
+                });
+
+                publish();
+            },
+            clear: () => {
+                setValues({});
+                setSelections({});
+                publish();
+            },
+
+            reset: (opts) => {
+                const toInitial = opts?.toInitial ?? false;
+                if (toInitial) {
+                    setValues({ ...(initialRef.current.values ?? {}) });
+                    setSelections({ ...(initialRef.current.selections ?? {}) });
+                } else {
+                    setValues({});
+                    setSelections({});
+                }
+                publish();
+            },
             getSelections: (fieldId) => selections[fieldId] ?? [],
             setSelections: (fieldId, optionIds) => {
                 setSelections((prev) => {

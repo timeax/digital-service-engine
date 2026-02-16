@@ -79,7 +79,7 @@ export const phoneDescriptor: InputDescriptor = {
                 },
                 order: ["code", "label", "dial", "mask"],
             },
-        },
+        }, 
 
         valueMode: {
             type: "anyOf",

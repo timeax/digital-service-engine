@@ -13,7 +13,7 @@ export const textareaDescriptor: InputDescriptor = {
         size: sharedUi.size,
         density: sharedUi.density,
         ...sharedUi.padding,
-
+        
         autoResize: {
             type: "boolean",
             label: "Auto resize",

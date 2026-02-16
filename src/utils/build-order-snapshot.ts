@@ -1,15 +1,21 @@
 // src/utils/build-order-snapshot.ts
 
 import type {
+    FallbackDiagnostics,
     OrderSnapshot,
+    QuantityRule,
     Scalar,
+    ServiceFallbacks,
     UtilityLineItem,
     UtilityMode,
-    QuantityRule,
-    FallbackDiagnostics,
-    ServiceFallbacks,
 } from "@/schema/order";
-import type { ServiceProps, Field, FieldOption, Tag } from "@/schema";
+import type {
+    DgpServiceCapability,
+    Field,
+    FieldOption,
+    ServiceProps,
+    Tag,
+} from "@/schema";
 import type { Builder } from "@/core";
 import type { DgpServiceMap } from "@/schema/provider";
 import { isMultiField } from "./index";
@@ -132,6 +138,8 @@ export function buildOrderSnapshot(
         fieldById,
     );
 
+    const { min, max } = resolveMinMax(servicesList, services);
+
     // 6) Fallbacks — client-side conservative prune (keeps only relevant-to-selection)
     const prunedFallbacks = pruneFallbacksConservative(
         props.fallbacks as unknown as ServiceFallbacks | undefined,
@@ -200,6 +208,10 @@ export function buildOrderSnapshot(
             form: formValues,
             selections,
         },
+
+        min,
+        max: max ?? min,
+
         quantity,
         quantitySource,
         services: servicesList,
@@ -852,4 +864,54 @@ function toSnapshotPolicy(settings: FallbackSettings): {
                 requireConstraintFit,
             };
     }
+}
+
+type ServiceIdRef = string | number;
+
+function getCap(
+    map: DgpServiceMap,
+    id: ServiceIdRef,
+): DgpServiceCapability | undefined {
+    const direct: DgpServiceCapability | undefined = (map as any)[id];
+    if (direct) return direct;
+
+    const strKey = String(id);
+    const byStr: DgpServiceCapability | undefined = (map as any)[strKey];
+    if (byStr) return byStr;
+
+    const n =
+        typeof id === "number"
+            ? id
+            : typeof id === "string"
+              ? Number(id)
+              : Number.NaN;
+
+    if (Number.isFinite(n)) {
+        const byNum: DgpServiceCapability | undefined = (map as any)[n];
+        if (byNum) return byNum;
+    }
+
+    return undefined;
+}
+
+function resolveMinMax(
+    servicesList: Array<string | number>,
+    services: DgpServiceMap,
+): { min: number; max?: number } {
+    let min: number | undefined = undefined;
+    let max: number | undefined = undefined;
+
+    for (const sid of servicesList) {
+        const cap = getCap(services, sid);
+        if (!cap) continue;
+
+        if (typeof cap.min === "number" && Number.isFinite(cap.min)) {
+            min = min === undefined ? cap.min : Math.min(min, cap.min);
+        }
+        if (typeof cap.max === "number" && Number.isFinite(cap.max)) {
+            max = max === undefined ? cap.max : Math.max(max, cap.max);
+        }
+    }
+
+    return { min: min ?? 1, ...(max !== undefined ? { max } : {}) };
 }

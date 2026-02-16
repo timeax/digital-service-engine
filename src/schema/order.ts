@@ -108,6 +108,9 @@ export type OrderSnapshot = {
         defaultedFromHost?: boolean; // true if host default used
     };
 
+    min: number;
+    max: number;
+
     // ── Selected primaries ──
     services: Array<string | number>; // deduped union of all primaries
     serviceMap: Record<string, Array<string | number>>; // nodeId -> primary ids[]
