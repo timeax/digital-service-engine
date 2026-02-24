@@ -46,7 +46,7 @@
         "test": "vitest run",
         "build:schema": "node scripts/generate-schemas.mjs",
         "prepublishOnly": "npm run typecheck && npm test && npm run build",
-        "postpublish": "git push --follow-tags"
+        "postpublish": "git push --follow-tags && npm version patch"
     },
     "repository": {
         "type": "git",

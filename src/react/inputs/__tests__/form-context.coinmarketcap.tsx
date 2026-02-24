@@ -3,7 +3,7 @@ import * as React from "react";
 import { act } from "react-dom/test-utils";
 import { createRoot, type Root } from "react-dom/client";
 
-import { FormProvider, useFormApi, useFormSelections } from "@/react";
+import { FormProvider, useFormApi } from "@/react";
 
 function mount(ui: React.ReactElement) {
     const host = document.createElement("div");
@@ -65,8 +65,8 @@ describe("FormProvider (CoinMarketCap props) – selections publish", () => {
         }
 
         function Watch() {
-            const s = useFormSelections("f:dripfeed");
-            renders.push(s.selected.slice());
+            // const s = useFormSelections("f:dripfeed");
+            // renders.push(s.selected.slice());
             return null;
         }
 

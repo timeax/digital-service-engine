@@ -148,6 +148,66 @@ function withInputFieldUi(desc: InputDescriptor): InputDescriptor {
             },
             valueProp: "value",
             changeProp: "onChange",
+            getInputPropsFromField({ field, props }) {
+                const severityPillClassMap = {
+                    info: "border-blue-200 bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200",
+                    warning:
+                        "border-amber-200 bg-amber-50 text-amber-800 ring-1 ring-inset ring-amber-200",
+                    error: "border-red-200 bg-red-50 text-red-700 ring-1 ring-inset ring-red-200",
+                } as const;
+
+                const pillBaseClassName =
+                    "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium";
+
+                const toTagPill = (tag: any) => ({
+                    label: tag.title,
+                    bgColor: tag.color,
+                    className: `${pillBaseClassName} ${severityPillClassMap[tag.severity as keyof typeof severityPillClassMap] ?? severityPillClassMap.info}`,
+                });
+
+                const matchesNotice = (
+                    target: { id?: unknown; service_id?: unknown },
+                    notice: { id?: unknown },
+                ) =>
+                    notice.id === target.id ||
+                    (!!target.service_id && target.service_id == notice.id);
+
+                const notices = props.notices ?? [];
+
+                const fieldNotices = notices.filter((notice) =>
+                    matchesNotice(field, notice),
+                );
+
+                return {
+                    label: field.label,
+                    tags: fieldNotices.map(toTagPill),
+
+                    ...(field.options?.length
+                        ? {
+                              options: field.options.map((item) => {
+                                  // @ts-ignore
+                                  const optionNotices = notices.filter(
+                                      (notice) => matchesNotice(item, notice),
+                                  );
+
+                                  return {
+                                      ...item,
+                                      tags: optionNotices.map(toTagPill),
+                                  };
+                              }),
+                          }
+                        : {}),
+                };
+            },
+            getSelectedOptions(next, currentt, ctx) {
+                return ((next as any)?.selectedOptions ?? [])?.map(
+                    (item: any) => item.id,
+                );
+            },
+
+            isActive(stored, ctx) {
+                return Boolean(stored);
+            },
         },
         ui: {
             ...inputFieldUi,

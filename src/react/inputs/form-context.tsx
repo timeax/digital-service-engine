@@ -1,185 +1,222 @@
+// src/react/inputs/form-context.tsx
 import type { ReactNode } from "react";
-import React, {
-    createContext,
-    useCallback,
-    useContext,
-    useMemo,
-    useRef,
-    useState,
-} from "react";
-import type { Scalar } from "@/schema/order";
+import * as React from "react";
 
-export type FormSnapshot = {
-    values: Record<string, Scalar | Scalar[]>;
-    selections: Record<string, string[]>;
-};
+import type { CoreContext } from "@timeax/form-palette";
+import { Form, useCore } from "@timeax/form-palette";
+
+type Dict = Record<string, unknown>;
+
+export type FormSnapshot = Dict
 
 export type FormApi = {
-    /** Scalar/array value by fieldId (non-option inputs) */
-    get: (fieldId: string) => Scalar | Scalar[] | undefined;
-    set: (fieldId: string, value: Scalar | Scalar[]) => void;
+    /** Value by fieldId (Wrapper uses name=field.id) */
+    get: (fieldId: string) => unknown;
+    /**
+     * Programmatic set (NOT used by Wrapper).
+     * If the field is mounted, writes into the core.
+     * If not mounted, persists into core.bucket (via core.setValue) or local bag fallback.
+     */
+    set: (fieldId: string, value: unknown) => void;
 
-    /** Option selections by fieldId (array of optionIds) */
+    /** Option selections (legacy; kept for compatibility) */
     getSelections: (fieldId: string) => string[];
     setSelections: (fieldId: string, optionIds: string[]) => void;
     toggleSelection: (fieldId: string, optionId: string) => void;
     removeSelectionToken(token: string): void;
 
-    /** Clears everything (values + selections). */
-    clear: () => void;
-
-    /** Alias for clear (or “reset to initial” if initial was provided). */
-    reset: (opts?: { toInitial?: boolean }) => void;
-
-    /** Read-only snapshot for debugging */
+    /** Read-only snapshot for debugging (NO validation) */
     snapshot: () => FormSnapshot;
 
     /** Simple subscribe (re-render triggers) */
     subscribe: (fn: () => void) => () => void;
+
+    /**
+     * Validation gate:
+     * local submit runs validation and returns mounted/visible values.
+     * (This is NOT “submitting to a server”.)
+     */
+    submit: () => { values: Dict; valid: boolean };
 };
 
-const FormCtx = createContext<FormApi | null>(null);
+const Ctx = React.createContext<FormApi | null>(null);
+
+export function useFormApi(): FormApi {
+    const v = React.useContext(Ctx);
+    if (!v) throw new Error("useFormApi must be used within <FormProvider />");
+    return v;
+}
+
+export function useOptionalFormApi(): FormApi | null {
+    return React.useContext(Ctx);
+}
+
+export type FormProviderProps = {
+    children: ReactNode;
+
+    /** Optional schema (zod/jsonschema/etc, depending on your palette build) */
+    schema?: any;
+
+    /**
+     * Same shape as the old OrderFlowProvider usage.
+     * - values: seed values (persisted/rehydrated)
+     * - selections: legacy (kept for compatibility)
+     */
+    initial?: {
+        values?: Dict;
+        selections?: Record<string, string[]>;
+    };
+
+    /**
+     * Called on every palette update (values bag).
+     * Use to persist anywhere (state/localStorage/etc).
+     */
+    onUpdate?: (vals: Dict) => void;
+};
 
 export function FormProvider({
-    initial,
     children,
-}: {
-    initial?: Partial<FormSnapshot>;
-    children: ReactNode;
-}) {
-    const initialRef = useRef<FormSnapshot>({
-        values: (initial?.values ?? {}) as Record<string, Scalar | Scalar[]>,
-        selections: (initial?.selections ?? {}) as Record<string, string[]>,
-    });
+    schema,
+    initial,
+    onUpdate,
+}: FormProviderProps) {
+    // Indefinite memory (we keep values even when fields unmount)
+    const [bag, setBag] = React.useState<Dict>(() => ({
+        ...(initial?.values ?? {}),
+    }));
 
-    const [values, setValues] = useState<Record<string, Scalar | Scalar[]>>(
-        initial?.values ?? {},
-    );
-    const [selections, setSelections] = useState<Record<string, string[]>>(
-        initial?.selections ?? {},
-    );
-    const subsRef = useRef(new Set<() => void>());
+    // Legacy selections (compat only)
+    const [selectionsBag, setSelectionsBag] = React.useState<
+        Record<string, string[]>
+    >(() => ({ ...(initial?.selections ?? {}) }));
 
-    const publish = useCallback(() => {
-        for (const fn of Array.from(subsRef.current)) {
-            try {
-                fn();
-            } catch {
-                /* noop */
-            }
-        }
+    // subscribe() support
+    const listenersRef = React.useRef(new Set<() => void>());
+    const publish = React.useCallback(() => {
+        for (const fn of listenersRef.current) fn();
     }, []);
 
-    const api = useMemo<FormApi>(
-        () => ({
-            get: (fieldId) => values[fieldId],
-            set: (fieldId, value) => {
-                setValues((prev) => {
-                    if (prev[fieldId] === value) return prev;
-                    const next = { ...prev, [fieldId]: value };
-                    return next;
-                });
-                publish();
-            },
-            removeSelectionToken: (token: string) => {
-                if (!token) return;
+    // palette core ref (for submit/values/setValue)
+    const coreRef = React.useRef<CoreContext<Dict> | null>(null);
 
-                setSelections((prev) => {
-                    if (!(token in prev)) return prev;
-                    const next = { ...prev };
-                    delete next[token];
-                    return next;
-                });
+    function Bridge() {
+        const core = useCore<Dict>();
 
+        React.useEffect(() => {
+            coreRef.current = core;
+            publish();
+            return () => {
+                coreRef.current = null;
                 publish();
-            },
-            clear: () => {
-                setValues({});
-                setSelections({});
-                publish();
+            };
+        }, [core, publish]);
+
+        return null;
+    }
+
+    const api = React.useMemo<FormApi>(() => {
+        return {
+            subscribe(fn) {
+                listenersRef.current.add(fn);
+                return () => listenersRef.current.delete(fn);
             },
 
-            reset: (opts) => {
-                const toInitial = opts?.toInitial ?? false;
-                if (toInitial) {
-                    setValues({ ...(initialRef.current.values ?? {}) });
-                    setSelections({ ...(initialRef.current.selections ?? {}) });
-                } else {
-                    setValues({});
-                    setSelections({});
+            get(fieldId) {
+                const core = coreRef.current;
+                const live =
+                    (core?.values?.() as Dict | undefined) ?? undefined;
+
+                // Prefer live (mounted + bucket), fallback to our indefinite bag
+                if (live && fieldId in live) return live[fieldId];
+                return bag[fieldId];
+            },
+
+            set(fieldId, value) {
+                const core = coreRef.current;
+
+                // Programmatic sets should go through core when possible
+                // (core.setValue also persists to bucket when field isn't mounted).
+                if (core) {
+                    core.setValue(fieldId, value);
+                    return;
                 }
+
+                // Fallback if core isn't mounted yet
+                setBag((prev) => ({ ...prev, [fieldId]: value }));
                 publish();
             },
-            getSelections: (fieldId) => selections[fieldId] ?? [],
-            setSelections: (fieldId, optionIds) => {
-                setSelections((prev) => {
-                    const next = {
-                        ...prev,
-                        [fieldId]: Array.from(new Set(optionIds)),
-                    };
-                    return next;
+
+            // Legacy selections API (compat; no longer used by the new Wrapper)
+            getSelections(fieldId) {
+                return selectionsBag[fieldId] ?? [];
+            },
+            setSelections(fieldId, optionIds) {
+                setSelectionsBag((prev) => ({
+                    ...prev,
+                    [fieldId]: optionIds ?? [],
+                }));
+                publish();
+            },
+            toggleSelection(fieldId, optionId) {
+                setSelectionsBag((prev) => {
+                    const current = new Set(prev[fieldId] ?? []);
+                    if (current.has(optionId)) current.delete(optionId);
+                    else current.add(optionId);
+                    return { ...prev, [fieldId]: Array.from(current) };
                 });
                 publish();
             },
-            toggleSelection: (fieldId, optionId) => {
-                setSelections((prev) => {
-                    const cur = new Set(prev[fieldId] ?? []);
-                    if (cur.has(optionId)) cur.delete(optionId);
-                    else cur.add(optionId);
-                    return { ...prev, [fieldId]: Array.from(cur) };
+            removeSelectionToken(token) {
+                // token is "fieldId:optionId" in the old system; keep best-effort compat
+                const [fieldId, optionId] = String(token).split(":", 2);
+                if (!fieldId || !optionId) return;
+                setSelectionsBag((prev) => {
+                    const current = new Set(prev[fieldId] ?? []);
+                    current.delete(optionId);
+                    return { ...prev, [fieldId]: Array.from(current) };
                 });
                 publish();
             },
 
-            snapshot: () => ({
-                values: { ...values },
-                selections: { ...selections },
-            }),
+            snapshot() {
+                // IMPORTANT: read-only, NO validation here.
+                const core = coreRef.current;
+                const live = (core?.values?.() as Dict | undefined) ?? {};
 
-            subscribe: (fn) => {
-                subsRef.current.add(fn);
-                return () => subsRef.current.delete(fn);
+                return live
             },
-        }),
-        [publish, selections, values],
+
+            submit() {
+                const core = coreRef.current;
+                console.log(core);
+                if (!core) return { values: {}, valid: false };
+
+                // palette submit validates & returns mounted/visible values
+                return core.submit() as { values: Dict; valid: boolean };
+            },
+        };
+    }, [bag, selectionsBag, publish]);
+
+    return (
+        <Ctx.Provider value={api}>
+            <Form
+                adapter="local"
+                schema={schema}
+                valueBag={bag}
+                formRef={coreRef}
+                onUpdate={(vals: any) => {
+                    const next = (vals ?? {}) as Dict;
+
+                    // CRITICAL: merge (don’t replace), so unmounted fields keep their values indefinitely
+                    setBag((prev) => ({ ...prev, ...next }));
+
+                    onUpdate?.({ ...bag, ...next });
+                    publish();
+                }}
+            >
+                <Bridge />
+                {children}
+            </Form>
+        </Ctx.Provider>
     );
-
-    return <FormCtx.Provider value={api}>{children}</FormCtx.Provider>;
-}
-
-/** Strict hook (throws if no provider) */
-export function useFormApi(): FormApi {
-    const ctx = useContext(FormCtx);
-    if (!ctx) throw new Error("useFormApi must be used within <FormProvider>");
-    return ctx;
-}
-
-/** Optional hook (returns null if no provider) */
-export function useOptionalFormApi(): FormApi | null {
-    return useContext(FormCtx);
-}
-
-/** Field-scoped helpers */
-
-export function useFormField(fieldId: string): {
-    value: Scalar | Scalar[] | undefined;
-    set: (value: Scalar | Scalar[]) => void;
-} {
-    const api = useFormApi();
-    const value = api.get(fieldId);
-    const set = (v: Scalar | Scalar[]) => api.set(fieldId, v);
-    return { value, set };
-}
-
-export function useFormSelections(fieldId: string): {
-    selected: string[];
-    set: (optionIds: string[]) => void;
-    toggle: (optionId: string) => void;
-} {
-    const api = useFormApi();
-    return {
-        selected: api.getSelections(fieldId),
-        set: (arr: string[]) => api.setSelections(fieldId, arr),
-        toggle: (oid: string) => api.toggleSelection(fieldId, oid),
-    };
 }

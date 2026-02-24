@@ -11,31 +11,18 @@ import {
     useOrderFlowContext,
 } from "./order-flow-provider";
 
-import type {
-    VisibleGroup,
-    VisibleGroupResult,
-} from "@/react/canvas/selection";
+import type { VisibleGroup, VisibleGroupResult } from "@/react/canvas/selection";
 
 const ROOT_TAG_ID = "t:root";
 
 type NormalizeRateFn = (service: unknown) => number;
 
 export type PricingPreview = {
-    /** which service id won the "highest normalized rate" pick */
     serviceId?: string | number;
-
-    /** normalized per-quantity rate */
     unitRate: number;
-
-    /** base = unitRate * quantityPreview */
     base: number;
-
-    /** derived from snapshot.utilities */
     utilities: number;
-
-    /** base + utilities */
     total: number;
-
     utilityBreakdown: Array<{
         nodeId: string;
         mode: string;
@@ -44,34 +31,34 @@ export type PricingPreview = {
 };
 
 export type UseOrderFlowReturn = {
-    /** whether provider has been initialized */
     ready: boolean;
-
-    /** initialize via hook (provider owns it; hook surfaces it) */
     initialize: (params: OrderFlowInitializeParams) => void;
 
     activeTagId?: string;
 
-    /**
-     * ✅ Canonical visibility snapshot from Selection.visibleGroup()
-     * - parentTags is the breadcrumb path (may be empty)
-     * - childrenTags are immediate children of the active parent context
-     * - fields/fieldIds are already resolved for the current context + triggers
-     */
+    /** raw service props */
+    raw: ServiceProps;
+
+    /** visibility is Selection-only */
     visibleGroup: VisibleGroup | null;
 
     /**
-     * Effective (engine-facing) input maps:
-     * Only include VISIBLE fields (so hidden stored values don’t affect pricing/snapshot).
+     * Values are from form-palette (values()) and are already "visible-only"
+     * because your UI mounts only visible fields.
      */
     formValuesByFieldId: Record<string, Scalar | Scalar[]>;
+
+    /**
+     * Selections are Selection-only now.
+     * We keep this for compatibility with buildOrderSnapshot signature,
+     * but we do NOT read it from form anymore.
+     */
     optionSelectionsByFieldId: Record<string, string[]>;
 
     quantityPreview: number;
     services: Array<string | number>;
     serviceMap: Record<string, Array<string | number>>;
 
-    /** NEW: pricing preview (highest-rate * qty + utilities) */
     pricingPreview: PricingPreview;
 
     min: number;
@@ -79,12 +66,15 @@ export type UseOrderFlowReturn = {
 
     selectTag: (tagId: string) => void;
     toggleOption: (fieldId: string, optionId?: string) => void;
+
+    /** programmatic value set (rare; wrapper/field hook should handle most) */
     setValue: (fieldId: string, value: Scalar | Scalar[]) => void;
     clearField: (fieldId: string) => void;
 
     reset: (opts?: { keepTag?: boolean }) => void;
     setSnapshot: (snap: OrderSnapshot, opts?: { clearFirst?: boolean }) => void;
 
+    /** VALIDATES via form.submit() */
     buildSnapshot: () => OrderSnapshot;
 
     fallbackPolicy: FallbackSettings;
@@ -110,8 +100,7 @@ export function useOrderFlow(): UseOrderFlowReturn {
     }, [ctx, ready]);
 
     /**
-     * Re-render tick for Selection changes.
-     * Selection is canonical for visibility (visibleGroup).
+     * Selection tick: Selection is external, so we force re-render.
      */
     const [selTick, setSelTick] = useState(0);
     useEffect(() => {
@@ -122,20 +111,18 @@ export function useOrderFlow(): UseOrderFlowReturn {
     }, [ready, ctx.selection]);
 
     /**
-     * Re-render tick for Form changes.
-     * Your FormApi uses manual publish/subscribe, so we must subscribe.
+     * Form tick: form-palette bridge is pub/sub, so we subscribe.
+     * On each tick we recompute form.values() or form.submit() where needed.
      */
     const [formTick, setFormTick] = useState(0);
     useEffect(() => {
-        const unsub = ctx.formApi.subscribe(() => setFormTick((x) => x + 1));
-        return unsub;
+        return ctx.formApi.subscribe(() => setFormTick((x) => x + 1));
     }, [ctx.formApi]);
 
     /**
-     * Canonical visible group snapshot from Selection.
-     * IMPORTANT: we do NOT use builder.visibleFields here (trace rule).
+     * Visibility is Selection-only. No form-based augmentation.
      */
-    const baseVisibleGroup: VisibleGroup | null = useMemo(() => {
+    const visibleGroup: VisibleGroup | null = useMemo(() => {
         if (!ready) return null;
 
         const sel = ctx.selection;
@@ -147,100 +134,35 @@ export function useOrderFlow(): UseOrderFlowReturn {
         return vg.group ?? null;
     }, [ready, ctx.selection, selTick]);
 
-    /**
-     * Visible group augmented by includes_for_buttons based on Form selections.
-     *
-     * Why:
-     * - Wrapper uses formApi.setSelections / setSelections, which updates formTick.
-     * - Selection.visibleGroup() does not read FormApi selections for includes_for_buttons.
-     * - So we layer includes_for_buttons on top here, using FormApi as the source of truth.
-     *
-     * Convention:
-     * - A button field (keyed by fieldId) is considered ON when its selection array contains the fieldId itself.
-     */
-    const visibleGroup: VisibleGroup | null = useMemo(() => {
-        if (!ready) return null;
-        if (!baseVisibleGroup) return null;
-
-        // best-effort props: use ref if available; else ask builder (ready-safe)
-        const props =
-            propsRef.current ??
-            ctx.ensureReady("visibleGroup").builder.getProps();
-
-        const includeMap = (props as any).includes_for_buttons as
-            | Record<string, string[]>
-            | undefined;
-
-        if (!includeMap) return baseVisibleGroup;
-
-        const extras = new Set<string>();
-
-        for (const [buttonFieldId, includeIds] of Object.entries(includeMap)) {
-            const selected = ctx.formApi.getSelections(buttonFieldId) ?? [];
-            const isOn = selected.includes(buttonFieldId);
-
-            if (!isOn) continue;
-
-            for (const id of includeIds) extras.add(id);
-        }
-
-        if (extras.size === 0) return baseVisibleGroup;
-
-        const mergedIds = (baseVisibleGroup.fieldIds ?? []).slice();
-        for (const id of extras) {
-            if (!mergedIds.includes(id)) mergedIds.push(id);
-        }
-
-        const fieldById = new Map<string, any>(
-            ((props as any).fields ?? []).map((f: any) => [f.id, f]),
-        );
-
-        const mergedFields = mergedIds
-            .map((id) => fieldById.get(id))
-            .filter(Boolean);
-
-        return {
-            ...baseVisibleGroup,
-            fieldIds: mergedIds,
-            fields: mergedFields,
-        };
-    }, [ready, baseVisibleGroup, ctx, formTick]);
-
-    /**
-     * Active tag id:
-     * Prefer Selection.currentTag() as the source of truth.
-     * Fall back to provider state if needed.
-     */
     const activeTagId = useMemo(() => {
         if (!ready) return undefined;
         return ctx.selection?.currentTag?.() ?? ctx.activeTagId;
     }, [ready, ctx.selection, ctx.activeTagId, selTick]);
 
     /**
-     * Effective maps (visible-scoped).
-     * We intentionally read ONLY visible field ids from FormApi.
-     * This keeps stored (hidden) values, but prevents “ghost actives” from affecting snapshot.
+     * Preview values:
+     * - NO validation
+     * - driven by form.values() (core.values())
+     * - already visible-only because only visible fields are mounted.
      */
-    const { formValuesByFieldId, optionSelectionsByFieldId } = useMemo(() => {
-        const values: Record<string, Scalar | Scalar[]> = {};
-        const selections: Record<string, string[]> = {};
+    const formValuesByFieldId: Record<string, Scalar | Scalar[]> = useMemo(() => {
+        const values = (ctx.formApi.snapshot?.() ?? {}) as Record<
+            string,
+            Scalar | Scalar[]
+        >;
 
-        const ids = visibleGroup?.fieldIds ?? [];
+        return values;
+    }, [ctx.formApi, formTick]);
 
-        for (const fid of ids) {
-            const v = ctx.formApi.get(fid);
-            if (v !== undefined) values[fid] = v;
+    /**
+     * Selections are Selection-only now.
+     * Keep empty map for snapshot builder signature.
+     */
+    const optionSelectionsByFieldId = useMemo(() => ({} as Record<string, string[]>), []);
 
-            const sel = ctx.formApi.getSelections(fid);
-            if (sel && sel.length) selections[fid] = sel.slice();
-        }
-
-        return {
-            formValuesByFieldId: values,
-            optionSelectionsByFieldId: selections,
-        };
-    }, [ctx.formApi, visibleGroup, formTick]);
-
+    /**
+     * Preview snapshot uses form.values() (no validation) + Selection context.
+     */
     const previewSnapshot: OrderSnapshot = useMemo(() => {
         if (!ready) {
             return {
@@ -271,7 +193,6 @@ export function useOrderFlow(): UseOrderFlowReturn {
         }
 
         const { builder, init } = ctx.ensureReady("previewSnapshot");
-
         const mode: "prod" | "dev" = init.mode ?? "prod";
         const hostDefaultQuantity = Number(init.hostDefaultQuantity ?? 1) || 1;
 
@@ -281,7 +202,7 @@ export function useOrderFlow(): UseOrderFlowReturn {
             {
                 activeTagId: activeTagId ?? ROOT_TAG_ID,
                 formValuesByFieldId,
-                optionSelectionsByFieldId,
+                optionSelectionsByFieldId, // Selection-owned now
             },
             init.services,
             {
@@ -290,16 +211,10 @@ export function useOrderFlow(): UseOrderFlowReturn {
                 fallback: ctx.fallbackPolicy,
             },
         );
-    }, [
-        activeTagId,
-        ctx,
-        formValuesByFieldId,
-        optionSelectionsByFieldId,
-        ready,
-    ]);
+    }, [ready, ctx, activeTagId, formValuesByFieldId, optionSelectionsByFieldId, selTick]);
 
     /**
-     * NEW: pricing preview (highest rate * quantityPreview + utilities)
+     * Pricing preview unchanged (driven from previewSnapshot)
      */
     const pricingPreview: PricingPreview = useMemo(() => {
         const empty: PricingPreview = {
@@ -315,21 +230,15 @@ export function useOrderFlow(): UseOrderFlowReturn {
         const { init } = ctx.ensureReady("pricingPreview");
         const normalizeRate: NormalizeRateFn =
             ((init as unknown as { normalizeRate?: NormalizeRateFn })
-                .normalizeRate as NormalizeRateFn) ??
-            ((s: any) => Number(s?.rate));
+                .normalizeRate as NormalizeRateFn) ?? ((s: any) => Number(s?.rate));
 
         const quantity = Number(previewSnapshot.quantity ?? 1) || 1;
 
         let bestId: string | number | undefined;
         let bestRate = 0;
 
-        const selectedIds = (previewSnapshot.services ?? []) as Array<
-            string | number
-        >;
-        const svcMap = (init as any).services as Record<
-            string | number,
-            unknown
-        >;
+        const selectedIds = (previewSnapshot.services ?? []) as Array<string | number>;
+        const svcMap = (init as any).services as Record<string | number, unknown>;
 
         for (const id of selectedIds) {
             const svc = svcMap?.[id];
@@ -361,48 +270,12 @@ export function useOrderFlow(): UseOrderFlowReturn {
                 case "flat":
                     amount = rate;
                     break;
-
                 case "per_quantity":
                     amount = rate * quantity;
                     break;
-
                 case "percent":
                     amount = base * (rate / 100);
                     break;
-
-                case "per_value": {
-                    const v = u?.inputs?.value;
-                    const valueBy = u?.inputs?.valueBy;
-
-                    let n = 0;
-
-                    if (typeof v === "number") {
-                        n = v;
-                    } else if (typeof v === "string") {
-                        if (valueBy === "length") n = v.length;
-                        else {
-                            const parsed = Number(v);
-                            if (Number.isFinite(parsed)) n = parsed;
-                        }
-                    } else if (Array.isArray(v)) {
-                        if (valueBy === "length") n = v.length;
-                        else {
-                            const sum = v.reduce(
-                                (acc: number, x: unknown) =>
-                                    acc +
-                                    (typeof x === "number" && Number.isFinite(x)
-                                        ? x
-                                        : 0),
-                                0,
-                            );
-                            n = sum;
-                        }
-                    }
-
-                    amount = rate * n;
-                    break;
-                }
-
                 default:
                     amount = 0;
             }
@@ -417,14 +290,12 @@ export function useOrderFlow(): UseOrderFlowReturn {
             }
         }
 
-        const total = base + utilitiesTotal;
-
         return {
             serviceId: bestId,
             unitRate: bestRate,
             base,
             utilities: utilitiesTotal,
-            total,
+            total: base + utilitiesTotal,
             utilityBreakdown: breakdown,
         };
     }, [ready, ctx, previewSnapshot]);
@@ -432,18 +303,19 @@ export function useOrderFlow(): UseOrderFlowReturn {
     const selectTag = useCallback(
         (tagId: string) => {
             ctx.ensureReady("selectTag");
-
             ctx.selection?.replace?.(tagId);
             ctx.setActiveTag(tagId);
         },
         [ctx],
     );
 
+    /**
+     * Selection-only toggles.
+     * (No form selections.)
+     */
     const toggleOption = useCallback(
         (fieldId: string, optionId?: string) => {
             const token = optionId ?? fieldId;
-
-            ctx.formApi.toggleSelection(fieldId, token);
             ctx.selection?.toggle?.(token);
         },
         [ctx],
@@ -451,7 +323,7 @@ export function useOrderFlow(): UseOrderFlowReturn {
 
     const setValue = useCallback(
         (fieldId: string, value: Scalar | Scalar[]) => {
-            ctx.ensureReady("setValue");
+            // programmatic, goes into form memory (core bucket)
             ctx.formApi.set(fieldId, value);
         },
         [ctx],
@@ -459,12 +331,7 @@ export function useOrderFlow(): UseOrderFlowReturn {
 
     const clearField = useCallback(
         (fieldId: string) => {
-            ctx.ensureReady("clearField");
-
-            ctx.formApi.set(fieldId, undefined as unknown as Scalar);
-
-            ctx.formApi.removeSelectionToken(fieldId);
-
+            ctx.formApi.set(fieldId, undefined);
             ctx.selection?.remove?.(fieldId);
         },
         [ctx],
@@ -486,23 +353,29 @@ export function useOrderFlow(): UseOrderFlowReturn {
         [ctx],
     );
 
+    /**
+     * Build snapshot must VALIDATE.
+     * This is where form.submit() belongs.
+     */
     const buildSnapshot = useCallback((): OrderSnapshot => {
         const { builder, selection, init } = ctx.ensureReady("buildSnapshot");
 
         const tagId = selection.currentTag();
-        if (!tagId)
-            throw new Error("OrderFlow: no active tag/context selected");
+        if (!tagId) throw new Error("OrderFlow: no active tag/context selected");
 
         const mode: "prod" | "dev" = init.mode ?? "prod";
         const hostDefaultQuantity = Number(init.hostDefaultQuantity ?? 1) || 1;
+
+        const submitted = ctx.formApi.submit();
+        const values = submitted.values as Record<string, Scalar | Scalar[]>;
 
         return buildOrderSnapshot(
             builder.getProps(),
             builder,
             {
                 activeTagId: tagId,
-                formValuesByFieldId,
-                optionSelectionsByFieldId,
+                formValuesByFieldId: values,
+                optionSelectionsByFieldId, // Selection-owned
             },
             init.services,
             {
@@ -511,13 +384,19 @@ export function useOrderFlow(): UseOrderFlowReturn {
                 fallback: ctx.fallbackPolicy,
             },
         );
-    }, [ctx, formValuesByFieldId, optionSelectionsByFieldId]);
+    }, [ctx, optionSelectionsByFieldId]);
+
+    const raw = useMemo(() => {
+        if (!ready) return (propsRef.current ?? ({} as ServiceProps));
+        return ctx.ensureReady("raw").builder.getProps();
+    }, [ctx, ready, selTick]);
 
     return {
         ready,
         initialize,
 
         activeTagId,
+        raw,
 
         visibleGroup,
 

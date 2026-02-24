@@ -1,100 +1,22 @@
 // src/react/inputs/wrapper.tsx
 import * as React from "react";
-import { useMemo } from "react"; // <-- adjust if your path differs
-import type {
-    Field,
-    FieldOption,
-    UtilityMark,
-    WithQuantityDefault,
-} from "@/schema";
-import type { ButtonValue, OrderSnapshot, Scalar } from "@/schema/order";
-import type { FallbackSettings } from "@/schema/validation";
-import type { DgpServiceMap } from "@/schema/provider";
+import { useMemo } from "react";
 
-import {
+import { useField } from "@timeax/form-palette";
+
+import type { Field, FieldOption } from "@/schema";
+import type { Scalar } from "@/schema/order";
+
+import type {
+    Adapter,
+    AdapterCtx,
     InputDescriptor,
     InputKind,
     InputVariant,
-    resolveInputDescriptor,
-    useInputs,
-    useOrderFlowContext,
 } from "@/react";
-import { isMultiField } from "@/utils";
+import { resolveInputDescriptor, useInputs } from "@/react";
 
 import { useOrderFlow } from "@/react/hooks/use-order-flow";
-
-/* -------------------------------------------------------------------------- */
-/* Types                                                                      */
-/* -------------------------------------------------------------------------- */
-
-export type WrapperRuntimeSnapshot = {
-    field: Field;
-
-    // order-flow state
-    ready: boolean;
-    activeTagId?: string;
-
-    visibleFieldIds?: string[];
-    visibleFields?: Field[];
-
-    formValuesByFieldId: Record<string, Scalar | Scalar[]>;
-    optionSelectionsByFieldId: Record<string, string[]>;
-
-    quantityPreview: number;
-
-    // currently active services (IDs) + the “map” explaining them
-    services: Array<string | number>;
-    serviceMap: Record<string, Array<string | number>>;
-
-    // flow-level bounds (typically for quantity)
-    min: number;
-    max: number;
-
-    // init + ctx (host runtime context)
-    initMode?: "prod" | "dev";
-    initServices?: DgpServiceMap;
-    ctx: Record<string, unknown>;
-
-    // policy
-    fallbackPolicy: FallbackSettings;
-
-    // convenience: this field’s current view
-    fieldValue: Scalar | Scalar[] | undefined;
-    fieldSelections: string[];
-
-    // optional lazy snapshot getter (avoids extra cost unless needed)
-    getOrderSnapshot: () => OrderSnapshot;
-};
-
-export type InputWrapperProps = {
-    field: Field;
-    disabled?: boolean;
-
-    /**
-     * Extra props to forward to the host input component (LOW priority).
-     * Adapter wiring can still override value/onChange.
-     */
-    extraProps?: Record<string, unknown>;
-
-    /**
-     * Default true:
-     * - resolves {path.to.value} placeholders inside any string prop
-     *   coming from descriptor.defaultProps and extraProps
-     */
-    templateStrings?: boolean;
-
-    /**
-     * Optional additional ctx values scoped to this Wrapper call.
-     * These override init.ctx values for templating & snapshot.
-     */
-    ctxOverrides?: Record<string, unknown>;
-};
-
-export type OnChangeValue = ButtonValue | ButtonValue[];
-
-/* -------------------------------------------------------------------------- */
-/* Kind / Variant helpers                                                     */
-/* -------------------------------------------------------------------------- */
 
 function toKind(field: Field): InputKind {
     return field.type as InputKind;
@@ -107,10 +29,6 @@ function toVariant(field: Field): InputVariant | undefined {
 
 /* -------------------------------------------------------------------------- */
 /* Safe templating (no eval)                                                  */
-/* Supports:                                                                  */
-/*  - {platform.name}                                                        */
-/*  - {platform.name ?? "Social"}                                            */
-/*  - {platform.name || "Social"}                                            */
 /* -------------------------------------------------------------------------- */
 
 function getPath(ctx: Record<string, unknown>, path: string): unknown {
@@ -144,7 +62,6 @@ function parseLiteral(raw: string, ctx: Record<string, unknown>): unknown {
     const n = Number(s);
     if (!Number.isNaN(n) && s !== "") return n;
 
-    // fallback to ctx path
     return getPath(ctx, s);
 }
 
@@ -220,6 +137,15 @@ function templateDeep<T>(value: T, ctx: Record<string, unknown>): T {
 /* Wrapper                                                                    */
 /* -------------------------------------------------------------------------- */
 
+export type InputWrapperProps = {
+    field: Field;
+    disabled?: boolean;
+
+    extraProps?: Record<string, unknown>;
+    templateStrings?: boolean;
+    ctxOverrides?: Record<string, unknown>;
+};
+
 export function Wrapper({
     field,
     disabled,
@@ -228,8 +154,6 @@ export function Wrapper({
     ctxOverrides,
 }: InputWrapperProps) {
     const { registry } = useInputs();
-    const flowCtx = useOrderFlowContext();
-    const form = flowCtx.formApi;
     const flow = useOrderFlow();
 
     const kind = toKind(field);
@@ -242,304 +166,181 @@ export function Wrapper({
 
     if (!descriptor) {
         // eslint-disable-next-line no-console
-        console.warn("[InputWrapper] No descriptor for", {
-            kind,
-            variant,
-            field,
-        });
+        console.warn("[Wrapper] No descriptor for", { kind, variant, field });
         return null;
     }
 
-    const { Component, adapter, defaultProps: baseProps } = descriptor;
+    const Component = descriptor.Component as any;
+    const adapter = (descriptor.adapter ?? {}) as Adapter;
+    const baseProps = (descriptor.defaultProps ?? {}) as Record<
+        string,
+        unknown
+    >;
 
     const defaultProps = useMemo(() => {
-        return { ...(baseProps ?? {}), ...(field.defaults ?? {}) };
-    }, [field]);
+        return { ...baseProps, ...(field.defaults ?? {}) };
+    }, [baseProps, field.defaults]);
 
-    const valueProp = adapter?.valueProp ?? "value";
-    const changeProp = adapter?.changeProp ?? "onChange";
+    const valueProp = adapter.valueProp ?? "value";
+    const changeProp = adapter.changeProp ?? "onChange";
 
-    // Shape/intention
     const isOptionBased =
         Array.isArray(field.options) && field.options.length > 0;
-    const multi = !!(isOptionBased && isMultiField(field));
-    const isButton = field.button === true || isOptionBased;
 
-    // keep latest form api without retriggering cleanup
-    const formRef = React.useRef(form);
-    React.useEffect(() => {
-        formRef.current = form;
-    }, [form]);
+    // action button = option-less button
+    const isActionButton = field.button === true && !isOptionBased;
 
-    React.useEffect(() => {
-        if (!isButton) return;
+    // Register into form-palette:
+    // ✅ name is ALWAYS field.id (only name)
+    const fp = useField({
+        name: field.id,
+        required: !!field.required,
+        variant: field.type as any,
+        defaultValue: field.defaults?.value,
+        disabled: !!disabled,
+    });
 
-        return () => {
-            // run only on unmount (or if field.id / isButton changes)
-            formRef.current?.removeSelectionToken(field.id);
-        };
-    }, [isButton, field.id]);
-
-    // Option lookup
-    const optionById = React.useMemo(() => {
-        if (!isOptionBased) return new Map<string, FieldOption>();
-        return new Map((field.options ?? []).map((o) => [o.id, o]));
+    // Option ids allow-list (defensive)
+    const optionIds = React.useMemo(() => {
+        if (!isOptionBased) return new Set<string>();
+        return new Set((field.options ?? []).map((o: FieldOption) => o.id));
     }, [isOptionBased, field.options]);
 
-    const enrich = React.useCallback(
-        (bv: ButtonValue): ButtonValue => {
-            // Option-based → derive from option
-            if (isOptionBased) {
-                const opt = optionById.get(bv.id);
-                if (opt) {
-                    const role = (opt.pricing_role ?? "base") as
-                        | "base"
-                        | "utility";
-                    const sid = (opt as any).service_id as number | undefined;
+    // Selection syncing bookkeeping
+    const prevSelectedRef = React.useRef<string[]>([]);
+    React.useEffect(() => {
+        prevSelectedRef.current = [];
+    }, [field.id]);
 
-                    const meta = (opt.meta ?? field.meta) as
-                        | (Record<string, unknown> &
-                              UtilityMark &
-                              WithQuantityDefault)
-                        | undefined;
-
-                    return {
-                        ...bv,
-                        pricing_role: role,
-                        service_id: role === "utility" ? undefined : sid,
-                        ...(meta ? { meta } : {}),
-                    };
-                }
-                return bv;
-            }
-
-            // Option-less button → derive from field
-            const role = (field.pricing_role ?? "base") as "base" | "utility";
-            const sid = (field as any).service_id as number | undefined;
-
-            const meta = field.meta as
-                | (Record<string, unknown> & UtilityMark & WithQuantityDefault)
-                | undefined;
-
-            return {
-                ...bv,
-                pricing_role: role,
-                service_id: role === "utility" ? undefined : sid,
-                ...(meta ? { meta } : {}),
-            };
-        },
-        [field, isOptionBased, optionById],
+    const adapterCtx = React.useMemo<AdapterCtx>(
+        () => ({ field, props: flow.raw }),
+        [field],
     );
 
-    const normalizeToButtonValues = React.useCallback(
-        (input: unknown): ButtonValue[] => {
-            const coerceOne = (v: unknown): ButtonValue | null => {
-                if (v && typeof v === "object" && "id" in (v as any)) {
-                    const id = String((v as any).id);
-                    const valueRaw = (v as any).value;
-                    const value =
-                        typeof valueRaw === "number" ||
-                        typeof valueRaw === "string"
-                            ? (valueRaw as number | string)
-                            : 1;
-                    return enrich({ id, value });
-                }
-                // Primitive -> treat as id; value defaults to 1
-                if (typeof v === "string" || typeof v === "number") {
-                    return enrich({ id: String(v), value: 1 });
-                }
-                return null;
-            };
+    const onHostChange = React.useCallback(
+        (next: unknown) => {
+            const currentStored = (next as any)?.value;
 
-            if (Array.isArray(input)) {
-                const arr: ButtonValue[] = [];
-                for (const x of input) {
-                    const one = coerceOne(x);
-                    if (one) arr.push(one);
+            // 1) normalize into stored value
+            const stored =
+                adapter.getValue?.(next, currentStored, adapterCtx) ??
+                currentStored ??
+                next;
+
+            // 2) write ONLY via form-palette's onChange
+            fp.setValue(stored);
+
+            // 3) sync visibility triggers to Selection (via order flow)
+            if (isOptionBased) {
+                if (!adapter.getSelectedOptions) {
+                    throw new Error(
+                        `[Wrapper] Adapter for "${field.id}" (${field.type}) must implement getSelectedOptions() because this field has options.`,
+                    );
                 }
-                return arr;
+
+                const rawIds = adapter.getSelectedOptions(
+                    next,
+                    stored,
+                    adapterCtx,
+                );
+
+                const nextIds = Array.from(
+                    new Set(
+                        (rawIds ?? [])
+                            .map(String)
+                            .filter((id) => optionIds.has(id)),
+                    ),
+                );
+
+                const prev = prevSelectedRef.current;
+                prevSelectedRef.current = nextIds;
+
+                const prevSet = new Set(prev);
+                const nextSet = new Set(nextIds);
+
+                // toggle ON
+                for (const id of nextIds) {
+                    if (!prevSet.has(id)) flow.toggleOption(field.id, id);
+                }
+
+                // toggle OFF
+                for (const id of prev) {
+                    if (!nextSet.has(id)) flow.toggleOption(field.id, id);
+                }
+
+                return;
             }
 
-            const one = coerceOne(input);
-            return one ? [one] : [];
+            if (isActionButton) {
+                const isActive =
+                    adapter.isActive?.(stored, adapterCtx) ?? Boolean(stored);
+                if (isActive) flow.toggleOption(field.id);
+                else flow.clearField(field.id);
+            }
         },
-        [enrich],
+        [
+            adapter,
+            adapterCtx,
+            field.id,
+            field.type,
+            flow,
+            fp,
+            isActionButton,
+            isOptionBased,
+            optionIds,
+        ],
     );
 
-    // Current value bindings
-    let current: Scalar | Scalar[] | undefined = undefined;
-    let onChange: ((v: unknown) => void) | undefined = undefined;
-
-    if (form) {
-        if (isButton) {
-            if (isOptionBased) {
-                // option buttons: current is selected option ids (single or array)
-                const selIds = form.getSelections(field.id);
-                current = multi ? selIds : (selIds[0] ?? null);
-
-                onChange = (next: unknown) => {
-                    const normalized = adapter?.getValue
-                        ? adapter.getValue(next, current)
-                        : next;
-
-                    const bvs = normalizeToButtonValues(normalized);
-                    const ids = bvs.map((b) => b.id);
-
-                    form.setSelections(field.id, Array.from(new Set(ids)));
-
-                    // store values (if you need utility/quantity semantics)
-                    form.set(field.id, normalized as any);
-                };
-            } else {
-                // option-less button: keep scalar value and selection presence
-                const val = form.get(field.id);
-                current = val;
-
-                onChange = (next: unknown) => {
-                    const normalized = adapter?.getValue
-                        ? adapter.getValue(next, current)
-                        : next;
-
-                    const active = Boolean(normalized);
-
-                    console.log(normalized);
-
-                    if (active) {
-                        form.setSelections(field.id, [field.id]);
-                        form.set(field.id, normalized as Scalar);
-                    } else {
-                        form.setSelections(field.id, []);
-                        form.set(field.id, undefined as any); // instead of null
-                    }
-                };
-            }
-        } else {
-            // plain input
-            current = form.get(field.id);
-            onChange = (next: unknown) => {
-                const normalized = adapter?.getValue
-                    ? adapter.getValue(next, current)
-                    : (next as Scalar | Scalar[]);
-                form.set(field.id, normalized as Scalar | Scalar[]);
-            };
-        }
-    }
-
-    // Build wrapper snapshot for host components
-    const snapshot: WrapperRuntimeSnapshot = React.useMemo(() => {
-        const ctxFromInit = (flow as any).init?.ctx ?? {}; // (per your note)
+    // Template context (keep your current behavior)
+    const templateCtx = React.useMemo<Record<string, unknown>>(() => {
+        const ctxFromInit = (flow as any).init?.ctx ?? {};
         const ctx =
             ctxOverrides && typeof ctxOverrides === "object"
                 ? { ...(ctxFromInit as any), ...(ctxOverrides as any) }
                 : (ctxFromInit as Record<string, unknown>);
 
-        const fieldValue = flow.formValuesByFieldId[field.id];
-        const fieldSelections = flow.optionSelectionsByFieldId[field.id] ?? [];
-
         return {
+            ...ctx,
             field,
-
-            ready: flow.ready,
-            activeTagId: flow.activeTagId,
-
-            visibleFieldIds: flow.visibleGroup?.fieldIds,
-            visibleFields: flow.visibleGroup?.fields,
-
-            formValuesByFieldId: flow.formValuesByFieldId,
-            optionSelectionsByFieldId: flow.optionSelectionsByFieldId,
-
-            quantityPreview: flow.quantityPreview,
-
-            services: flow.services,
-            serviceMap: flow.serviceMap,
-
-            min: flow.min,
-            max: flow.max,
-
-            initMode: (flow as any).init?.mode,
-            initServices: (flow as any).init?.services,
-            ctx,
-
-            fallbackPolicy: flow.fallbackPolicy,
-
-            fieldValue,
-            fieldSelections,
-
-            getOrderSnapshot: flow.buildSnapshot,
+            flow,
+            value: fp.value,
+            error: fp.error,
         };
-    }, [
-        ctxOverrides,
-        field,
-        flow.activeTagId,
-        flow.buildSnapshot,
-        flow.fallbackPolicy,
-        flow.formValuesByFieldId,
-        flow.max,
-        flow.min,
-        flow.optionSelectionsByFieldId,
-        flow.quantityPreview,
-        flow.ready,
-        flow.serviceMap,
-        flow.services,
-        flow.visibleGroup,
-    ]);
-
-    // Templating context (adds a few convenience bindings)
-    const templateCtx = React.useMemo<Record<string, unknown>>(() => {
-        return {
-            ...snapshot.ctx,
-            field,
-            snapshot,
-            // handy shortcuts (some people like these):
-            min: snapshot.min,
-            max: snapshot.max,
-            services: snapshot.services,
-            serviceMap: snapshot.serviceMap,
-            quantity: snapshot.quantityPreview,
-            // field-local shortcuts:
-            value: snapshot.fieldValue,
-            selections: snapshot.fieldSelections,
-        };
-    }, [field, snapshot]);
+    }, [ctxOverrides, field, flow, fp.error, fp.value]);
 
     const templatedDefaultProps = React.useMemo(() => {
-        if (!templateStrings)
-            return (defaultProps ?? {}) as Record<string, unknown>;
-        return templateDeep((defaultProps ?? {}) as any, templateCtx) as Record<
-            string,
-            unknown
-        >;
+        if (!templateStrings) return defaultProps;
+        return templateDeep(defaultProps as any, templateCtx);
     }, [defaultProps, templateCtx, templateStrings]);
 
     const templatedExtraProps = React.useMemo(() => {
         if (!templateStrings)
             return (extraProps ?? {}) as Record<string, unknown>;
-        return templateDeep((extraProps ?? {}) as any, templateCtx) as Record<
-            string,
-            unknown
-        >;
+        return templateDeep((extraProps ?? {}) as any, templateCtx);
     }, [extraProps, templateCtx, templateStrings]);
 
-    // Host props passed to the input component
+    const fieldProps =
+        adapter?.getInputPropsFromField?.({ field, props: flow.raw }) ?? {};
+    // Build host props
     const hostProps: Record<string, unknown> = {
         id: field.id,
         field,
-        disabled: !!disabled,
-        name: field.name,
-        label: field.label,
-        required: field.required,
-        // NEW: give host inputs a rich runtime snapshot
-        snapshot,
+        disabled: !!disabled || !!fp.disabled,
+
+        // DO NOT pass `name` to InputField/entries
+        fieldKey: field.id,
+
+        ...(fieldProps ?? {}),
+        // error channel
+        error: fp.error,
 
         ...(templatedDefaultProps ?? {}),
         ...(templatedExtraProps ?? {}),
-        ...(isOptionBased ? { options: field.options as FieldOption[] } : {}),
     };
 
-    if (form) {
-        hostProps[valueProp] = current as unknown;
-        hostProps[changeProp] = onChange as unknown;
-    }
+    // value + change wiring
+    hostProps[valueProp] = (fp.value ?? null) as Scalar | Scalar[] | null;
+    hostProps[changeProp] = onHostChange;
 
     return <Component {...hostProps} />;
 }
