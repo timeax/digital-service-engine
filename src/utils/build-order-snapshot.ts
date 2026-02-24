@@ -245,6 +245,12 @@ function toSelectedOptionKeys(byField: Record<string, string[]>): string[] {
     return keys;
 }
 
+function isServicedBased(field: Field) {
+    if (field.service_id) return true;
+    return !!(field.options && field.options.some((item) => item.service_id));
+
+}
+
 function buildInputs(
     visibleFieldIds: string[],
     fieldById: Map<string, Field>,
@@ -267,7 +273,7 @@ function buildInputs(
         }
 
         // Only non-option fields contribute to form values; key by field.name
-        if (!isOptionBased(f)) {
+        if (!isServicedBased(f)) {
             const name: string | undefined = f.name;
             const val: Scalar | Scalar[] | undefined =
                 selection.formValuesByFieldId[fid];

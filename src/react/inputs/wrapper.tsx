@@ -402,8 +402,6 @@ export function Wrapper({
 
                     const active = Boolean(normalized);
 
-                    console.log(normalized);
-
                     if (active) {
                         form.setSelections(field.id, [field.id]);
                         form.set(field.id, normalized as Scalar);
