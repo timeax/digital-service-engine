@@ -86,6 +86,7 @@ export type OrderSnapshot = {
     // ── Single-context selection (the only active tag) ──
     selection: {
         tag: string; // tag id (context)
+        buttons: string[];
         fields: Array<{
             id: string; // field id
             type: string; // field.type at build time

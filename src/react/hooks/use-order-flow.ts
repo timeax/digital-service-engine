@@ -11,7 +11,10 @@ import {
     useOrderFlowContext,
 } from "./order-flow-provider";
 
-import type { VisibleGroup, VisibleGroupResult } from "@/react/canvas/selection";
+import type {
+    VisibleGroup,
+    VisibleGroupResult,
+} from "@/react/canvas/selection";
 
 const ROOT_TAG_ID = "t:root";
 
@@ -75,7 +78,7 @@ export type UseOrderFlowReturn = {
     setSnapshot: (snap: OrderSnapshot, opts?: { clearFirst?: boolean }) => void;
 
     /** VALIDATES via form.submit() */
-    buildSnapshot: () => OrderSnapshot;
+    buildSnapshot: () => OrderSnapshot | undefined;
 
     fallbackPolicy: FallbackSettings;
     setFallbackPolicy: (next: FallbackSettings) => void;
@@ -145,20 +148,24 @@ export function useOrderFlow(): UseOrderFlowReturn {
      * - driven by form.values() (core.values())
      * - already visible-only because only visible fields are mounted.
      */
-    const formValuesByFieldId: Record<string, Scalar | Scalar[]> = useMemo(() => {
-        const values = (ctx.formApi.snapshot?.() ?? {}) as Record<
-            string,
-            Scalar | Scalar[]
-        >;
+    const formValuesByFieldId: Record<string, Scalar | Scalar[]> =
+        useMemo(() => {
+            const values = (ctx.formApi.snapshot?.() ?? {}) as Record<
+                string,
+                Scalar | Scalar[]
+            >;
 
-        return values;
-    }, [ctx.formApi, formTick]);
+            return values;
+        }, [ctx.formApi, formTick]);
 
     /**
      * Selections are Selection-only now.
      * Keep empty map for snapshot builder signature.
      */
-    const optionSelectionsByFieldId = useMemo(() => ({} as Record<string, string[]>), []);
+    const optionSelectionsByFieldId = useMemo(
+        () => ({}) as Record<string, string[]>,
+        [],
+    );
 
     /**
      * Preview snapshot uses form.values() (no validation) + Selection context.
@@ -169,7 +176,7 @@ export function useOrderFlow(): UseOrderFlowReturn {
                 version: "1",
                 mode: "prod",
                 builtAt: new Date().toISOString(),
-                selection: { tag: "unknown", fields: [] },
+                selection: { tag: "unknown", fields: [], buttons: [] },
                 inputs: { form: {}, selections: {} },
                 quantity: 1,
                 quantitySource: { kind: "default", defaultedFromHost: true },
@@ -192,16 +199,18 @@ export function useOrderFlow(): UseOrderFlowReturn {
             };
         }
 
-        const { builder, init } = ctx.ensureReady("previewSnapshot");
+        const { builder, init, selection } = ctx.ensureReady("previewSnapshot");
         const mode: "prod" | "dev" = init.mode ?? "prod";
         const hostDefaultQuantity = Number(init.hostDefaultQuantity ?? 1) || 1;
 
+        /// console.log(formValuesByFieldId)
         return buildOrderSnapshot(
             builder.getProps(),
             builder,
             {
                 activeTagId: activeTagId ?? ROOT_TAG_ID,
                 formValuesByFieldId,
+                selectedKeys: Array.from(selection.all()),
                 optionSelectionsByFieldId, // Selection-owned now
             },
             init.services,
@@ -211,7 +220,14 @@ export function useOrderFlow(): UseOrderFlowReturn {
                 fallback: ctx.fallbackPolicy,
             },
         );
-    }, [ready, ctx, activeTagId, formValuesByFieldId, optionSelectionsByFieldId, selTick]);
+    }, [
+        ready,
+        ctx,
+        activeTagId,
+        formValuesByFieldId,
+        optionSelectionsByFieldId,
+        selTick,
+    ]);
 
     /**
      * Pricing preview unchanged (driven from previewSnapshot)
@@ -230,15 +246,21 @@ export function useOrderFlow(): UseOrderFlowReturn {
         const { init } = ctx.ensureReady("pricingPreview");
         const normalizeRate: NormalizeRateFn =
             ((init as unknown as { normalizeRate?: NormalizeRateFn })
-                .normalizeRate as NormalizeRateFn) ?? ((s: any) => Number(s?.rate));
+                .normalizeRate as NormalizeRateFn) ??
+            ((s: any) => Number(s?.rate));
 
         const quantity = Number(previewSnapshot.quantity ?? 1) || 1;
 
         let bestId: string | number | undefined;
         let bestRate = 0;
 
-        const selectedIds = (previewSnapshot.services ?? []) as Array<string | number>;
-        const svcMap = (init as any).services as Record<string | number, unknown>;
+        const selectedIds = (previewSnapshot.services ?? []) as Array<
+            string | number
+        >;
+        const svcMap = (init as any).services as Record<
+            string | number,
+            unknown
+        >;
 
         for (const id of selectedIds) {
             const svc = svcMap?.[id];
@@ -357,11 +379,13 @@ export function useOrderFlow(): UseOrderFlowReturn {
      * Build snapshot must VALIDATE.
      * This is where form.submit() belongs.
      */
-    const buildSnapshot = useCallback((): OrderSnapshot => {
+    const buildSnapshot = useCallback((): OrderSnapshot | undefined => {
         const { builder, selection, init } = ctx.ensureReady("buildSnapshot");
 
         const tagId = selection.currentTag();
-        if (!tagId) throw new Error("OrderFlow: no active tag/context selected");
+        const selectedKeys = Array.from(selection.all());
+        if (!tagId)
+            throw new Error("OrderFlow: no active tag/context selected");
 
         const mode: "prod" | "dev" = init.mode ?? "prod";
         const hostDefaultQuantity = Number(init.hostDefaultQuantity ?? 1) || 1;
@@ -369,12 +393,15 @@ export function useOrderFlow(): UseOrderFlowReturn {
         const submitted = ctx.formApi.submit();
         const values = submitted.values as Record<string, Scalar | Scalar[]>;
 
+        if (!submitted.valid) return;
+
         return buildOrderSnapshot(
             builder.getProps(),
             builder,
             {
                 activeTagId: tagId,
                 formValuesByFieldId: values,
+                selectedKeys,
                 optionSelectionsByFieldId, // Selection-owned
             },
             init.services,
@@ -387,7 +414,7 @@ export function useOrderFlow(): UseOrderFlowReturn {
     }, [ctx, optionSelectionsByFieldId]);
 
     const raw = useMemo(() => {
-        if (!ready) return (propsRef.current ?? ({} as ServiceProps));
+        if (!ready) return propsRef.current ?? ({} as ServiceProps);
         return ctx.ensureReady("raw").builder.getProps();
     }, [ctx, ready, selTick]);
 

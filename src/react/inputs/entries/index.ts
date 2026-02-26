@@ -181,6 +181,7 @@ function withInputFieldUi(desc: InputDescriptor): InputDescriptor {
                 return {
                     label: field.label,
                     tags: fieldNotices.map(toTagPill),
+                    required: field.required,
 
                     ...(field.options?.length
                         ? {

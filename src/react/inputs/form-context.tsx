@@ -7,7 +7,7 @@ import { Form, useCore } from "@timeax/form-palette";
 
 type Dict = Record<string, unknown>;
 
-export type FormSnapshot = Dict
+export type FormSnapshot = Dict;
 
 export type FormApi = {
     /** Value by fieldId (Wrapper uses name=field.id) */
@@ -66,20 +66,9 @@ export type FormProviderProps = {
         values?: Dict;
         selections?: Record<string, string[]>;
     };
-
-    /**
-     * Called on every palette update (values bag).
-     * Use to persist anywhere (state/localStorage/etc).
-     */
-    onUpdate?: (vals: Dict) => void;
 };
 
-export function FormProvider({
-    children,
-    schema,
-    initial,
-    onUpdate,
-}: FormProviderProps) {
+export function FormProvider({ children, schema, initial }: FormProviderProps) {
     // Indefinite memory (we keep values even when fields unmount)
     const [bag, setBag] = React.useState<Dict>(() => ({
         ...(initial?.values ?? {}),
@@ -183,12 +172,11 @@ export function FormProvider({
                 const core = coreRef.current;
                 const live = (core?.values?.() as Dict | undefined) ?? {};
 
-                return live
+                return live;
             },
 
             submit() {
                 const core = coreRef.current;
-                console.log(core);
                 if (!core) return { values: {}, valid: false };
 
                 // palette submit validates & returns mounted/visible values
@@ -204,15 +192,7 @@ export function FormProvider({
                 schema={schema}
                 valueBag={bag}
                 formRef={coreRef}
-                onUpdate={(vals: any) => {
-                    const next = (vals ?? {}) as Dict;
-
-                    // CRITICAL: merge (don’t replace), so unmounted fields keep their values indefinitely
-                    setBag((prev) => ({ ...prev, ...next }));
-
-                    onUpdate?.({ ...bag, ...next });
-                    publish();
-                }}
+                onChange={() => publish()}
             >
                 <Bridge />
                 {children}

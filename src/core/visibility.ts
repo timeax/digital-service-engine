@@ -184,10 +184,7 @@ export function visibleFieldIdsUnder(
     }
 
     // otherwise: revealed-first (only final-visible)
-    const promoted = revealedOrder.filter((fid) => visible.has(fid));
-    const promotedSet = new Set(promoted);
-    const rest = base.filter((fid) => !promotedSet.has(fid));
-    return [...promoted, ...rest];
+    return base;
 }
 
 /** Convenience: returns ordered Field[] instead of ids. */

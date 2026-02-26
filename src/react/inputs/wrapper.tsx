@@ -144,6 +144,7 @@ export type InputWrapperProps = {
     extraProps?: Record<string, unknown>;
     templateStrings?: boolean;
     ctxOverrides?: Record<string, unknown>;
+    className?: string;
 };
 
 export function Wrapper({
@@ -152,6 +153,7 @@ export function Wrapper({
     extraProps,
     templateStrings = true,
     ctxOverrides,
+    className = "",
 }: InputWrapperProps) {
     const { registry } = useInputs();
     const flow = useOrderFlow();
@@ -183,6 +185,7 @@ export function Wrapper({
 
     const valueProp = adapter.valueProp ?? "value";
     const changeProp = adapter.changeProp ?? "onChange";
+    const errorProp = adapter.errorProp ?? "errorText";
 
     const isOptionBased =
         Array.isArray(field.options) && field.options.length > 0;
@@ -326,6 +329,7 @@ export function Wrapper({
         id: field.id,
         field,
         disabled: !!disabled || !!fp.disabled,
+        required: field.required,
 
         // DO NOT pass `name` to InputField/entries
         fieldKey: field.id,
@@ -341,6 +345,11 @@ export function Wrapper({
     // value + change wiring
     hostProps[valueProp] = (fp.value ?? null) as Scalar | Scalar[] | null;
     hostProps[changeProp] = onHostChange;
+    hostProps[errorProp] = fp.error;
 
-    return <Component {...hostProps} />;
+    return (
+        <div ref={fp.ref as any} className={className}>
+            <Component {...hostProps} />
+        </div>
+    );
 }

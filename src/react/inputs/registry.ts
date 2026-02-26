@@ -11,11 +11,12 @@ export type InputVariant = "default" | (string & {});
 /* - isActive: optional for option-less action buttons                         */
 /* -------------------------------------------------------------------------- */
 
-export type AdapterCtx = { field: Field, props: ServiceProps };
+export type AdapterCtx = { field: Field; props: ServiceProps };
 
 export type Adapter = {
     valueProp?: string;
     changeProp?: string;
+    errorProp?: string;
 
     /** normalize what the host emitted into what we store in form-palette */
     getValue?: (next: unknown, current: unknown, ctx: AdapterCtx) => unknown;
