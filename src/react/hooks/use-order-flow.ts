@@ -210,7 +210,7 @@ export function useOrderFlow(): UseOrderFlowReturn {
             {
                 activeTagId: activeTagId ?? ROOT_TAG_ID,
                 formValuesByFieldId,
-                selectedKeys: Array.from(selection.all()),
+                selectedKeys: selection.selectedButtons(),
                 optionSelectionsByFieldId, // Selection-owned now
             },
             init.services,
@@ -383,7 +383,7 @@ export function useOrderFlow(): UseOrderFlowReturn {
         const { builder, selection, init } = ctx.ensureReady("buildSnapshot");
 
         const tagId = selection.currentTag();
-        const selectedKeys = Array.from(selection.all());
+        const selectedKeys = selection.selectedButtons();
         if (!tagId)
             throw new Error("OrderFlow: no active tag/context selected");
 

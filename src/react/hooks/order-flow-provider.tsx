@@ -46,6 +46,8 @@ export type OrderFlowInit = {
      * Host props provided to further enhance the nodes data
      */
     ctx?: Record<string, unknown>;
+
+    normalizeRate?(rate: number): number
 };
 
 type ProviderFlow = {
