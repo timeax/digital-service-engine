@@ -1,21 +1,65 @@
+// fallback-editor/FallbackSettingsPanel.tsx
 import React from "react";
-import type { EditorSettings } from "./fallback-editor.types";
+import type { FallbackSettings } from "@/schema/validation";
+import { useFallbackEditorContext } from "./FallbackEditorProvider";
 
-type Props = {
-    value: EditorSettings;
-    onChange: (next: EditorSettings) => void;
-};
+export function FallbackSettingsPanel() {
+    const { settings, saveSettings, settingsSaving } =
+        useFallbackEditorContext();
 
-export function FallbackSettingsPanel({ value, onChange }: Props) {
+    const [draft, setDraft] = React.useState<FallbackSettings>(settings);
+    const [error, setError] = React.useState<string | null>(null);
+    const [saved, setSaved] = React.useState(false);
+
+    React.useEffect(() => {
+        setDraft(settings);
+    }, [settings]);
+
+    const changed =
+        JSON.stringify(draft ?? {}) !== JSON.stringify(settings ?? {});
+
+    async function handleSave() {
+        setError(null);
+        setSaved(false);
+
+        try {
+            await saveSettings(draft);
+            setSaved(true);
+        } catch (err) {
+            setError(
+                err instanceof Error
+                    ? err.message
+                    : "Failed to save fallback settings.",
+            );
+        }
+    }
+
     return (
         <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-            <div className="mb-4">
-                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                    Fallback settings
-                </h3>
-                <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                    Policy used for validation and candidate previews.
-                </p>
+            <div className="mb-4 flex items-start justify-between gap-3">
+                <div>
+                    <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                        Fallback settings
+                    </h3>
+                    <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                        These settings can be persisted by the host and returned
+                        back into the editor.
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={!changed || settingsSaving}
+                    className={[
+                        "rounded-xl px-3 py-2 text-sm font-medium transition",
+                        !changed || settingsSaving
+                            ? "cursor-not-allowed bg-zinc-200 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-500"
+                            : "bg-blue-600 text-white hover:bg-blue-700",
+                    ].join(" ")}
+                >
+                    {settingsSaving ? "Saving..." : "Save settings"}
+                </button>
             </div>
 
             <div className="space-y-4">
@@ -26,28 +70,28 @@ export function FallbackSettingsPanel({ value, onChange }: Props) {
                     <button
                         type="button"
                         onClick={() =>
-                            onChange({
-                                ...value,
+                            setDraft((prev) => ({
+                                ...prev,
                                 requireConstraintFit:
-                                    !value.requireConstraintFit,
-                            })
+                                    !prev?.requireConstraintFit,
+                            }))
                         }
                         className={[
                             "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm",
-                            value.requireConstraintFit
+                            draft.requireConstraintFit
                                 ? "border-green-300 bg-green-50 text-green-700 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-300"
                                 : "border-zinc-300 bg-white text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300",
                         ].join(" ")}
                     >
                         <span>
-                            {value.requireConstraintFit
+                            {draft.requireConstraintFit
                                 ? "Enabled"
                                 : "Disabled"}
                         </span>
                         <span
                             className={[
                                 "h-2.5 w-2.5 rounded-full",
-                                value.requireConstraintFit
+                                draft.requireConstraintFit
                                     ? "bg-green-500"
                                     : "bg-zinc-400",
                             ].join(" ")}
@@ -60,15 +104,18 @@ export function FallbackSettingsPanel({ value, onChange }: Props) {
                     hint="Defines how fallback rates are compared to the primary service."
                 >
                     <select
-                        value={value.ratePolicy}
+                        value={draft.ratePolicy?.kind ?? "lte_primary"}
                         onChange={(e) =>
-                            onChange({
-                                ...value,
-                                ratePolicy: e.target
-                                    .value as EditorSettings["ratePolicy"],
-                            })
+                            setDraft((prev) => ({
+                                ...prev,
+                                ratePolicy: {
+                                    kind: e.target.value as
+                                        | "lte_primary"
+                                        | "ignore",
+                                },
+                            }) as any)
                         }
-                        className="w-44 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                        className="w-48 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
                     >
                         <option value="lte_primary">lte_primary</option>
                         <option value="ignore">ignore</option>
@@ -80,15 +127,16 @@ export function FallbackSettingsPanel({ value, onChange }: Props) {
                     hint="How valid fallback candidates are ordered in previews."
                 >
                     <select
-                        value={value.selectionStrategy}
+                        value={draft.selectionStrategy ?? "priority"}
                         onChange={(e) =>
-                            onChange({
-                                ...value,
-                                selectionStrategy: e.target
-                                    .value as EditorSettings["selectionStrategy"],
-                            })
+                            setDraft((prev) => ({
+                                ...prev,
+                                selectionStrategy: e.target.value as
+                                    | "priority"
+                                    | "cheapest",
+                            }))
                         }
-                        className="w-44 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                        className="w-48 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
                     >
                         <option value="priority">priority</option>
                         <option value="cheapest">cheapest</option>
@@ -100,20 +148,32 @@ export function FallbackSettingsPanel({ value, onChange }: Props) {
                     hint="Use strict for enforced filtering, dev for advisory feedback."
                 >
                     <select
-                        value={value.mode}
+                        value={draft.mode ?? "strict"}
                         onChange={(e) =>
-                            onChange({
-                                ...value,
-                                mode: e.target.value as EditorSettings["mode"],
-                            })
+                            setDraft((prev) => ({
+                                ...prev,
+                                mode: e.target.value as "strict" | "dev",
+                            }))
                         }
-                        className="w-44 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                        className="w-48 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
                     >
                         <option value="strict">strict</option>
                         <option value="dev">dev</option>
                     </select>
                 </SettingRow>
             </div>
+
+            {saved && !error ? (
+                <div className="mt-4 rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-700 dark:border-green-900/50 dark:bg-green-950/20 dark:text-green-300">
+                    Settings saved.
+                </div>
+            ) : null}
+
+            {error ? (
+                <div className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">
+                    {error}
+                </div>
+            ) : null}
         </section>
     );
 }

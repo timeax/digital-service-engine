@@ -1,21 +1,24 @@
+// fallback-editor/FallbackServiceSidebar.tsx
 import React, { useMemo, useState } from "react";
-import type { ServiceIdRef } from "@/schema";
-import type { RegistrationItem, ServiceSummary } from "./fallback-editor.types";
+import { useFallbackEditor } from "./useFallbackEditor";
 
-type Props = {
-    services: ServiceSummary[];
-    registrations: RegistrationItem[];
-    activeServiceId?: ServiceIdRef;
-    onSelect: (id: ServiceIdRef) => void;
-};
+export function FallbackServiceSidebar() {
+    const { activeServiceId, setActiveServiceId, get, version, editor } =
+        useFallbackEditor();
 
-export function FallbackServiceSidebar({
-    services,
-    registrations,
-    activeServiceId,
-    onSelect,
-}: Props) {
     const [query, setQuery] = useState("");
+
+    const services = useMemo(() => {
+        const map = (editor as any).source?.()?.services;
+        if (!map) return [];
+
+        return Object.values(map) as Array<{
+            id: string | number;
+            name?: string;
+            platform?: string;
+            rate?: number;
+        }>;
+    }, [editor, version]);
 
     const filtered = useMemo(() => {
         const q = query.trim().toLowerCase();
@@ -23,13 +26,14 @@ export function FallbackServiceSidebar({
         return services.filter(
             (service) =>
                 String(service.id).includes(q) ||
-                service.name.toLowerCase().includes(q) ||
-                (service.platform ?? "").toLowerCase().includes(q),
+                String(service.name ?? "")
+                    .toLowerCase()
+                    .includes(q) ||
+                String(service.platform ?? "")
+                    .toLowerCase()
+                    .includes(q),
         );
     }, [query, services]);
-
-    const countFor = (id: ServiceIdRef) =>
-        registrations.filter((r) => String(r.primary) === String(id)).length;
 
     return (
         <aside className="flex min-h-0 flex-col rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
@@ -47,20 +51,20 @@ export function FallbackServiceSidebar({
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder="Search service..."
-                    className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none ring-0 placeholder:text-zinc-400 focus:border-blue-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100 dark:placeholder:text-zinc-500"
+                    className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                 />
 
                 <div className="mt-3 flex-1 space-y-2 overflow-auto">
                     {filtered.map((service) => {
                         const active =
                             String(service.id) === String(activeServiceId);
-                        const count = countFor(service.id);
+                        const count = get(service.id).length;
 
                         return (
                             <button
                                 key={String(service.id)}
                                 type="button"
-                                onClick={() => onSelect(service.id)}
+                                onClick={() => setActiveServiceId(service.id)}
                                 className={[
                                     "w-full rounded-2xl border p-3 text-left transition",
                                     active
@@ -72,11 +76,10 @@ export function FallbackServiceSidebar({
                                     <div className="min-w-0">
                                         <div className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                                             #{String(service.id)} ·{" "}
-                                            {service.name}
+                                            {service.name ?? "Unnamed"}
                                         </div>
                                         <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                            {service.platform ??
-                                                "Unknown platform"}
+                                            {service.platform ?? "Unknown"}
                                             {typeof service.rate === "number"
                                                 ? ` · rate ${service.rate}`
                                                 : ""}

@@ -100,3 +100,5 @@ src/
       FallbackSettingsPanel.tsx
       FallbackDetailsPanel.tsx
       fallback-editor.types.ts
+      useFallbackEditor.ts
+      FallbackEditorProvider.tsx

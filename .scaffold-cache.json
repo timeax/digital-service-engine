@@ -343,6 +343,20 @@
       "sizeAtCreate": 0,
       "groupName": "default",
       "groupRoot": "."
+    },
+    "src/react/fallback-editor/useFallbackEditor.ts": {
+      "path": "src/react/fallback-editor/useFallbackEditor.ts",
+      "createdAt": "2026-03-06T22:41:17.711Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/fallback-editor/FallbackEditorProvider.tsx": {
+      "path": "src/react/fallback-editor/FallbackEditorProvider.tsx",
+      "createdAt": "2026-03-06T22:41:17.712Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
     }
   }
 }
