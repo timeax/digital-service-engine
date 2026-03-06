@@ -92,3 +92,11 @@ src/
               manual.ts                      # (optional) dev/test adapter
               ws.ts                          # (optional stub) host can implement too
               sse.ts
+    fallback-editor/
+      FallbackEditor.tsx
+      FallbackEditorHeader.tsx
+      FallbackServiceSidebar.tsx
+      FallbackRegistrationsPanel.tsx
+      FallbackSettingsPanel.tsx
+      FallbackDetailsPanel.tsx
+      fallback-editor.types.ts

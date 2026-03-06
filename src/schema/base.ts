@@ -1,4 +1,6 @@
 // persisted schema + shared types
+import { ServiceFallback } from "@/schema/fallback-editor";
+
 export type PricingRole = "base" | "utility";
 export type FieldType = "custom" | (string & {});
 
@@ -243,17 +245,6 @@ export type ServiceProps = {
     fallbacks?: ServiceFallback;
     name?: string;
     notices?: ServicePropsNotice[];
-};
-
-// Ids
-export type ServiceIdRef = number | string; // provider service id
-export type NodeIdRef = string; // tag.id or option.id
-
-export type ServiceFallback = {
-    /** Node-scoped fallbacks: prefer these when that node’s primary service fails */
-    nodes?: Record<NodeIdRef, ServiceIdRef[]>;
-    /** Primary→fallback list used when no node-scoped entry is present */
-    global?: Record<ServiceIdRef, ServiceIdRef[]>;
 };
 
 //--- notices
