@@ -1,20 +1,9 @@
-// fallback-editor/FallbackDetailsPanel.tsx
 import React from "react";
-import { useFallbackEditor } from "./useFallbackEditor";
+import { useFallbackEditor, usePrimaryServiceList } from "./useFallbackEditor";
 
 export function FallbackDetailsPanel() {
-    const { activeServiceId, editor, version, state } = useFallbackEditor();
-
-    const services = React.useMemo(() => {
-        const map = (editor as any).source?.()?.services;
-        if (!map) return [];
-        return Object.values(map) as Array<{
-            id: string | number;
-            name?: string;
-            platform?: string;
-            rate?: number;
-        }>;
-    }, [editor, version]);
+    const { activeServiceId, state, settings } = useFallbackEditor();
+    const services = usePrimaryServiceList();
 
     const service = React.useMemo(
         () => services.find((s) => String(s.id) === String(activeServiceId)),
@@ -25,7 +14,7 @@ export function FallbackDetailsPanel() {
         <aside className="flex min-h-0 flex-col gap-4">
             <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
                 <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                    Service info
+                    Primary service info
                 </h3>
 
                 {!service ? (
@@ -57,6 +46,39 @@ export function FallbackDetailsPanel() {
                         />
                     </div>
                 )}
+            </section>
+
+            <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+                <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    Active policy
+                </h3>
+
+                <div className="mt-3 space-y-2 text-sm">
+                    <Detail
+                        label="Constraint fit"
+                        value={
+                            settings.requireConstraintFit
+                                ? "enabled"
+                                : "disabled"
+                        }
+                    />
+                    <Detail
+                        label="Rate policy"
+                        value={
+                            settings.ratePolicy?.kind === "within_pct"
+                                ? `within_pct (${settings.ratePolicy.pct}%)`
+                                : settings.ratePolicy?.kind ===
+                                    "at_least_pct_lower"
+                                  ? `at_least_pct_lower (${settings.ratePolicy.pct}%)`
+                                  : "lte_primary"
+                        }
+                    />
+                    <Detail
+                        label="Strategy"
+                        value={settings.selectionStrategy ?? "priority"}
+                    />
+                    <Detail label="Mode" value={settings.mode ?? "strict"} />
+                </div>
             </section>
 
             <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">

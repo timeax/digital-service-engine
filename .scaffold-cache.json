@@ -357,6 +357,27 @@
       "sizeAtCreate": 0,
       "groupName": "default",
       "groupRoot": "."
+    },
+    "src/react/fallback-editor/FallbackAddCandidatesDialog.tsx": {
+      "path": "src/react/fallback-editor/FallbackAddCandidatesDialog.tsx",
+      "createdAt": "2026-03-06T23:30:59.280Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/fallback-editor/VirtualServiceList.tsx": {
+      "path": "src/react/fallback-editor/VirtualServiceList.tsx",
+      "createdAt": "2026-03-06T23:30:59.283Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
+    },
+    "src/react/fallback-editor/FallbackAddRegistrationDialog.tsx": {
+      "path": "src/react/fallback-editor/FallbackAddRegistrationDialog.tsx",
+      "createdAt": "2026-03-06T23:44:36.715Z",
+      "sizeAtCreate": 0,
+      "groupName": "default",
+      "groupRoot": "."
     }
   }
 }

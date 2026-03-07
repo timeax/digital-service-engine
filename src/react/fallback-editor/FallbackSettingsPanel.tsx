@@ -1,6 +1,5 @@
-// fallback-editor/FallbackSettingsPanel.tsx
 import React from "react";
-import type { FallbackSettings } from "@/schema/validation";
+import type { FallbackSettings, RatePolicy } from "@/schema/validation";
 import { useFallbackEditorContext } from "./FallbackEditorProvider";
 
 export function FallbackSettingsPanel() {
@@ -13,6 +12,8 @@ export function FallbackSettingsPanel() {
 
     React.useEffect(() => {
         setDraft(settings);
+        setSaved(false);
+        setError(null);
     }, [settings]);
 
     const changed =
@@ -34,6 +35,15 @@ export function FallbackSettingsPanel() {
         }
     }
 
+    function setRatePolicy(next: RatePolicy) {
+        setDraft((prev) => ({
+            ...prev,
+            ratePolicy: next,
+        }));
+    }
+
+    const ratePolicy: RatePolicy = draft.ratePolicy ?? { kind: "lte_primary" };
+
     return (
         <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
             <div className="mb-4 flex items-start justify-between gap-3">
@@ -43,7 +53,7 @@ export function FallbackSettingsPanel() {
                     </h3>
                     <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
                         These settings can be persisted by the host and returned
-                        back into the editor.
+                        into the editor.
                     </p>
                 </div>
 
@@ -101,25 +111,83 @@ export function FallbackSettingsPanel() {
 
                 <SettingRow
                     title="Rate policy"
-                    hint="Defines how fallback rates are compared to the primary service."
+                    hint="Controls how fallback service rates are compared against the primary service."
                 >
-                    <select
-                        value={draft.ratePolicy?.kind ?? "lte_primary"}
-                        onChange={(e) =>
-                            setDraft((prev) => ({
-                                ...prev,
-                                ratePolicy: {
-                                    kind: e.target.value as
-                                        | "lte_primary"
-                                        | "ignore",
-                                },
-                            }) as any)
-                        }
-                        className="w-48 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-                    >
-                        <option value="lte_primary">lte_primary</option>
-                        <option value="ignore">ignore</option>
-                    </select>
+                    <div className="flex flex-col gap-2 md:items-end">
+                        <select
+                            value={ratePolicy.kind}
+                            onChange={(e) => {
+                                const kind = e.target
+                                    .value as RatePolicy["kind"];
+
+                                if (kind === "lte_primary") {
+                                    setRatePolicy({ kind: "lte_primary" });
+                                    return;
+                                }
+
+                                if (kind === "within_pct") {
+                                    setRatePolicy({
+                                        kind: "within_pct",
+                                        pct:
+                                            ratePolicy.kind === "within_pct" ||
+                                            ratePolicy.kind ===
+                                                "at_least_pct_lower"
+                                                ? ratePolicy.pct
+                                                : 10,
+                                    });
+                                    return;
+                                }
+
+                                setRatePolicy({
+                                    kind: "at_least_pct_lower",
+                                    pct:
+                                        ratePolicy.kind === "within_pct" ||
+                                        ratePolicy.kind === "at_least_pct_lower"
+                                            ? ratePolicy.pct
+                                            : 10,
+                                });
+                            }}
+                            className="w-56 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                        >
+                            <option value="lte_primary">lte_primary</option>
+                            <option value="within_pct">within_pct</option>
+                            <option value="at_least_pct_lower">
+                                at_least_pct_lower
+                            </option>
+                        </select>
+
+                        {(ratePolicy.kind === "within_pct" ||
+                            ratePolicy.kind === "at_least_pct_lower") && (
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="number"
+                                    min={0}
+                                    step="0.01"
+                                    value={ratePolicy.pct}
+                                    onChange={(e) => {
+                                        const pct = Number(e.target.value || 0);
+
+                                        if (ratePolicy.kind === "within_pct") {
+                                            setRatePolicy({
+                                                kind: "within_pct",
+                                                pct,
+                                            });
+                                            return;
+                                        }
+
+                                        setRatePolicy({
+                                            kind: "at_least_pct_lower",
+                                            pct,
+                                        });
+                                    }}
+                                    className="w-32 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                                />
+                                <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                                    %
+                                </span>
+                            </div>
+                        )}
+                    </div>
                 </SettingRow>
 
                 <SettingRow

@@ -1,4 +1,3 @@
-// fallback-editor/FallbackEditor.tsx
 import React from "react";
 import type { ServiceIdRef, ServiceProps } from "@/schema";
 import type { OrderSnapshot } from "@/schema/order";
@@ -16,52 +15,86 @@ import { FallbackDetailsPanel } from "./FallbackDetailsPanel";
 import { useFallbackEditor } from "@/react/fallback-editor/useFallbackEditor";
 
 type Props = {
+    className?: string;
     fallbacks?: ServiceProps["fallbacks"];
     props?: ServiceProps;
     snapshot?: OrderSnapshot;
-    services?: DgpServiceMap;
+
+    primaryServices?: DgpServiceMap;
+    eligibleServices?: DgpServiceMap;
+
     settings?: FallbackSettings;
     initialServiceId?: ServiceIdRef;
+
     onSettingsChange?: FallbackEditorProviderProps["onSettingsChange"];
+    onSave?: FallbackEditorProviderProps["onSave"];
+    onValidate?: FallbackEditorProviderProps["onValidate"];
+    onReset?: FallbackEditorProviderProps["onReset"];
 };
 
 export function FallbackEditor({
+    className,
     fallbacks,
     props,
     snapshot,
-    services,
+    primaryServices,
+    eligibleServices,
     settings,
     initialServiceId,
     onSettingsChange,
+    onSave,
+    onValidate,
+    onReset,
 }: Props) {
     return (
         <FallbackEditorProvider
             fallbacks={fallbacks}
             props={props}
             snapshot={snapshot}
-            services={services}
+            primaryServices={primaryServices}
+            eligibleServices={eligibleServices}
             settings={settings}
             initialServiceId={initialServiceId}
             onSettingsChange={onSettingsChange}
+            onSave={onSave}
+            onValidate={onValidate}
+            onReset={onReset}
         >
-            <FallbackEditorInner />
+            <FallbackEditorInner className={className} />
         </FallbackEditorProvider>
     );
 }
 
-function FallbackEditorInner() {
-    const { activeTab, setActiveTab, activeServiceId, reset, state } =
-        useFallbackEditor();
+function FallbackEditorInner({ className }: { className?: string }) {
+    const {
+        activeTab,
+        setActiveTab,
+        activeServiceId,
+        saveFallbacks,
+        validateFallbacks,
+        resetEditor,
+        headerSaving,
+        headerValidating,
+        headerResetting,
+    } = useFallbackEditor();
 
     return (
-        <div className="min-h-screen bg-zinc-100 p-4 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
+        <div
+            className={[
+                "min-h-screen bg-zinc-100 p-4 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100",
+                className,
+            ]
+                .filter(Boolean)
+                .join(" ")}
+        >
             <div className="mx-auto flex max-w-7xl flex-col gap-4">
                 <FallbackEditorHeader
-                    onReset={reset}
-                    onPreview={() => console.log("eligible preview")}
-                    onSave={() =>
-                        console.log("current fallbacks", state.current)
-                    }
+                    onReset={resetEditor}
+                    onValidate={validateFallbacks}
+                    onSave={saveFallbacks as any}
+                    resetting={headerResetting}
+                    validating={headerValidating}
+                    saving={headerSaving}
                 />
 
                 <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)_360px]">

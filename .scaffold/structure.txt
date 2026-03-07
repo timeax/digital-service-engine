@@ -102,3 +102,6 @@ src/
       fallback-editor.types.ts
       useFallbackEditor.ts
       FallbackEditorProvider.tsx
+      FallbackAddCandidatesDialog.tsx
+      VirtualServiceList.tsx
+      FallbackAddRegistrationDialog.tsx
