@@ -1,4 +1,4 @@
-import type {Registry, InputDescriptor, InputKind, InputVariant, InputAdapter} from "@/react";
+import type {Registry, InputDescriptor, InputKind, InputVariant, Adapter} from "@/react";
 
 const moduleCache = new Map<string, unknown>();
 
@@ -12,7 +12,7 @@ export type RegisterCustomOptions = {
     /** Which export to use; defaults to "default" */
     exportName?: string;
     /** Optional adapter + default props */
-    adapter?: InputAdapter;
+    adapter?: Adapter;
     defaultProps?: Record<string, unknown>;
 };
 

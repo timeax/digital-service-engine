@@ -46,6 +46,8 @@ export type OrderFlowInit = {
      * Host props provided to further enhance the nodes data
      */
     ctx?: Record<string, unknown>;
+
+    normalizeRate?(svc: DgpServiceCapability): number;
 };
 
 type ProviderFlow = {
@@ -304,7 +306,6 @@ export const OrderFlowProvider = forwardRef<
             if (unsubRef.current) unsubRef.current();
         };
     }, []);
-
 
     const resolveSelection = useCallback(
         (

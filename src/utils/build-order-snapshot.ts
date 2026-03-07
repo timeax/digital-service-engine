@@ -42,6 +42,7 @@ export type BuildOrderSelection = {
     formValuesByFieldId: Record<string, Scalar | Scalar[]>;
     /** Option selections, keyed by fieldId → optionId[] */
     optionSelectionsByFieldId: Record<string, string[]>;
+    selectedKeys?: string[];
     /**
      * Selection visit order for options (optional, improves "first option wins primary" determinism).
      * If omitted, iteration order falls back to Object.entries(optionSelectionsByFieldId).
@@ -78,12 +79,12 @@ export function buildOrderSnapshot(
     const tagId: string = selection.activeTagId;
 
     // 1) Resolve visible fields for the single context
-    const selectedOptionKeys: string[] = toSelectedOptionKeys(
-        selection.optionSelectionsByFieldId,
-    );
+    const selectedButtonKeys: string[] =
+        selection.selectedKeys ??
+        toSelectedOptionKeys(selection.optionSelectionsByFieldId);
     const visibleFieldIds: string[] = builder.visibleFields(
         tagId,
-        selectedOptionKeys,
+        selectedButtonKeys,
     );
 
     // Indexes
@@ -202,6 +203,7 @@ export function buildOrderSnapshot(
         builtAt,
         selection: {
             tag: tagId,
+            buttons: selectedButtonKeys,
             fields: selectionFields,
         },
         inputs: {
@@ -248,7 +250,6 @@ function toSelectedOptionKeys(byField: Record<string, string[]>): string[] {
 function isServicedBased(field: Field) {
     if (field.service_id) return true;
     return !!(field.options && field.options.some((item) => item.service_id));
-
 }
 
 function buildInputs(

@@ -53,7 +53,12 @@ export class Selection {
     }
 
     add(id: string) {
+        // maintain "most-recent" selection order:
+        // Set keeps insertion order, but re-adding an existing id does NOT move it.
+        // So we delete+add to bump it to the end every time this is called.
+        if (this.set.has(id)) this.set.delete(id);
         this.set.add(id);
+
         this.primaryId = id;
         this.updateCurrentTagFrom(id);
         this.emit();
@@ -118,7 +123,9 @@ export class Selection {
 
         // WORKSPACE: >1 tag selected → return raw selection set
         if ((this.opts.env ?? "client") === "workspace") {
-            const tagIds = Array.from(this.set).filter(this.builder.isTagId.bind(this.builder));
+            const tagIds = Array.from(this.set).filter(
+                this.builder.isTagId.bind(this.builder),
+            );
             if (tagIds.length > 1) {
                 return { kind: "multi", groups: Array.from(this.set) };
             }
@@ -130,6 +137,120 @@ export class Selection {
 
         const group = this.computeGroupForTag(props, tagId);
         return { kind: "single", group };
+    }
+
+    /**
+     * Build a fieldId -> triggerKeys[] map from the current selection set.
+     *
+     * What counts as a "button selection" (trigger key):
+     * - field key where the field has button === true (e.g. "f:dripfeed")
+     * - option key (e.g. "o:fast")
+     * - composite key "fieldId::optionId" (e.g. "f:speed::o:fast")
+     *
+     * Grouping:
+     * - button-field trigger groups under its own fieldId
+     * - option/composite groups under the option's owning fieldId (from nodeMap)
+     *
+     * Deterministic:
+     * - preserves selection insertion order
+     * - de-dupes per field
+     */
+    buttonSelectionsByFieldId(): Record<string, string[]> {
+        const nodeMap = this.builder.getNodeMap();
+        const out: Record<string, string[]> = {};
+
+        const push = (fieldId: string, triggerKey: string) => {
+            const arr = (out[fieldId] ??= []);
+            if (!arr.includes(triggerKey)) arr.push(triggerKey);
+        };
+
+        for (const key of this.set) {
+            if (!key) continue;
+
+            // composite: "fieldId::optionId" => validate optionId; group by option.owner fieldId
+            const idx = key.indexOf("::");
+            if (idx !== -1) {
+                const optionId = key.slice(idx + 2);
+                const optRef = nodeMap.get(optionId) as any;
+                if (
+                    optRef?.kind === "option" &&
+                    typeof optRef.fieldId === "string"
+                ) {
+                    push(optRef.fieldId, key); // keep composite as the trigger key
+                }
+                continue;
+            }
+
+            const ref = nodeMap.get(key) as any;
+            if (!ref) continue;
+
+            // option trigger => group by owning fieldId
+            if (ref.kind === "option" && typeof ref.fieldId === "string") {
+                push(ref.fieldId, ref.id ?? key);
+                continue;
+            }
+
+            // field trigger => only if it's a button field; group by itself
+            if (ref.kind === "field") {
+                const field = ref.node ?? ref.field ?? ref;
+                const fieldId = ref.id ?? field?.id ?? key;
+                if (field?.button === true && typeof fieldId === "string") {
+                    push(fieldId, fieldId);
+                }
+            }
+        }
+
+        return out;
+    }
+
+    /**
+     * Returns only selection keys that are valid "trigger buttons":
+     * - field keys where field.button === true
+     * - option keys
+     * - composite keys "fieldId::optionId" (validated by optionId)
+     * Excludes tags and non-button fields.
+     */
+    selectedButtons(): string[] {
+        const nodeMap = this.builder.getNodeMap();
+        const out: string[] = [];
+        const seen = new Set<string>();
+
+        const push = (k: string) => {
+            if (!seen.has(k)) {
+                seen.add(k);
+                out.push(k);
+            }
+        };
+
+        for (const key of this.set) {
+            if (!key) continue;
+
+            // composite: validate optionId part
+            const idx = key.indexOf("::");
+            if (idx !== -1) {
+                const optionId = key.slice(idx + 2);
+                const optRef = nodeMap.get(optionId) as any;
+                if (optRef?.kind === "option") push(key);
+                continue;
+            }
+
+            const ref = nodeMap.get(key) as any;
+            if (!ref) continue;
+
+            // option trigger
+            if (ref.kind === "option") {
+                push(key);
+                continue;
+            }
+
+            // field trigger only if it's a button field
+            if (ref.kind === "field") {
+                const field = ref.node ?? ref.field ?? ref;
+                if (field?.button === true) push(key);
+            }
+        }
+
+        return out;
     }
 
     // ── Internals ────────────────────────────────────────────────────────────
@@ -217,26 +338,6 @@ export class Selection {
         return this.opts.rootTagId;
     }
 
-    private selectedButtonTriggerIds(props: ServiceProps): string[] {
-        const fields = props.fields ?? [];
-        const fieldById = new Map(fields.map((f) => [f.id, f]));
-
-        const out: string[] = [];
-        for (const selId of this.set) {
-            // option ids are triggers
-            if (selId.startsWith("o:")) {
-                out.push(selId);
-                continue;
-            }
-
-            // field ids are triggers ONLY if the field is a button
-            const f = fieldById.get(selId);
-            if (f?.button === true) out.push(selId);
-        }
-
-        return out;
-    }
-
     private computeGroupForTag(
         props: ServiceProps,
         tagId: string,
@@ -247,7 +348,7 @@ export class Selection {
         const tag = tagById.get(tagId);
 
         // ---- delegate visible fields to builder
-        const selectedTriggerIds = this.selectedButtonTriggerIds(props);
+        const selectedTriggerIds = this.selectedButtons();
         const fieldIds = this.builder.visibleFields(tagId, selectedTriggerIds);
 
         const fieldById = new Map(fields.map((f) => [f.id, f]));

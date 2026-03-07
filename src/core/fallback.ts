@@ -395,3 +395,14 @@ export function getEligibleFallbacks(params: {
     }
     return eligible;
 }
+
+export function getFallbackRegistrationInfo(
+    props: ServiceProps,
+    nodeId: NodeIdRef,
+): {
+    primary?: ServiceIdRef;
+    tagContexts: string[];
+} {
+    const { primary, tagContexts } = primaryForNode(props, nodeId);
+    return { primary, tagContexts };
+}

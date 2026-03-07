@@ -18,6 +18,9 @@ export const checkboxDescriptor: InputDescriptor = {
         density: "comfortable",
         autoCap: false,
     },
+    adapter: {
+
+    },
 
     ui: {
         size: sharedUi.size,

@@ -1,5 +1,5 @@
 // src/schema/order.ts
-import { UtilityMark, WithQuantityDefault } from "./index";
+import { ServiceFallback, UtilityMark, WithQuantityDefault } from "./index";
 
 export interface ButtonValue {
     id: string; // option id OR field id (for option-less buttons)
@@ -35,10 +35,7 @@ export type UtilityLineItem = {
 };
 
 // Fallbacks shape stored on ServiceProps (formalized).
-export type ServiceFallbacks = {
-    nodes?: Record<string, Array<string | number>>; // nodeId -> candidate service ids
-    global?: Record<string | number, Array<string | number>>; // primary -> candidate service ids
-};
+export type ServiceFallbacks = ServiceFallback;
 
 // Dev-only diagnostics for pruned/flagged fallbacks.
 export type FallbackDiagnostics = {
@@ -86,6 +83,7 @@ export type OrderSnapshot = {
     // ── Single-context selection (the only active tag) ──
     selection: {
         tag: string; // tag id (context)
+        buttons: string[];
         fields: Array<{
             id: string; // field id
             type: string; // field.type at build time
@@ -116,10 +114,7 @@ export type OrderSnapshot = {
     serviceMap: Record<string, Array<string | number>>; // nodeId -> primary ids[]
 
     // ── Client-pruned fallbacks (server will still do final pruning) ──
-    fallbacks?: {
-        nodes?: Record<string, Array<string | number>>; // only nodes present in this selection
-        global?: Record<string | number, Array<string | number>>; // only primaries present in `services`
-    };
+    fallbacks?: ServiceFallbacks;
 
     // ── Utility line items ──
     utilities?: UtilityLineItem[];
