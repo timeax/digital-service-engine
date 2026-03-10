@@ -1,5 +1,5 @@
 // src/react/inputs/registry/entries/index.ts
-import type { InputDescriptor, Registry, Ui } from "@/react";
+import type { InputDescriptor, Registry } from "@/react";
 
 import { textDescriptor } from "./text";
 import { textareaDescriptor } from "./textarea";
@@ -21,6 +21,7 @@ import { keyValueDescriptor } from "./keyvalue";
 import { editorDescriptor } from "./editor";
 import { listerDescriptor } from "./lister";
 import { fileDescriptor } from "./file";
+import {Ui} from "@/schema";
 
 /**
  * InputField-level UI props (injected for every descriptor at registration time).

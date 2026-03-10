@@ -1,4 +1,3 @@
-export * from "../schema";
 export * from "./canvas/events";
 export * from "./canvas/api";
 export * from "./inputs/form-context";
@@ -7,3 +6,4 @@ export * from "./inputs/provider";
 export * from "./inputs/wrapper";
 export * from "./hooks";
 export { registerEntries } from "./inputs/entries";
+export * from "./fallback-editor";

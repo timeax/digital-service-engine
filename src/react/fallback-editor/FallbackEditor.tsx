@@ -6,12 +6,12 @@ import type { DgpServiceMap } from "@/schema/provider";
 import {
     FallbackEditorProvider,
     type FallbackEditorProviderProps,
-} from "./FallbackEditorProvider";
-import { FallbackEditorHeader } from "./FallbackEditorHeader";
-import { FallbackServiceSidebar } from "./FallbackServiceSidebar";
-import { FallbackRegistrationsPanel } from "./FallbackRegistrationsPanel";
-import { FallbackSettingsPanel } from "./FallbackSettingsPanel";
-import { FallbackDetailsPanel } from "./FallbackDetailsPanel";
+} from "@/react";
+import { FallbackEditorHeader } from "@/react";
+import { FallbackServiceSidebar } from "@/react";
+import { FallbackRegistrationsPanel } from "@/react";
+import { FallbackSettingsPanel } from "@/react";
+import { FallbackDetailsPanel } from "@/react";
 import { useFallbackEditor } from "@/react/fallback-editor/useFallbackEditor";
 
 type Props = {
