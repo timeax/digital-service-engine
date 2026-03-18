@@ -26,7 +26,7 @@ export function addNotice(
                 }
                 notices.push({ ...input, id });
             }),
-        undo: () => ctx.api.undo(),
+        undo: () => ctx.undo(),
     });
 
     return id;
@@ -49,7 +49,7 @@ export function updateNotice(
                 if (!target) return;
                 Object.assign(target, rest);
             }),
-        undo: () => ctx.api.undo(),
+        undo: () => ctx.undo(),
     });
 }
 
@@ -62,6 +62,6 @@ export function removeNotice(ctx: EditorModuleContext, id: string): void {
                 p.notices = p.notices.filter((n) => n.id !== id);
                 if (!p.notices.length) delete p.notices;
             }),
-        undo: () => ctx.api.undo(),
+        undo: () => ctx.undo(),
     });
 }

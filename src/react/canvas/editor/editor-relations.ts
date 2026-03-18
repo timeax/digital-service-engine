@@ -154,7 +154,7 @@ export function include(
                     throw new Error("Receiver must be a tag, button field, or option");
                 }
             }),
-        undo: () => ctx.api.undo(),
+        undo: () => ctx.undo(),
     });
 }
 
@@ -259,7 +259,7 @@ export function exclude(
                     throw new Error("Receiver must be a tag, button field, or option");
                 }
             }),
-        undo: () => ctx.api.undo(),
+        undo: () => ctx.undo(),
     });
 }
 
@@ -345,7 +345,7 @@ export function connect(
                                     const t = (next.filters ?? []).find((x) => x.id === toId);
                                     if (t) (t as any).service_id = fromId;
                                 }),
-                            undo: () => ctx.api.undo(),
+                            undo: () => ctx.undo(),
                         });
                         return;
                     }
@@ -363,7 +363,7 @@ export function connect(
                                         }
                                     }
                                 }),
-                            undo: () => ctx.api.undo(),
+                            undo: () => ctx.undo(),
                         });
                         return;
                     }
@@ -373,7 +373,7 @@ export function connect(
 
                 throw new Error(`Unknown connect kind: ${kind}`);
             }),
-        undo: () => ctx.api.undo(),
+        undo: () => ctx.undo(),
     });
 }
 
@@ -456,7 +456,7 @@ export function disconnect(
                                     const t = (next.filters ?? []).find((x) => x.id === toId);
                                     if (t) delete (t as any).service_id;
                                 }),
-                            undo: () => ctx.api.undo(),
+                            undo: () => ctx.undo(),
                         });
                         return;
                     }
@@ -474,7 +474,7 @@ export function disconnect(
                                         }
                                     }
                                 }),
-                            undo: () => ctx.api.undo(),
+                            undo: () => ctx.undo(),
                         });
                         return;
                     }
@@ -484,6 +484,6 @@ export function disconnect(
 
                 throw new Error(`Unknown disconnect kind: ${kind}`);
             }),
-        undo: () => ctx.api.undo(),
+        undo: () => ctx.undo(),
     });
 }

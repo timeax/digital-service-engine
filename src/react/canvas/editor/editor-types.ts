@@ -54,6 +54,7 @@ export type EditorModuleContext = {
     isOptionId: (id: string) => boolean;
     transact: (label: string, fn: () => void) => void;
     exec: (cmd: Command) => void;
+    undo: () => boolean;
     patchProps: (mut: (p: ServiceProps) => void) => void;
     replaceProps: (next: ServiceProps) => void;
     emit: <K extends keyof (EditorEvents & any)>(

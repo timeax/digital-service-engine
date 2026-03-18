@@ -231,15 +231,12 @@ describe("Builder", () => {
         expect(cleaned.excludes_for_buttons?.["o2"]).toBeUndefined(); // entire entry removed (all ghost)
     });
 
-    it("undo()/redo() restore previous/next props snapshots", () => {
+    it("load() simply replaces props snapshots without local history semantics", () => {
         const b = createBuilder();
 
-        // initial
         b.load({ filters: [], fields: [] }); // normalise injects root
-        const firstId = b.getProps().filters[0].id;
-        expect(firstId).toBe("t:root");
+        expect(b.getProps().filters[0].id).toBe("t:root");
 
-        // next
         b.load({
             filters: [
                 { id: "root", label: "Root" },
@@ -247,14 +244,6 @@ describe("Builder", () => {
             ],
             fields: [],
         });
-        expect(b.getProps().filters.some((t) => t.id === "A")).toBe(true);
-
-        // undo → back to previous (no 'A')
-        expect(b.undo()).toBe(true);
-        expect(b.getProps().filters.some((t) => t.id === "A")).toBe(false);
-
-        // redo → forward (has 'A')
-        expect(b.redo()).toBe(true);
         expect(b.getProps().filters.some((t) => t.id === "A")).toBe(true);
     });
 

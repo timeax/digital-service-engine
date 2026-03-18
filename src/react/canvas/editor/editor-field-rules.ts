@@ -41,7 +41,7 @@ export function setFieldQuantityRule(
                     quantity: normalized,
                 };
             }),
-        undo: () => ctx.api.undo(),
+        undo: () => ctx.undo(),
     });
 }
 
@@ -60,7 +60,7 @@ export function clearFieldQuantityRule(
                     delete (f as any).meta;
                 }
             }),
-        undo: () => ctx.api.undo(),
+        undo: () => ctx.undo(),
     });
 }
 
@@ -95,7 +95,7 @@ export function setFieldValidation(
 
                 (f as any).validation = normalized;
             }),
-        undo: () => ctx.api.undo(),
+        undo: () => ctx.undo(),
     });
 }
 
@@ -111,7 +111,7 @@ export function clearFieldValidation(
                 if (!f || !(f as any).validation) return;
                 delete (f as any).validation;
             }),
-        undo: () => ctx.api.undo(),
+        undo: () => ctx.undo(),
     });
 }
 

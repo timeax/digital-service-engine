@@ -56,7 +56,7 @@ export function placeNode(
                     siblings.splice(dest, 0, pulled);
                     p.filters = [...out, ...siblings];
                 }),
-            undo: () => ctx.api.undo(),
+            undo: () => ctx.undo(),
         });
         return;
     }
@@ -86,7 +86,7 @@ export function placeNode(
 
                     arr.splice(dest, 0, fieldId);
                 }),
-            undo: () => ctx.api.undo(),
+            undo: () => ctx.undo(),
         });
         return;
     }
@@ -141,6 +141,6 @@ export function placeOption(
 
                 f.options.splice(dest, 0, pulled);
             }),
-        undo: () => ctx.api.undo(),
+        undo: () => ctx.undo(),
     });
 }

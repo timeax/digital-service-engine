@@ -496,6 +496,7 @@ export class Editor {
             isOptionId: (id) => this.isOptionId(id),
             transact: (label, fn) => this.transact(label, fn),
             exec: (cmd) => this.exec(cmd),
+            undo: () => this.undo(),
             patchProps: (mut) => this.patchProps(mut),
             replaceProps: (next) => this.replaceProps(next),
             emit: (event, payload) => this.emit(event, payload),

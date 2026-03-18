@@ -240,11 +240,6 @@ export class CanvasAPI {
         this.bus.clear();
     }
 
-    undo() {
-        this.builder.undo();
-        this.refreshGraph();
-    }
-
     private edgeRel: EdgeKind = "bind";
 
     getEdgeRel(): EdgeKind {

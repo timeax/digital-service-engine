@@ -21,8 +21,6 @@ import { buildNodeMap, NodeMap } from "@/core/node-map";
 /** Options you can set on the builder (used for validation/visibility) */
 export type BuilderOptions = Omit<ValidatorOptions, "serviceMap"> & {
     serviceMap?: DgpServiceMap;
-    /** max history entries for undo/redo */
-    historyLimit?: number;
     /**
      * Field ids whose options should be shown as nodes in the graph.
      * If a field id is NOT in this set, its options are not materialized as nodes:
@@ -53,10 +51,6 @@ export interface Builder {
 
     /** Update builder options (validator context etc.) */
     setOptions(patch: Partial<BuilderOptions>): void;
-
-    /** History */
-    undo(): boolean;
-    redo(): boolean;
 
     /** Access the current props (already normalised) */
     getProps(): ServiceProps;
@@ -94,14 +88,10 @@ class BuilderImpl implements Builder {
     private optionOwnerById = new Map<string, { fieldId: string }>(); // option.id → fieldId
 
     private options: BuilderOptions;
-    private readonly history: ServiceProps[] = [];
-    private readonly future: ServiceProps[] = [];
-    private readonly historyLimit: number;
     private _nodemap: NodeMap | null = null;
 
     constructor(opts: BuilderOptions = {}) {
         this.options = { ...opts };
-        this.historyLimit = opts.historyLimit ?? 50;
     }
 
     /* ───── lifecycle ─────────────────────────────────────────────────────── */
@@ -120,8 +110,6 @@ class BuilderImpl implements Builder {
             defaultPricingRole: "base",
             constraints: this.getConstraints().map((item) => item.label),
         });
-        this.pushHistory(this.props);
-        this.future.length = 0; // clear redo stack
         this.props = next;
         this.rebuildIndexes();
     }
@@ -427,26 +415,6 @@ class BuilderImpl implements Builder {
         return this._nodemap;
     }
 
-    /* ───── history ─────────────────────────────────────────────────────── */
-
-    undo(): boolean {
-        if (this.history.length === 0) return false;
-        const prev = this.history.pop()!;
-        this.future.push(structuredCloneSafe(this.props));
-        this.props = prev;
-        this.rebuildIndexes();
-        return true;
-    }
-
-    redo(): boolean {
-        if (this.future.length === 0) return false;
-        const next = this.future.pop()!;
-        this.pushHistory(this.props);
-        this.props = next;
-        this.rebuildIndexes();
-        return true;
-    }
-
     /* ───── internals ──────────────────────────────────────────────────── */
 
     private rebuildIndexes(): void {
@@ -464,25 +432,15 @@ class BuilderImpl implements Builder {
             }
         }
     }
-
-    private pushHistory(state: ServiceProps): void {
-        // avoid pushing initial empty state on the very first load
-        if (!state || (!state.filters.length && !state.fields.length)) return;
-        this.history.push(structuredCloneSafe(state));
-        if (this.history.length > this.historyLimit) this.history.shift();
-    }
 }
 
 /* ───────────────────────── helpers ───────────────────────── */
-function structuredCloneSafe<T>(v: T): T {
-    if (typeof (globalThis as any).structuredClone === "function") {
-        return (globalThis as any).structuredClone(v);
-    }
-    return JSON.parse(JSON.stringify(v));
-}
-
 function toStringSet(v: Set<string> | string[] | undefined): Set<string> {
     if (!v) return new Set();
     if (v instanceof Set) return new Set(Array.from(v).map(String));
     return new Set((v as string[]).map(String));
 }
+
+
+
+

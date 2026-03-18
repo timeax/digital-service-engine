@@ -44,7 +44,7 @@ export function reLabel(
                 fld.label = label;
                 ctx.api.refreshGraph();
             }),
-        undo: () => ctx.api.undo(),
+        undo: () => ctx.undo(),
     });
 }
 
@@ -109,7 +109,7 @@ export function setFieldName(
 
                 (f as any).name = name;
             }),
-        undo: () => ctx.api.undo(),
+        undo: () => ctx.undo(),
     });
 }
 
@@ -138,7 +138,7 @@ export function addOption(
                 }
                 list.push({ ...input, id } as any);
             }),
-        undo: () => ctx.api.undo(),
+        undo: () => ctx.undo(),
     });
 
     return id;
@@ -169,7 +169,7 @@ export function updateOption(
                 const o = f.options.find((x) => x.id === optionId);
                 if (o) Object.assign(o, patch);
             }),
-        undo: () => ctx.api.undo(),
+        undo: () => ctx.undo(),
     });
 }
 
@@ -198,7 +198,7 @@ export function removeOption(ctx: EditorModuleContext, optionId: string) {
                     if (!Object.keys(map).length) delete (p as any)[m];
                 }
             }),
-        undo: () => ctx.api.undo(),
+        undo: () => ctx.undo(),
     });
 }
 
@@ -230,7 +230,7 @@ export function editLabel(ctx: EditorModuleContext, id: string, label: string): 
                 }
                 throw new Error("editLabel: unsupported id");
             }),
-        undo: () => ctx.api.undo(),
+        undo: () => ctx.undo(),
     });
 }
 
@@ -247,7 +247,7 @@ export function editName(
                 if (!f) return;
                 f.name = name;
             }),
-        undo: () => ctx.api.undo(),
+        undo: () => ctx.undo(),
     });
 }
 
@@ -376,7 +376,7 @@ export function setService(
                     else (f as any).service_id = sid;
                 }
             }),
-        undo: () => ctx.api.undo(),
+        undo: () => ctx.undo(),
     });
 }
 
@@ -583,7 +583,7 @@ export function remove(ctx: EditorModuleContext, id: string) {
                         if (!p.order_for_tags![k].length) delete p.order_for_tags![k];
                     }
                 }),
-            undo: () => ctx.api.undo(),
+            undo: () => ctx.undo(),
         });
         return;
     }
@@ -621,7 +621,7 @@ export function remove(ctx: EditorModuleContext, id: string) {
                         if (!Object.keys(map).length) delete (p as any)[m];
                     }
                 }),
-            undo: () => ctx.api.undo(),
+            undo: () => ctx.undo(),
         });
         return;
     }

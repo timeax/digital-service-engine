@@ -109,6 +109,6 @@ export function clearConstraint(
 
                 process(tagId);
             }),
-        undo: () => ctx.api.undo(),
+        undo: () => ctx.undo(),
     });
 }
