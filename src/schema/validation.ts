@@ -43,7 +43,12 @@ export type ValidationCode =
     | "fallback_no_primary"
     | "fallback_rate_violation"
     | "fallback_constraint_mismatch"
-    | "fallback_no_tag_context";
+    | "fallback_no_tag_context"
+    | "field_validation_invalid_rule"
+    | "field_validation_invalid_op"
+    | "field_validation_eval_missing_code"
+    | "field_validation_between_missing_bounds"
+    | "field_validation_match_missing_pattern";
 
 export type ValidationError = {
     code: ValidationCode;

@@ -4,3 +4,4 @@ export { Workspace } from "./app";
 export type { WorkspaceProps } from "./app";
 
 export * from "./context";
+export * from './components'

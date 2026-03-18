@@ -14,6 +14,152 @@ function idsSorted(x: string[]) {
 }
 
 describe("Selection.visibleGroup() — inheritance rules", () => {
+    it("preserves current tag when selecting an ancestor-bound field visible in child context", () => {
+        const props = {
+            filters: [
+                { id: "t:root", label: "Root" },
+                { id: "t:Child", label: "Child", bind_id: "t:root" },
+            ],
+            fields: [
+                { id: "f:rootBound", label: "RootBound", bind_id: "t:root" },
+                { id: "f:childBound", label: "ChildBound", bind_id: "t:Child" },
+            ],
+        };
+
+        const builder = mkBuilder(props);
+        const sel = new Selection(builder, {
+            env: "client",
+            rootTagId: "t:root",
+        });
+
+        sel.replace("t:Child");
+        expect(sel.currentTag()).toBe("t:Child");
+
+        sel.add("f:rootBound");
+        expect(sel.currentTag()).toBe("t:Child");
+    });
+
+    it("preserves current tag when selecting an option whose host field is visible in context", () => {
+        const props = {
+            filters: [
+                { id: "t:root", label: "Root" },
+                { id: "t:Child", label: "Child", bind_id: "t:root" },
+            ],
+            fields: [
+                {
+                    id: "f:mode",
+                    label: "Mode",
+                    bind_id: "t:root",
+                    options: [{ id: "o:fast", label: "Fast" }],
+                },
+            ],
+        };
+
+        const builder = mkBuilder(props);
+        const sel = new Selection(builder, {
+            env: "client",
+            rootTagId: "t:root",
+        });
+
+        sel.replace("t:Child");
+        expect(sel.currentTag()).toBe("t:Child");
+
+        sel.add("o:fast");
+        expect(sel.currentTag()).toBe("t:Child");
+    });
+
+    it("falls back to field first bind when selected field is not visible in current tag context", () => {
+        const props = {
+            filters: [
+                { id: "t:root", label: "Root" },
+                { id: "t:A", label: "A", bind_id: "t:root" },
+                { id: "t:B", label: "B", bind_id: "t:root" },
+            ],
+            fields: [{ id: "f:aOnly", label: "AOnly", bind_id: "t:A" }],
+        };
+
+        const builder = mkBuilder(props);
+        const sel = new Selection(builder, {
+            env: "client",
+            rootTagId: "t:root",
+        });
+
+        sel.replace("t:B");
+        expect(sel.currentTag()).toBe("t:B");
+
+        sel.add("f:aOnly");
+        expect(sel.currentTag()).toBe("t:A");
+    });
+
+    it("legacy field::option follows the same keep-or-fallback rule", () => {
+        const props = {
+            filters: [
+                { id: "t:root", label: "Root" },
+                { id: "t:A", label: "A", bind_id: "t:root" },
+                { id: "t:B", label: "B", bind_id: "t:root" },
+                { id: "t:Child", label: "Child", bind_id: "t:root" },
+            ],
+            fields: [
+                {
+                    id: "f:rootMode",
+                    label: "RootMode",
+                    bind_id: "t:root",
+                    options: [{ id: "o:rootFast", label: "Fast" }],
+                },
+                {
+                    id: "f:aMode",
+                    label: "AMode",
+                    bind_id: "t:A",
+                    options: [{ id: "o:aFast", label: "Fast" }],
+                },
+            ],
+        };
+
+        const builder = mkBuilder(props);
+        const sel = new Selection(builder, {
+            env: "client",
+            rootTagId: "t:root",
+        });
+
+        sel.replace("t:Child");
+        sel.add("f:rootMode::o:rootFast");
+        expect(sel.currentTag()).toBe("t:Child");
+
+        sel.replace("t:B");
+        sel.add("f:aMode::o:aFast");
+        expect(sel.currentTag()).toBe("t:A");
+    });
+
+    it("multi-bind fallback keeps existing index-0 precedence", () => {
+        const props = {
+            filters: [
+                { id: "t:root", label: "Root" },
+                { id: "t:A", label: "A", bind_id: "t:root" },
+                { id: "t:B", label: "B", bind_id: "t:root" },
+                { id: "t:C", label: "C", bind_id: "t:root" },
+            ],
+            fields: [
+                {
+                    id: "f:multi",
+                    label: "Multi",
+                    bind_id: ["t:A", "t:B"],
+                },
+            ],
+        };
+
+        const builder = mkBuilder(props);
+        const sel = new Selection(builder, {
+            env: "client",
+            rootTagId: "t:root",
+        });
+
+        sel.replace("t:C");
+        expect(sel.currentTag()).toBe("t:C");
+
+        sel.add("f:multi");
+        expect(sel.currentTag()).toBe("t:A");
+    });
+
     it("bind inheritance: field bound to root is visible when selecting a child tag", () => {
         const props = {
             filters: [

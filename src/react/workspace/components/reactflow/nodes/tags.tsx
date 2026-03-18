@@ -1,14 +1,13 @@
 import Node from "./node";
-import React from "react";
 import type { FlowNode } from "@/schema/graph";
 
-const Tag: React.FC<FlowNode> = ({
+function Tag({
     id,
     data: {
         node: { label },
     },
-}) => {
+}: FlowNode) {
     return <Node type={"tag"} label={label} id={id} />;
-};
+}
 
 export default Tag;

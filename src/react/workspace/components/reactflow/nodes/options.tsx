@@ -1,10 +1,10 @@
 import Node from "./node";
-import { NodeProps } from "reactflow";
-import { GraphNode } from "@/schema/graph";
-import React from "react";
+import type { Node as RFNode, NodeProps } from "@xyflow/react";
 
-const Options: React.FC<NodeProps<GraphNode>> = ({ id, data: { label } }) => {
+type OptionNode = RFNode<{ label: string }, "option">;
+
+function Options({ id, data: { label } }: NodeProps<OptionNode>) {
     return <Node label={label} id={id} type={"option"} />;
-};
+}
 
 export default Options;

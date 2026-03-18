@@ -4,10 +4,12 @@ import { cloneDeep } from "lodash-es";
 import type {
     Field,
     FieldOption,
+    FieldValidationRule,
     PricingRole,
     ServiceFallback,
     ServiceIdRef,
     ServiceProps,
+    ServicePropsNotice,
     Tag,
 } from "@/schema";
 
@@ -39,6 +41,7 @@ export function normalise(
     const excludes_for_buttons = toStringArrayMap(
         (obj as any).excludes_for_buttons,
     );
+    const notices = toNoticeArray((obj as any).notices);
 
     // Tags & fields
     let filters: Tag[] = rawFilters.map((t: any) => coerceTag(t, constraints));
@@ -62,6 +65,7 @@ export function normalise(
             (isNonEmpty(fallbacks.nodes) || isNonEmpty(fallbacks.global)) && {
                 fallbacks,
             }),
+        ...(notices.length > 0 && { notices }),
         schema_version:
             typeof (obj as any).schema_version === "string"
                 ? (obj as any).schema_version
@@ -260,6 +264,7 @@ function coerceField(src: any, defRole: PricingRole): Field {
     // - option-based fields are always buttons
     // - otherwise, respect explicit boolean true
     const button: boolean = srcHasOptions ? true : src.button === true;
+    const validation = normalizeFieldValidation(src.validation);
 
     // field-level service_id is allowed only for *buttons* with base role
     const field_service_id_raw = toNumberOrUndefined(src.service_id);
@@ -283,6 +288,7 @@ function coerceField(src: any, defRole: PricingRole): Field {
         ...(ui && { ui: ui as any }),
         ...(defaults && { defaults }),
         ...(meta && { meta }),
+        ...(validation && { validation }),
         ...(button ? { button } : {}),
         ...(field_service_id !== undefined && { service_id: field_service_id }),
     };
@@ -392,6 +398,13 @@ function toStringArray(v: any): string[] {
     return v.map((x) => String(x)).filter((s) => !!s && s.trim().length > 0);
 }
 
+function toNoticeArray(v: any): ServicePropsNotice[] {
+    if (!Array.isArray(v)) return [];
+    return v
+        .filter((item) => item && typeof item === "object")
+        .map((item) => cloneDeep(item as ServicePropsNotice));
+}
+
 function toNumberOrUndefined(v: any): number | undefined {
     if (v === null || v === undefined) return undefined;
     const n = Number(v);
@@ -427,4 +440,68 @@ function toServiceIdArray(v: any): ServiceIdRef[] {
         .filter(
             (x) => x !== "" && x !== null && x !== undefined,
         ) as ServiceIdRef[];
+}
+
+
+function normalizeFieldValidationRule(
+    input: unknown,
+): FieldValidationRule | undefined {
+    if (!input || typeof input !== "object") return undefined;
+    const v = input as any;
+
+    const op = v.op;
+    if (
+        op !== "eq" &&
+        op !== "neq" &&
+        op !== "gt" &&
+        op !== "gte" &&
+        op !== "lt" &&
+        op !== "lte" &&
+        op !== "between" &&
+        op !== "in" &&
+        op !== "nin" &&
+        op !== "truthy" &&
+        op !== "falsy" &&
+        op !== "match"
+    ) {
+        return undefined;
+    }
+
+    const valueBy =
+        v.valueBy === "value" || v.valueBy === "length" || v.valueBy === "eval"
+            ? v.valueBy
+            : undefined;
+
+    const out: FieldValidationRule = {
+        op,
+        ...(valueBy ? { valueBy } : {}),
+    };
+
+    if ("value" in v) out.value = v.value;
+    if (typeof v.min === "number" && Number.isFinite(v.min)) out.min = v.min;
+    if (typeof v.max === "number" && Number.isFinite(v.max)) out.max = v.max;
+    if (Array.isArray(v.values)) out.values = [...v.values];
+    if (typeof v.pattern === "string" && v.pattern.trim()) out.pattern = v.pattern;
+    if (typeof v.flags === "string") out.flags = v.flags;
+    if (typeof v.message === "string" && v.message.trim()) out.message = v.message;
+
+    if (valueBy === "eval" && typeof v.code === "string" && v.code.trim()) {
+        out.code = v.code;
+    }
+
+    return out;
+}
+
+export function normalizeFieldValidation(
+    input: unknown,
+): FieldValidationRule[] | undefined {
+    if (Array.isArray(input)) {
+        const rules = input
+            .map(normalizeFieldValidationRule)
+            .filter(Boolean) as FieldValidationRule[];
+        return rules.length ? rules : undefined;
+    }
+
+    const one = normalizeFieldValidationRule(input);
+    return one ? [one] : undefined;
 }

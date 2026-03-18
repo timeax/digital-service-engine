@@ -1,0 +1,36 @@
+import {
+    filterServicesForVisibleGroup as filterServicesForVisibleGroupCore,
+    type FilterServicesForVisibleGroupInput,
+} from "@/core";
+import type { FallbackSettings } from "@/schema";
+import type { EditorModuleContext, ServiceCheck } from "./editor-types";
+
+export function filterServicesForVisibleGroup(
+    ctx: EditorModuleContext,
+    candidates: Array<number | string>,
+    input: {
+        tagId: string;
+        selectedButtons?: string[];
+        usedServiceIds: Array<number | string>;
+        effectiveConstraints?: Partial<Record<"refill" | "cancel" | "dripfeed", boolean>>;
+        policies?: unknown;
+        fallback?: FallbackSettings;
+    },
+): ServiceCheck[] {
+    const coreInput: FilterServicesForVisibleGroupInput = {
+        candidates,
+        context: {
+            tagId: input.tagId,
+            selectedButtons: input.selectedButtons,
+            usedServiceIds: input.usedServiceIds,
+            effectiveConstraints: input.effectiveConstraints,
+            policies: input.policies,
+            fallback: input.fallback,
+        },
+    };
+    const result = filterServicesForVisibleGroupCore(coreInput, {
+        builder: ctx.builder,
+    });
+    ctx.setLastPolicyDiagnostics(result.diagnostics);
+    return result.checks;
+}

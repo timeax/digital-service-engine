@@ -15,6 +15,7 @@ import type {
     VisibleGroup,
     VisibleGroupResult,
 } from "@/react/canvas/selection";
+import { validateVisibleFields } from "@/react/hooks/evalute-field-validation";
 
 const ROOT_TAG_ID = "t:root";
 
@@ -384,8 +385,9 @@ export function useOrderFlow(): UseOrderFlowReturn {
 
         const tagId = selection.currentTag();
         const selectedKeys = selection.selectedButtons();
-        if (!tagId)
+        if (!tagId) {
             throw new Error("OrderFlow: no active tag/context selected");
+        }
 
         const mode: "prod" | "dev" = init.mode ?? "prod";
         const hostDefaultQuantity = Number(init.hostDefaultQuantity ?? 1) || 1;
@@ -395,6 +397,33 @@ export function useOrderFlow(): UseOrderFlowReturn {
 
         if (!submitted.valid) return;
 
+        const visibleFieldIds =
+            builder.visibleFields?.(tagId, selectedKeys) ??
+            builder
+                .getProps()
+                .fields.filter((f) => f.bind_id === tagId)
+                .map((f) => f.id);
+
+        const fieldById = new Map(
+            builder.getProps().fields.map((field) => [field.id, field]),
+        );
+
+        const customIssues = validateVisibleFields(
+            visibleFieldIds,
+            fieldById,
+            values,
+        );
+
+        if (customIssues.length > 0) {
+            ctx.formApi.setErrors?.(
+                Object.fromEntries(
+                    customIssues.map((issue) => [issue.fieldId, issue.message]),
+                ),
+            );
+
+            return;
+        }
+
         return buildOrderSnapshot(
             builder.getProps(),
             builder,
@@ -402,7 +431,7 @@ export function useOrderFlow(): UseOrderFlowReturn {
                 activeTagId: tagId,
                 formValuesByFieldId: values,
                 selectedKeys,
-                optionSelectionsByFieldId, // Selection-owned
+                optionSelectionsByFieldId,
             },
             init.services,
             {

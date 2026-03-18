@@ -2,7 +2,7 @@ import {describe, it, expect} from 'vitest';
 import {buildOrderSnapshot} from '../build-order-snapshot';
 
 import {type Builder, createBuilder} from '../../core';
-import type {ServiceProps, Field, Tag} from '../../schema';
+import type {ServiceProps, Field, FieldOption, Tag} from '../../schema';
 import type {DgpServiceMap} from '../../schema/provider';
 
 function mkPropsWithQuantityRule(rule: unknown): ServiceProps {
@@ -109,7 +109,13 @@ function tag(id: string, label: string, service_id?: number): Tag {
 function fieldWithQuantity(
     id: string,
     bind_id: string | string[],
-    quantity: { valueBy: 'value' | 'length' | 'eval'; code?: string },
+    quantity: {
+        valueBy: 'value' | 'length' | 'eval';
+        code?: string;
+        multiply?: number;
+        clamp?: {min?: number; max?: number};
+        fallback?: number;
+    },
     extra?: Partial<Field>
 ): Field {
     return {
@@ -257,6 +263,31 @@ describe('buildOrderSnapshot — quantity evaluation', () => {
         expect(snap.quantitySource).toMatchObject({kind: 'field', id: 'f1'});
     });
 
+    it('does not fall through to later field rules when the first visible valid rule evaluates invalid', () => {
+        const first = fieldWithQuantity('fFirst', 't:root', {valueBy: 'value'});
+        const second = fieldWithQuantity('fSecond', 't:root', {valueBy: 'value'});
+        const tagDefault: Tag = {
+            ...ROOT,
+            meta: {quantityDefault: 6} as any,
+        };
+        const props = propsOf([tagDefault], [first, second]);
+        const builder = makeBuilderVisibleFields(['fFirst', 'fSecond']);
+
+        const selection = {
+            activeTagId: 't:root',
+            formValuesByFieldId: {fFirst: 'bad', fSecond: '9'},
+            optionSelectionsByFieldId: {},
+        };
+
+        const snap = buildOrderSnapshot(props, builder, selection, svcMap, {
+            mode: 'prod',
+            hostDefaultQuantity: 1,
+        });
+
+        expect(snap.quantity).toBe(6);
+        expect(snap.quantitySource).toMatchObject({kind: 'tag', id: 't:root'});
+    });
+
     it('falls back to host default when quantity rule yields NaN/invalid', () => {
         const fQ = fieldWithQuantity('fBad', 't:root', {valueBy: 'value'});
         const props = propsOf([ROOT], [fQ]);
@@ -330,6 +361,57 @@ describe('buildOrderSnapshot — quantity evaluation', () => {
         expect(snap.quantitySource.kind).toBe('default');
     });
 
+    it('applies multiply and clamp to a field quantity rule', () => {
+        const fQ = fieldWithQuantity('fScaled', 't:root', {
+            valueBy: 'value',
+            multiply: 2,
+            clamp: {min: 3, max: 8},
+        });
+        const props = propsOf([ROOT], [fQ]);
+        const builder = makeBuilderVisibleFields(['fScaled']);
+
+        const selection = {
+            activeTagId: 't:root',
+            formValuesByFieldId: {fScaled: '5'}, // 5 * 2 => 10, clamp max => 8
+            optionSelectionsByFieldId: {},
+        };
+
+        const snap = buildOrderSnapshot(props, builder, selection, svcMap, {
+            mode: 'prod',
+            hostDefaultQuantity: 1,
+        });
+
+        expect(snap.quantity).toBe(8);
+        expect(snap.quantitySource).toMatchObject({
+            kind: 'field',
+            id: 'fScaled',
+            rule: {valueBy: 'value', multiply: 2, clamp: {min: 3, max: 8}},
+        });
+    });
+
+    it('uses rule fallback when evaluation is invalid', () => {
+        const fQ = fieldWithQuantity('fFallback', 't:root', {
+            valueBy: 'value',
+            fallback: 6,
+        });
+        const props = propsOf([ROOT], [fQ]);
+        const builder = makeBuilderVisibleFields(['fFallback']);
+
+        const selection = {
+            activeTagId: 't:root',
+            formValuesByFieldId: {fFallback: 'bad'},
+            optionSelectionsByFieldId: {},
+        };
+
+        const snap = buildOrderSnapshot(props, builder, selection, svcMap, {
+            mode: 'prod',
+            hostDefaultQuantity: 2,
+        });
+
+        expect(snap.quantity).toBe(6);
+        expect(snap.quantitySource).toMatchObject({kind: 'field', id: 'fFallback'});
+    });
+
     it('eval rule: if code throws or returns non-numeric → host default', () => {
         const fThrow = fieldWithQuantity('fThrow', 't:root', {
             valueBy: 'eval',
@@ -358,5 +440,125 @@ describe('buildOrderSnapshot — quantity evaluation', () => {
 
         expect(snap.quantity).toBe(8);
         expect(snap.quantitySource.kind).toBe('default');
+    });
+
+    it('uses selected option quantityDefault before tag default', () => {
+        const options: FieldOption[] = [
+            {
+                id: 'o:std',
+                label: 'Standard',
+                value: 'standard',
+                meta: {quantityDefault: 4} as any,
+            },
+        ];
+        const field: Field = {
+            id: 'f:opts',
+            type: 'select',
+            label: 'Options',
+            bind_id: 't:root',
+            options,
+        } as Field;
+        const rootWithDefault: Tag = {
+            ...ROOT,
+            meta: {quantityDefault: 9} as any,
+        };
+        const props = propsOf([rootWithDefault], [field]);
+        const builder = makeBuilderVisibleFields(['f:opts']);
+
+        const selection = {
+            activeTagId: 't:root',
+            formValuesByFieldId: {},
+            optionSelectionsByFieldId: {'f:opts': ['o:std']},
+        };
+
+        const snap = buildOrderSnapshot(props, builder, selection, svcMap, {
+            mode: 'prod',
+            hostDefaultQuantity: 1,
+        });
+
+        expect(snap.quantity).toBe(4);
+        expect(snap.quantitySource).toMatchObject({kind: 'option', id: 'o:std'});
+    });
+
+    it('uses selected button field quantityDefault when no field rule or option default exists', () => {
+        const buttonField: Field = {
+            id: 'f:button',
+            type: 'custom',
+            label: 'Action',
+            bind_id: 't:root',
+            button: true,
+            quantityDefault: 5,
+        } as Field;
+        const props = propsOf([ROOT], [buttonField]);
+        const builder = makeBuilderVisibleFields(['f:button']);
+
+        const selection = {
+            activeTagId: 't:root',
+            formValuesByFieldId: {},
+            optionSelectionsByFieldId: {},
+            selectedKeys: ['f:button'],
+        };
+
+        const snap = buildOrderSnapshot(props, builder, selection, svcMap, {
+            mode: 'prod',
+            hostDefaultQuantity: 1,
+        });
+
+        expect(snap.quantity).toBe(5);
+        expect(snap.quantitySource).toMatchObject({kind: 'field', id: 'f:button'});
+    });
+
+    it('uses button-style option field quantityDefault when no field rule or option default exists', () => {
+        const buttonContainer: Field = {
+            id: 'f:mode',
+            type: 'select',
+            label: 'Mode',
+            bind_id: 't:root',
+            quantityDefault: 5,
+            options: [{id: 'o:fast', label: 'Fast'}],
+        } as Field;
+        const tagDefault: Tag = {
+            ...ROOT,
+            meta: {quantityDefault: 8} as any,
+        };
+        const props = propsOf([tagDefault], [buttonContainer]);
+        const builder = makeBuilderVisibleFields(['f:mode']);
+
+        const selection = {
+            activeTagId: 't:root',
+            formValuesByFieldId: {},
+            optionSelectionsByFieldId: {'f:mode': ['o:fast']},
+        };
+
+        const snap = buildOrderSnapshot(props, builder, selection, svcMap, {
+            mode: 'prod',
+            hostDefaultQuantity: 1,
+        });
+
+        expect(snap.quantity).toBe(5);
+        expect(snap.quantitySource).toMatchObject({kind: 'field', id: 'f:mode'});
+    });
+
+    it('uses tag quantityDefault when no field, option, or button source exists', () => {
+        const tagDefault: Tag = {
+            ...ROOT,
+            meta: {quantityDefault: 7} as any,
+        };
+        const props = propsOf([tagDefault], []);
+        const builder = makeBuilderVisibleFields([]);
+
+        const selection = {
+            activeTagId: 't:root',
+            formValuesByFieldId: {},
+            optionSelectionsByFieldId: {},
+        };
+
+        const snap = buildOrderSnapshot(props, builder, selection, svcMap, {
+            mode: 'prod',
+            hostDefaultQuantity: 1,
+        });
+
+        expect(snap.quantity).toBe(7);
+        expect(snap.quantitySource).toMatchObject({kind: 'tag', id: 't:root'});
     });
 });

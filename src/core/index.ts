@@ -4,5 +4,6 @@ export * from "./builder";
 export * from "./fallback";
 export * from "./rate-coherence";
 export * from "./tag-relations";
+export * from "./service-filter";
 export { buildOrderSnapshot } from "@/utils/build-order-snapshot";
 export * from "./fallback-editor";

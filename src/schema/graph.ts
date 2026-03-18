@@ -1,4 +1,4 @@
-import type { NodeProps } from "reactflow";
+import type { Node, NodeProps } from "@xyflow/react";
 
 export type NodeKind = "tag" | "field" | "comment" | "option";
 export type EdgeKind =
@@ -26,7 +26,9 @@ export type GraphEdge = {
 
 export type GraphSnapshot = { nodes: GraphNode[]; edges: GraphEdge[] };
 
-export type FlowNode = NodeProps<{
+export type FlowNode = NodeProps<
+Node<{
     node: GraphNode;
     [x: string]: any;
-}>;
+}, NodeKind>
+>;

@@ -153,6 +153,35 @@ export type UiValue<U extends Ui> =
                       ? { [K in keyof F]?: UiValue<F[K]> }
                       : unknown;
 
+export type FieldValidationValueBy = "value" | "length" | "eval";
+
+export type FieldValidationOp =
+    | "eq"
+    | "neq"
+    | "gt"
+    | "gte"
+    | "lt"
+    | "lte"
+    | "between"
+    | "in"
+    | "nin"
+    | "truthy"
+    | "falsy"
+    | "match";
+
+export type FieldValidationRule = {
+    valueBy?: FieldValidationValueBy;
+    op: FieldValidationOp;
+    value?: unknown;
+    min?: number;
+    max?: number;
+    values?: unknown[];
+    pattern?: string;
+    flags?: string;
+    code?: string;
+    message?: string;
+};
+
 /**
  * FieldWithTypedDefaults<T>: same shape as BaseFieldUI, but:
  *  - ui is a concrete map T (propName → Ui node)
@@ -184,6 +213,7 @@ export type Field = BaseFieldUI & {
     description?: string;
     component?: string; // required if type === 'custom'
     pricing_role?: PricingRole; // default 'base'
+    validation?: FieldValidationRule[];
     meta?: Record<string, unknown> &
         QuantityMark &
         UtilityMark & { multi?: boolean };

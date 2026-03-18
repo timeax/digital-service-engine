@@ -1,8 +1,7 @@
 import Node from "./node";
-import React from "react";
 import { FlowNode } from "@/schema/graph";
 
-const Field: React.FC<FlowNode> = (props) => {
+function Field(props: FlowNode) {
     const {
         id,
         data: {
@@ -21,6 +20,6 @@ const Field: React.FC<FlowNode> = (props) => {
             }}
         </Node>
     );
-};
+}
 
 export default Field;

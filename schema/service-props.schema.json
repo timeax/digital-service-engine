@@ -192,6 +192,12 @@
             "pricing_role": {
               "$ref": "#/definitions/PricingRole"
             },
+            "validation": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/FieldValidationRule"
+              }
+            },
             "meta": {
               "type": "object",
               "properties": {
@@ -342,6 +348,12 @@
             },
             "pricing_role": {
               "$ref": "#/definitions/PricingRole"
+            },
+            "validation": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/FieldValidationRule"
+              }
             },
             "meta": {
               "type": "object",
@@ -529,6 +541,68 @@
       "enum": [
         "base",
         "utility"
+      ]
+    },
+    "FieldValidationRule": {
+      "type": "object",
+      "properties": {
+        "valueBy": {
+          "$ref": "#/definitions/FieldValidationValueBy"
+        },
+        "op": {
+          "$ref": "#/definitions/FieldValidationOp"
+        },
+        "value": {},
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "values": {
+          "type": "array",
+          "items": {}
+        },
+        "pattern": {
+          "type": "string"
+        },
+        "flags": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "op"
+      ]
+    },
+    "FieldValidationValueBy": {
+      "type": "string",
+      "enum": [
+        "value",
+        "length",
+        "eval"
+      ]
+    },
+    "FieldValidationOp": {
+      "type": "string",
+      "enum": [
+        "eq",
+        "neq",
+        "gt",
+        "gte",
+        "lt",
+        "lte",
+        "between",
+        "in",
+        "nin",
+        "truthy",
+        "falsy",
+        "match"
       ]
     },
     "ServiceFallback": {

@@ -153,8 +153,8 @@ export class CanvasAPI {
     }
 
     /* ─── Selection ─────────────────────────────────────────── */
-    select(ids: string[] | Set<string>): void {
-        this.selection.many(ids);
+    select(ids: string[] | Set<string>, primary?: string): void {
+        this.selection.many(ids, primary);
     }
 
     addToSelection(ids: string[] | Set<string>): void {

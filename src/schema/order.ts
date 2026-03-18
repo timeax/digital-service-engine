@@ -19,6 +19,9 @@ export type UtilityMode = "flat" | "per_quantity" | "per_value" | "percent";
 export type QuantityRule = {
     valueBy: "value" | "length" | "eval";
     code?: string; // optional client-side evaluator (use with care / sandbox)
+    multiply?: number;
+    clamp?: { min?: number; max?: number };
+    fallback?: number;
 };
 
 // One utility line item derived from a field/option marked as pricing_role: 'utility'.
@@ -26,11 +29,12 @@ export type UtilityLineItem = {
     nodeId: string; // fieldId or optionId that carries the utility marker
     mode: UtilityMode;
     rate: number; // finite number (validated)
+    percentBase?: "service_total" | "base_service" | "all";
+    label?: string;
     inputs: {
         quantity: number; // resolved snapshot quantity
         value?: Scalar | Scalar[]; // present for per_value modes (when applicable)
-        valueBy?: "value" | "length" | "eval";
-        evalCodeUsed?: boolean; // true if client executed an eval path
+        valueBy?: "value" | "length";
     };
 };
 

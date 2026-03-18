@@ -4,7 +4,7 @@ import { RxInput } from "react-icons/rx";
 import { TbHandClick } from "react-icons/tb";
 import { LuTextSelect } from "react-icons/lu";
 import { TfiComments } from "react-icons/tfi";
-import { Handle, Position } from "reactflow";
+import { Handle, Position } from "@xyflow/react";
 import { useCanvasAPI } from "@/react/workspace/context/context";
 import { clsx } from "clsx";
 

@@ -104,6 +104,23 @@ describe("Editor includes/excludes", () => {
         expect(() => editor.include("f:reg", "t:any")).toThrow("Receiver must be a tag, button field, or option");
     });
 
+    it("should reject option-container fields as field-level include/exclude receivers", () => {
+        const props = {
+            filters: [{ id: "t:1", label: "Tag 1" }],
+            fields: [
+                {
+                    id: "f:mode",
+                    label: "Mode",
+                    button: true,
+                    options: [{ id: "o:fast", label: "Fast" }],
+                },
+            ],
+        };
+        const editor = mkEditor(props);
+
+        expect(() => editor.include("f:mode", "t:1")).toThrow("Receiver must be a tag, button field, or option");
+    });
+
     it("should handle excludes for options", () => {
         const props = {
             filters: [{ id: "t:1", label: "Tag 1" }],
@@ -120,5 +137,27 @@ describe("Editor includes/excludes", () => {
 
         const nextProps = editor.getProps();
         expect(nextProps.excludes_for_buttons?.["o:1"]).toContain("t:1");
+    });
+
+    it("clears stale field button maps when a button field stops qualifying", () => {
+        const props = {
+            filters: [],
+            fields: [{ id: "f:btn", label: "Button", button: true }, { id: "f:1", label: "Field 1" }],
+            includes_for_buttons: { "f:btn": ["f:1"] },
+            excludes_for_buttons: { "f:btn": ["f:1"] },
+        };
+        const editor = mkEditor(props);
+
+        editor.updateField("f:btn", { button: false });
+
+        let nextProps = editor.getProps();
+        expect(nextProps.includes_for_buttons?.["f:btn"]).toBeUndefined();
+        expect(nextProps.excludes_for_buttons?.["f:btn"]).toBeUndefined();
+
+        editor.undo();
+
+        nextProps = editor.getProps();
+        expect(nextProps.includes_for_buttons?.["f:btn"]).toEqual(["f:1"]);
+        expect(nextProps.excludes_for_buttons?.["f:btn"]).toEqual(["f:1"]);
     });
 });

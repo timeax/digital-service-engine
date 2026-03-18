@@ -10,7 +10,8 @@ import type { Field, FieldOption, ServiceProps, Tag } from "@/schema";
 
 import { useCanvasAPI } from "../context";
 import type { VisibleGroupResult } from "@/react/canvas/selection";
-import { Builder, createNodeIndex, NodeIndex } from "@/core";
+import { createNodeIndex, NodeIndex } from "@/core";
+import { NodeMap } from "@/core/node-map";
 
 /** Tree node */
 export interface TreeNode<T = unknown> {
@@ -56,51 +57,29 @@ export interface UseCanvasReturn {
 }
 
 /** ---------------- helpers ---------------- */
-
-const isTagId = (id: string) => id.startsWith("t:");
-const isOptionId = (id: string) => id.startsWith("o:");
-
 function deriveSelectionInfo(
-    props: ServiceProps,
+    props: NodeMap,
     ids: readonly string[],
 ): CanvasSelection {
     const tags: string[] = [];
     const fields: string[] = [];
     const options: string[] = [];
 
-    const fieldById = new Map<string, Field>();
-    for (const f of props.fields ?? []) fieldById.set(f.id, f);
-
     for (const id of ids) {
-        if (isTagId(id)) {
+        const node = props.get(id);
+        if (!node) continue;
+
+        if (node.kind == "tag") {
             tags.push(id);
             continue;
         }
 
-        if (isOptionId(id)) {
+        if (node.kind == "option") {
             options.push(id);
             continue;
         }
 
-        // legacy option selection: "fieldId::legacyOptionId"
-        if (id.includes("::")) {
-            const [fid, legacyOid] = id.split("::");
-            if (fid && legacyOid) {
-                const host = fieldById.get(fid);
-                const resolved =
-                    host?.options?.find((o) => o.id === legacyOid)?.id ??
-                    legacyOid;
-
-                options.push(resolved);
-
-                // often you still want the field id in fieldIds too
-                if (fieldById.has(fid)) fields.push(fid);
-            }
-            continue;
-        }
-
-        // plain field selection (only if it exists as a field)
-        if (fieldById.has(id)) {
+        if (node.kind == "field") {
             fields.push(id);
         }
     }
@@ -262,7 +241,7 @@ export function useCanvas(): UseCanvasReturn {
         React.useState<readonly string[]>(initialSelection);
 
     const [selectionInfo, setSelectionInfo] = React.useState<CanvasSelection>(
-        () => deriveSelectionInfo(props0, initialSelection),
+        () => deriveSelectionInfo(api.builder.getNodeMap(), initialSelection),
     );
 
     const [layers, setLayers] = React.useState<UseCanvasReturn["layers"]>(() =>
@@ -302,7 +281,8 @@ export function useCanvas(): UseCanvasReturn {
             ) as readonly string[];
 
             setSelection(nextSelection);
-            setSelectionInfo(deriveSelectionInfo(nextProps, nextSelection));
+            const nodemap = api.builder.getNodeMap();
+            setSelectionInfo(deriveSelectionInfo(nodemap, nextSelection));
 
             setLayers(
                 computeLayersFromVisibleGroup(

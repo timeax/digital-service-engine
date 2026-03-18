@@ -124,7 +124,9 @@ export function buildOrderSnapshot(
     const qtyRes = resolveQuantity(
         visibleFieldIds,
         fieldById,
+        tagById,
         selection,
+        tagId,
         hostDefaultQty,
     );
     const quantity: number = qtyRes.quantity;
@@ -291,12 +293,14 @@ function buildInputs(
 function resolveQuantity(
     visibleFieldIds: string[],
     fieldById: Map<string, Field>,
+    tagById: Map<string, Tag>,
     selection: BuildOrderSelection,
+    tagId: string,
     hostDefault: number,
 ): { quantity: number; source: OrderSnapshot["quantitySource"] } {
     // Precedence:
-    // 1) First visible field with a quantity rule -> evaluate
-    // 2) (Future) tag/option defaults (not implemented yet)
+    // 1) First visible field with a valid quantity rule -> evaluate
+    // 2) Selected option defaults, then visible button-style field defaults, then active tag default
     // 3) Host default
     for (const fid of visibleFieldIds) {
         const f: Field | undefined = fieldById.get(fid);
@@ -315,7 +319,18 @@ function resolveQuantity(
                 source: { kind: "field", id: f.id, rule },
             };
         }
+
+        break;
     }
+
+    const nodeDefault = resolveNodeDefaultQuantity(
+        visibleFieldIds,
+        fieldById,
+        tagById,
+        selection,
+        tagId,
+    );
+    if (nodeDefault) return nodeDefault;
 
     return {
         quantity: hostDefault,
@@ -334,10 +349,50 @@ function readQuantityRule(v: unknown): QuantityRule | undefined {
         return undefined;
     const out: QuantityRule = { valueBy: src.valueBy };
     if (src.code && typeof src.code === "string") out.code = src.code;
+    if (typeof src.multiply === "number" && Number.isFinite(src.multiply)) {
+        out.multiply = src.multiply;
+    }
+    if (typeof src.fallback === "number" && Number.isFinite(src.fallback)) {
+        out.fallback = src.fallback;
+    }
+    if (src.clamp && typeof src.clamp === "object") {
+        const min =
+            typeof src.clamp.min === "number" && Number.isFinite(src.clamp.min)
+                ? src.clamp.min
+                : undefined;
+        const max =
+            typeof src.clamp.max === "number" && Number.isFinite(src.clamp.max)
+                ? src.clamp.max
+                : undefined;
+        if (min !== undefined || max !== undefined) {
+            out.clamp = {
+                ...(min !== undefined ? { min } : {}),
+                ...(max !== undefined ? { max } : {}),
+            };
+        }
+    }
     return out;
 }
 
 function evaluateQuantityRule(
+    rule: QuantityRule,
+    raw: Scalar | Scalar[] | undefined,
+): number {
+    const evaluated = evaluateRawQuantityRule(rule, raw);
+    if (Number.isFinite(evaluated)) {
+        const adjusted = applyQuantityTransforms(evaluated as number, rule);
+        if (Number.isFinite(adjusted) && adjusted > 0) return adjusted;
+    }
+
+    if (typeof rule.fallback === "number" && Number.isFinite(rule.fallback)) {
+        const fallback = applyClamp(rule.fallback, rule.clamp);
+        if (Number.isFinite(fallback) && fallback > 0) return fallback;
+    }
+
+    return NaN;
+}
+
+function evaluateRawQuantityRule(
     rule: QuantityRule,
     raw: Scalar | Scalar[] | undefined,
 ): number {
@@ -376,6 +431,84 @@ function evaluateQuantityRule(
         default:
             return NaN;
     }
+}
+
+function applyQuantityTransforms(value: number, rule: QuantityRule): number {
+    let next = value;
+    if (typeof rule.multiply === "number" && Number.isFinite(rule.multiply)) {
+        next *= rule.multiply;
+    }
+    return applyClamp(next, rule.clamp);
+}
+
+function applyClamp(
+    value: number,
+    clamp: QuantityRule["clamp"] | undefined,
+): number {
+    let next = value;
+    if (clamp?.min !== undefined) next = Math.max(next, clamp.min);
+    if (clamp?.max !== undefined) next = Math.min(next, clamp.max);
+    return next;
+}
+
+function resolveNodeDefaultQuantity(
+    visibleFieldIds: string[],
+    fieldById: Map<string, Field>,
+    tagById: Map<string, Tag>,
+    selection: BuildOrderSelection,
+    tagId: string,
+): { quantity: number; source: OrderSnapshot["quantitySource"] } | undefined {
+    const optionVisit = buildOptionVisitOrder(selection, fieldById);
+    for (const { fieldId, optionId } of optionVisit) {
+        if (!visibleFieldIds.includes(fieldId)) continue;
+        const field = fieldById.get(fieldId);
+        const option = field?.options?.find((item) => item.id === optionId);
+        const quantityDefault = readQuantityDefault(
+            (option?.meta as any)?.quantityDefault,
+        );
+        if (quantityDefault !== undefined) {
+            return {
+                quantity: quantityDefault,
+                source: { kind: "option", id: optionId },
+            };
+        }
+    }
+
+    for (const fieldId of visibleFieldIds) {
+        const field = fieldById.get(fieldId);
+        if (!field) continue;
+        const isButtonStyle =
+            field.button === true ||
+            (Array.isArray(field.options) && field.options.length > 0);
+        if (!isButtonStyle) continue;
+        const quantityDefault = readQuantityDefault(
+            (field as any).quantityDefault,
+        );
+        if (quantityDefault !== undefined) {
+            return {
+                quantity: quantityDefault,
+                source: { kind: "field", id: field.id },
+            };
+        }
+    }
+
+    const tagQuantityDefault = readQuantityDefault(
+        (tagById.get(tagId)?.meta as any)?.quantityDefault,
+    );
+    if (tagQuantityDefault !== undefined) {
+        return {
+            quantity: tagQuantityDefault,
+            source: { kind: "tag", id: tagId },
+        };
+    }
+
+    return undefined;
+}
+
+function readQuantityDefault(value: unknown): number | undefined {
+    return typeof value === "number" && Number.isFinite(value) && value > 0
+        ? value
+        : undefined;
 }
 
 /* ───────────────── Services (UPDATED) ───────────────── */
@@ -616,8 +749,9 @@ function isFiniteNumber(v: unknown): v is number {
 type UtilityMarker = {
     mode: UtilityMode;
     rate: number;
-    valueBy?: "value" | "length" | "eval";
-    code?: string;
+    valueBy?: "value" | "length";
+    percentBase?: "service_total" | "base_service" | "all";
+    label?: string;
 };
 
 function collectUtilityLineItems(
@@ -693,13 +827,18 @@ function readUtilityMarker(v: unknown): UtilityMarker | undefined {
     )
         return undefined;
     const out: UtilityMarker = { mode: src.mode, rate: src.rate };
-    if (
-        src.valueBy === "value" ||
-        src.valueBy === "length" ||
-        src.valueBy === "eval"
-    )
+    if (src.valueBy === "value" || src.valueBy === "length")
         out.valueBy = src.valueBy;
-    if (src.code && typeof src.code === "string") out.code = src.code;
+    if (
+        src.percentBase === "service_total" ||
+        src.percentBase === "base_service" ||
+        src.percentBase === "all"
+    ) {
+        out.percentBase = src.percentBase;
+    }
+    if (typeof src.label === "string" && src.label.trim()) {
+        out.label = src.label.trim();
+    }
     return out;
 }
 
@@ -713,6 +852,8 @@ function buildUtilityItemFromMarker(
         nodeId,
         mode: marker.mode,
         rate: marker.rate,
+        ...(marker.percentBase ? { percentBase: marker.percentBase } : {}),
+        ...(marker.label ? { label: marker.label } : {}),
         inputs: { quantity },
     };
     if (marker.mode === "per_value") {
@@ -723,8 +864,6 @@ function buildUtilityItemFromMarker(
                 : typeof value === "string"
                   ? value.length
                   : 0;
-        } else if (marker.valueBy === "eval") {
-            base.inputs.evalCodeUsed = true; // signal that client used eval
         } else {
             base.inputs.value = Array.isArray(value)
                 ? (value[0] ?? null)

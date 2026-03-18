@@ -11,8 +11,8 @@ import type {
     Connection,
     OnConnectStart,
     OnConnectEnd,
-} from "reactflow";
-import { applyNodeChanges, applyEdgeChanges } from "reactflow";
+} from "@xyflow/react";
+import { applyNodeChanges, applyEdgeChanges } from "@xyflow/react";
 import type { CanvasAPI } from "@/react";
 import type { CanvasState } from "@/schema/canvas-types";
 import type { EdgeKind } from "@/schema/graph";

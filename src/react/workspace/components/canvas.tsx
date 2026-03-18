@@ -1,7 +1,7 @@
 // src/react/adapters/reactflow/ReactFlowCanvas.tsx
 import React, { useMemo, useState } from "react";
-import ReactFlow, { Background, ConnectionMode, MiniMap } from "reactflow";
-import "reactflow/dist/style.css";
+import { Background, ConnectionMode, MiniMap, ReactFlow } from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 
 import {
     type AdapterOptions,
@@ -26,6 +26,7 @@ export type ReactFlowCanvasProps = {
 
     /** absolute position classes relative to the ReactFlow canvas */
     toolbarPositionClassName?: string; // e.g. "left-2 top-2"
+    children?: React.ReactNode;
 };
 
 export function Canvas({
@@ -38,6 +39,7 @@ export function Canvas({
     initialShowGrid = true,
     initialShowMiniMap = false,
     toolbarPositionClassName = "left-2 top-2",
+    children,
 }: ReactFlowCanvasProps) {
     const [showGrid, setShowGrid] = useState(initialShowGrid);
     const [showMiniMap, setShowMiniMap] = useState(initialShowMiniMap);
@@ -106,6 +108,7 @@ export function Canvas({
 
                 {showMiniMap && <MiniMap />}
                 {showGrid && <Background />}
+                {children}
             </ReactFlow>
         </div>
     );

@@ -552,18 +552,20 @@ export function createNodeIndex(builder: Builder): NodeIndex {
     };
 
     const getNode = (input: string | Tag | Field | FieldOption): AnyNode => {
-        if (typeof input !== "string") {
-            if ("bind_id" in input && !("type" in input))
-                return getTag(input.id) ?? mkUnknown(input.id);
-            if ("type" in input)
-                return getField(input.id) ?? mkUnknown(input.id);
-            return getOption(input.id) ?? mkUnknown((input as FieldOption).id);
-        }
+        const id = typeof input === "object" ? input.id : input;
 
-        const cached = nodeCache.get(input);
+        const cached = nodeCache.get(id);
         if (cached) return cached;
 
-        return (nodeMap.get(input)?.node ?? mkUnknown(input)) as AnyNode;
+        const node = nodeMap.get(id);
+
+        if (!node) return mkUnknown(id);
+
+        if (node.kind === "tag") return getTag(id) ?? mkUnknown(id);
+        if (node.kind == "field") return getField(id) ?? mkUnknown(id);
+        if (node.kind == "option") return getOption(id) ?? mkUnknown(id);
+
+        return mkUnknown(id);
     };
 
     const mkUnknown = (id: string): UnknownNode => {

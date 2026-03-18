@@ -37,6 +37,9 @@ export type FormApi = {
      * (This is NOT “submitting to a server”.)
      */
     submit: () => { values: Dict; valid: boolean };
+
+    setFieldError(id: any, message: string): void;
+    setErrors(errors: Record<string, string>): void;
 };
 
 const Ctx = React.createContext<FormApi | null>(null);
@@ -181,6 +184,19 @@ export function FormProvider({ children, schema, initial }: FormProviderProps) {
 
                 // palette submit validates & returns mounted/visible values
                 return core.submit() as { values: Dict; valid: boolean };
+            },
+
+            setFieldError(id: any, message: string) {
+                const core = coreRef.current;
+                if (!core) return;
+                core.error(id, message);
+            },
+
+            setErrors(values: Record<string, string>) {
+                const core = coreRef.current;
+                if (!core) return;
+
+                core.error(values);
             },
         };
     }, [bag, selectionsBag, publish]);

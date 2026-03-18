@@ -59,10 +59,10 @@
     },
     "sideEffects": false,
     "peerDependencies": {
-        "react": "^19.0.0",
+        "@xyflow/react": "^12.9.2",
+        "react": "^18.3.1",
         "react-day-picker": "^9.8.1",
-        "react-dom": "^19.0.0",
-        "reactflow": "^11.11.4"
+        "react-dom": "^18.3.1"
     },
     "devDependencies": {
         "@radix-ui/react-label": "^2.1.8",
@@ -71,14 +71,14 @@
         "@radix-ui/react-slot": "^1.2.4",
         "@types/lodash-es": "^4.17.12",
         "@types/node": "^25.0.9",
-        "@types/react": "^18.3.28",
-        "@types/react-dom": "^18.3.7",
+        "@types/react": "^18.3.12",
+        "@types/react-dom": "^18.3.1",
         "@vitejs/plugin-react": "^5.1.2",
+        "@xyflow/react": "^12.9.2",
         "jsdom": "^27.4.0",
         "prettier": "^3.6.2",
-        "react": "^19.2.4",
-        "react-dom": "^19.2.4",
-        "reactflow": "^11.11.4",
+        "react": "^18.3.1",
+        "react-dom": "^18.3.1",
         "rimraf": "^5.0.10",
         "ts-json-schema-generator": "^2.4.0",
         "tsup": "^8.5.0",

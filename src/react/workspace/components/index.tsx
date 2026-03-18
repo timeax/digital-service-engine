@@ -1,7 +1,10 @@
 // src/react/adapters/reactflow/index.tsx
 import React from "react";
 import type { AdapterOptions } from "../adapters/reactflow/adapter";
-import type { ToolsConfig, LabelPlacement } from "../adapters/reactflow/toolbar/types";
+import type {
+    LabelPlacement,
+    ToolsConfig,
+} from "../adapters/reactflow/toolbar/types";
 import { useCanvasAPI } from "@/react/workspace/context/context";
 import { Canvas } from "@/react/workspace/components/canvas";
 
@@ -25,6 +28,7 @@ export type FlowCanvasProps = {
 
     /** Adapter options (snapping etc.) */
     options?: AdapterOptions;
+    children?: React.ReactNode;
 };
 
 const FlowCanvas: React.FC<FlowCanvasProps> = ({
@@ -36,6 +40,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
     initialShowGrid = true,
     initialShowMiniMap = false,
     options,
+    children,
 }) => {
     const api = useCanvasAPI();
 
@@ -50,6 +55,7 @@ const FlowCanvas: React.FC<FlowCanvasProps> = ({
             initialShowGrid={initialShowGrid}
             initialShowMiniMap={initialShowMiniMap}
             options={options}
+            children={children}
         />
     );
 };

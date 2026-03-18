@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useCallback } from "react";
-import { useReactFlow } from "reactflow";
+import { useReactFlow } from "@xyflow/react";
 import type { CanvasAPI } from "@/react";
 import { resolveTools } from "./toolbar/merge";
 import type {

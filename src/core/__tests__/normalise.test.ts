@@ -167,4 +167,24 @@ describe("normalise()", () => {
         );
         expect(() => normalise(undefined as unknown as object)).toThrowError();
     });
+
+    it("preserves notices when present", () => {
+        const out = normalise({
+            filters: [{ id: "root", label: "Root" }],
+            fields: [],
+            notices: [
+                {
+                    id: "n:1",
+                    type: "public",
+                    kind: "label",
+                    severity: "info",
+                    target: { scope: "global" },
+                    title: "Best",
+                },
+            ],
+        });
+
+        expect(out.notices).toHaveLength(1);
+        expect(out.notices?.[0].id).toBe("n:1");
+    });
 });

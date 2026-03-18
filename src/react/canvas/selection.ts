@@ -1,5 +1,5 @@
 // src/react/canvas/selection.ts
-import type { Builder } from "@/core";
+import { createNodeIndex, type Builder } from "@/core";
 import type { Field, PricingRole, ServiceProps, Tag } from "@/schema";
 import type { DgpServiceCapability } from "@/schema/provider";
 
@@ -271,36 +271,49 @@ export class Selection {
             this.currentTagId = id;
             return;
         }
-        const f = fields.find((x) => x.id === id);
-        if (f?.bind_id) {
-            this.currentTagId = Array.isArray(f.bind_id)
-                ? f.bind_id[0]
-                : f.bind_id;
-            return;
-        }
 
-        if (this.builder.isOptionId(id)) {
-            const host = fields.find((x) =>
-                (x.options ?? []).some((o) => o.id === id),
+        const firstBindId = (field?: Field): string | undefined => {
+            if (!field?.bind_id) return undefined;
+            return Array.isArray(field.bind_id)
+                ? field.bind_id[0]
+                : field.bind_id;
+        };
+
+        const resolveField = (): Field | undefined => {
+            const direct = fields.find((x) => x.id === id);
+            if (direct) return direct;
+
+            if (this.builder.isOptionId(id)) {
+                return fields.find((x) =>
+                    (x.options ?? []).some((o) => o.id === id),
+                );
+            }
+
+            if (id.includes("::")) {
+                const [fieldId] = id.split("::");
+                if (!fieldId) return undefined;
+                return fields.find((x) => x.id === fieldId);
+            }
+
+            return undefined;
+        };
+
+        const field = resolveField();
+        if (!field) return;
+
+        const currentTagId = this.currentTag();
+        if (currentTagId) {
+            const currentTagNode = createNodeIndex(this.builder).getTag(
+                currentTagId,
             );
-            if (host?.bind_id) {
-                this.currentTagId = Array.isArray(host.bind_id)
-                    ? host.bind_id[0]
-                    : host.bind_id;
+            if (currentTagNode?.getDescendant(field.id)) {
+                this.currentTagId = currentTagId;
                 return;
             }
         }
 
-        if (id.includes("::")) {
-            const [fid] = id.split("::");
-            const host = fields.find((x) => x.id === fid);
-            if (host?.bind_id) {
-                this.currentTagId = Array.isArray(host.bind_id)
-                    ? host.bind_id[0]
-                    : host.bind_id;
-                return;
-            }
-        }
+        const fallbackTagId = firstBindId(field);
+        if (fallbackTagId) this.currentTagId = fallbackTagId;
     }
 
     private resolveTagContextId(props: ServiceProps): string | undefined {

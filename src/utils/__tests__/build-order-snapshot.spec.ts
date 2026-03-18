@@ -192,4 +192,98 @@ describe('buildOrderSnapshot — service composition', () => {
         expect(Object.keys(snap.serviceMap)).not.toContain('o:U1');
         expect(Object.keys(snap.serviceMap)).not.toContain('t:root');
     });
+
+    it('carries utility percentBase and label for percent utilities', () => {
+        const tags = [tag('t:root', 'Root')];
+        const percentField: Field = {
+            id: 'f:percent',
+            type: 'text',
+            bind_id: 't:root',
+            label: 'Percent utility',
+            pricing_role: 'utility',
+            meta: {
+                utility: {
+                    rate: 12,
+                    mode: 'percent',
+                    percentBase: 'service_total',
+                    label: 'Rush uplift',
+                },
+            } as any,
+        } as Field;
+        const props = baseProps(tags, [percentField]);
+        const builder = makeBuilderVisibleFields(['f:percent']);
+
+        const snap = buildOrderSnapshot(
+            props,
+            builder,
+            {
+                activeTagId: 't:root',
+                formValuesByFieldId: {},
+                optionSelectionsByFieldId: {},
+            },
+            svcMap,
+            {mode: 'prod', hostDefaultQuantity: 3},
+        );
+
+        expect(snap.utilities).toEqual([
+            {
+                nodeId: 'f:percent',
+                mode: 'percent',
+                rate: 12,
+                percentBase: 'service_total',
+                label: 'Rush uplift',
+                inputs: {quantity: 3},
+            },
+        ]);
+    });
+
+    it('uses the parent field value for option per_value utilities', () => {
+        const tags = [tag('t:root', 'Root')];
+        const utilityOption: FieldOption = {
+            id: 'o:length',
+            label: 'By length',
+            pricing_role: 'utility',
+            meta: {
+                utility: {
+                    rate: 2,
+                    mode: 'per_value',
+                    valueBy: 'length',
+                },
+            } as any,
+        };
+        const inputField: Field = {
+            id: 'f:input',
+            type: 'select',
+            bind_id: 't:root',
+            label: 'Input',
+            options: [utilityOption],
+        } as Field;
+        const props = baseProps(tags, [inputField]);
+        const builder = makeBuilderVisibleFields(['f:input']);
+
+        const snap = buildOrderSnapshot(
+            props,
+            builder,
+            {
+                activeTagId: 't:root',
+                formValuesByFieldId: {'f:input': 'hello'},
+                optionSelectionsByFieldId: {'f:input': ['o:length']},
+            },
+            svcMap,
+            {mode: 'prod', hostDefaultQuantity: 2},
+        );
+
+        expect(snap.utilities).toEqual([
+            {
+                nodeId: 'o:length',
+                mode: 'per_value',
+                rate: 2,
+                inputs: {
+                    quantity: 2,
+                    valueBy: 'length',
+                    value: 5,
+                },
+            },
+        ]);
+    });
 });
