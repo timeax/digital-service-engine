@@ -1,7 +1,7 @@
 // src/react/hooks/use-order-flow.ts
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { ServiceProps } from "@/schema";
+import type { ServiceProps, ServicePropsNotice } from "@/schema";
 import type { OrderSnapshot, Scalar } from "@/schema/order";
 import type { FallbackSettings } from "@/schema/validation";
 
@@ -80,6 +80,8 @@ export type UseOrderFlowReturn = {
 
     /** VALIDATES via form.submit() */
     buildSnapshot: () => OrderSnapshot | undefined;
+
+    notices: ServicePropsNotice[];
 
     fallbackPolicy: FallbackSettings;
     setFallbackPolicy: (next: FallbackSettings) => void;
@@ -447,12 +449,15 @@ export function useOrderFlow(): UseOrderFlowReturn {
         return ctx.ensureReady("raw").builder.getProps();
     }, [ctx, ready, selTick]);
 
+    const notices = useMemo(() => raw.notices ?? [], [raw]);
+
     return {
         ready,
         initialize,
 
         activeTagId,
         raw,
+        notices,
 
         visibleGroup,
 

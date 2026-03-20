@@ -219,6 +219,33 @@ function normalizeInit(init: OrderFlowInit): NormalizedInit {
     return { ...init, mode, hostDefaultQuantity };
 }
 
+function sameNormalizedInit(
+    a: NormalizedInit | null,
+    b: NormalizedInit | null,
+): boolean {
+    if (a === b) return true;
+    if (!a || !b) return false;
+
+    return (
+        a.mode === b.mode &&
+        a.hostDefaultQuantity === b.hostDefaultQuantity &&
+        a.services === b.services &&
+        a.fallback === b.fallback &&
+        a.hydrateFrom === b.hydrateFrom &&
+        a.initialTagId === b.initialTagId &&
+        a.resolveService === b.resolveService &&
+        a.ctx === b.ctx &&
+        a.normalizeRate === b.normalizeRate
+    );
+}
+
+function sameServiceProps(
+    a: ServiceProps | null | undefined,
+    b: ServiceProps | null | undefined,
+): boolean {
+    return JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+}
+
 /* ───────────────────────── Bridge ───────────────────────── */
 /**
  * This component MUST live inside <FormProvider> so it can call useFormApi()
@@ -300,6 +327,27 @@ export const OrderFlowProvider = forwardRef<
         },
         [],
     );
+
+    const resolvedBuilder = useMemo(
+        () =>
+            resolveBuilder({
+                flow,
+                builder: builderProp,
+                serviceProps,
+                builderOptions,
+            }),
+        [builderOptions, builderProp, flow, resolveBuilder, serviceProps],
+    );
+
+    const effectiveInit = useMemo<NormalizedInit | null>(() => {
+        if (init) return normalizeInit(init);
+        if (!resolvedBuilder) return null;
+        return normalizeInit({
+            services: {},
+            mode: "prod",
+            hostDefaultQuantity: 1,
+        });
+    }, [init, resolvedBuilder]);
 
     useEffect(() => {
         return () => {
@@ -416,29 +464,67 @@ export const OrderFlowProvider = forwardRef<
         [resolveBuilder, resolveSelection],
     );
 
-    // auto initialize from initial props if possible
+    // auto initialize from mount props or reactively resync when sources change
     useEffect(() => {
-        if (ready()) return;
-        if (!init) return;
+        if (!resolvedBuilder || !effectiveInit) return;
 
-        const b = resolveBuilder({
+        const nextSelection = resolveSelection(resolvedBuilder, effectiveInit, {
             flow,
-            builder: builderProp,
-            serviceProps,
-            builderOptions,
-        });
-        if (!b) return;
-
-        initialize({
-            flow,
-            builder: builderProp,
-            serviceProps,
-            builderOptions,
             selection: selectionProp,
-            init,
         });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+
+        if (
+            !ready() ||
+            builderRef.current !== resolvedBuilder ||
+            selectionRef.current !== nextSelection ||
+            !sameNormalizedInit(initRef.current, effectiveInit)
+        ) {
+            initialize({
+                flow,
+                builder: builderProp,
+                serviceProps,
+                builderOptions,
+                selection: selectionProp,
+                init: effectiveInit,
+            });
+        }
+    }, [
+        builderOptions,
+        builderProp,
+        effectiveInit,
+        flow,
+        initialize,
+        ready,
+        resolveSelection,
+        resolvedBuilder,
+        selectionProp,
+        serviceProps,
+    ]);
+
+    useEffect(() => {
+        if (!serviceProps) return;
+        if (!ready()) return;
+
+        const currentBuilder = builderRef.current;
+        if (!currentBuilder || currentBuilder !== resolvedBuilder) return;
+        if (!sameServiceProps(currentBuilder.getProps(), serviceProps)) {
+            currentBuilder.load(serviceProps);
+
+            const currentTag = selectionRef.current?.currentTag();
+            if (
+                selectionRef.current &&
+                currentTag &&
+                !currentBuilder.isTagId(currentTag)
+            ) {
+                const nextTag =
+                    findDefaultTagId(currentBuilder.getProps().filters ?? []) ??
+                    currentBuilder.getProps().filters?.[0]?.id;
+                if (nextTag) selectionRef.current.replace(nextTag);
+            }
+
+            bump();
+        }
+    }, [ready, resolvedBuilder, serviceProps]);
 
     // attach selection listener whenever selection changes
     useEffect(() => {

@@ -140,7 +140,13 @@ export interface WorkspaceAPI {
         services(): Promise<void>;
 
         /** Current branch-scoped refreshers */
-        branchContext(): Promise<void>;
+        branchContext(
+            opts?: Readonly<{
+                branchId?: string;
+                strict?: boolean;
+                includeWorkspaceData?: boolean;
+            }>,
+        ): Promise<void>;
         templates(
             params?: Partial<Pick<TemplatesListParams, "branchId" | "since">>,
         ): Promise<void>;

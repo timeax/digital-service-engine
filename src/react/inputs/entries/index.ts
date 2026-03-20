@@ -21,7 +21,7 @@ import { keyValueDescriptor } from "./keyvalue";
 import { editorDescriptor } from "./editor";
 import { listerDescriptor } from "./lister";
 import { fileDescriptor } from "./file";
-import {Ui} from "@/schema";
+import { Field, FieldOption, ServicePropsNotice, Ui } from "@/schema";
 
 /**
  * InputField-level UI props (injected for every descriptor at registration time).
@@ -167,11 +167,13 @@ function withInputFieldUi(desc: InputDescriptor): InputDescriptor {
                 });
 
                 const matchesNotice = (
-                    target: { id?: unknown; service_id?: unknown },
-                    notice: { id?: unknown },
+                    target: Field | FieldOption,
+                    notice: ServicePropsNotice,
                 ) =>
-                    notice.id === target.id ||
-                    (!!target.service_id && target.service_id == notice.id);
+                    (notice.target.scope == "node" &&
+                        notice.target.node_id === target.id) ||
+                    (!!target.service_id &&
+                        (target as any).service_id == notice.id);
 
                 const notices = props.notices ?? [];
 

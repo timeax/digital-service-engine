@@ -217,7 +217,7 @@ export function Wrapper({
 
     const adapterCtx = React.useMemo<AdapterCtx>(
         () => ({ field, props: flow.raw }),
-        [field],
+        [field, flow.raw],
     );
 
     const onHostChange = React.useCallback(

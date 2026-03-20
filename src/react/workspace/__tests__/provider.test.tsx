@@ -252,4 +252,5 @@ describe("WorkspaceProvider (integration)", () => {
             }),
         );
     });
+
 });
