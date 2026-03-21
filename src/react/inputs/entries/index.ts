@@ -1,27 +1,27 @@
 // src/react/inputs/registry/entries/index.ts
-import type { InputDescriptor, Registry } from "@/react";
+import type {InputDescriptor, Registry} from "@/react";
 
-import { textDescriptor } from "./text";
-import { textareaDescriptor } from "./textarea";
-import { phoneDescriptor } from "./phone";
-import { toggleGroupDescriptor } from "./toggle-group";
-import { numberDescriptor } from "./number";
-import { passwordDescriptor } from "./password";
-import { sliderDescriptor } from "./slider";
-import { toggleDescriptor } from "./toggle";
-import { treeSelectDescriptor } from "./treeselect";
-import { multiSelectDescriptor } from "./multiselect";
-import { selectDescriptor } from "./select";
-import { radioDescriptor } from "./radio";
-import { checkboxDescriptor } from "./checkbox";
-import { chipsDescriptor } from "./chips";
-import { colorDescriptor } from "./color";
-import { dateDescriptor } from "./date";
-import { keyValueDescriptor } from "./keyvalue";
-import { editorDescriptor } from "./editor";
-import { listerDescriptor } from "./lister";
-import { fileDescriptor } from "./file";
-import { Field, FieldOption, ServicePropsNotice, Ui } from "@/schema";
+import {textDescriptor} from "./text";
+import {textareaDescriptor} from "./textarea";
+import {phoneDescriptor} from "./phone";
+import {toggleGroupDescriptor} from "./toggle-group";
+import {numberDescriptor} from "./number";
+import {passwordDescriptor} from "./password";
+import {sliderDescriptor} from "./slider";
+import {toggleDescriptor} from "./toggle";
+import {treeSelectDescriptor} from "./treeselect";
+import {multiSelectDescriptor} from "./multiselect";
+import {selectDescriptor} from "./select";
+import {radioDescriptor} from "./radio";
+import {checkboxDescriptor} from "./checkbox";
+import {chipsDescriptor} from "./chips";
+import {colorDescriptor} from "./color";
+import {dateDescriptor} from "./date";
+import {keyValueDescriptor} from "./keyvalue";
+import {editorDescriptor} from "./editor";
+import {listerDescriptor} from "./lister";
+import {fileDescriptor} from "./file";
+import {Field, FieldOption, ServicePropsNotice, Ui} from "@/schema";
 
 /**
  * InputField-level UI props (injected for every descriptor at registration time).
@@ -169,11 +169,23 @@ function withInputFieldUi(desc: InputDescriptor): InputDescriptor {
                 const matchesNotice = (
                     target: Field | FieldOption,
                     notice: ServicePropsNotice,
-                ) =>
-                    (notice.target.scope == "node" &&
-                        notice.target.node_id === target.id) ||
-                    (!!target.service_id &&
-                        (target as any).service_id == notice.id);
+                ) => {
+                    const isNodeTargetMatch =
+                        notice.target.scope === "node" &&
+                        notice.target.node_id === target.id;
+                    const isLegacyGlobalIdMatch =
+                        notice.target.scope === "global" &&
+                        notice.id === target.id;
+                    const isServiceMatch =
+                        !!target.service_id &&
+                        String(target.service_id) === notice.id;
+
+                    return (
+                        isNodeTargetMatch ||
+                        isLegacyGlobalIdMatch ||
+                        isServiceMatch
+                    );
+                };
 
                 const notices = props.notices ?? [];
 
@@ -204,7 +216,7 @@ function withInputFieldUi(desc: InputDescriptor): InputDescriptor {
                 };
             },
             getSelectedOptions(next, currentt, ctx) {
-                return ((next as any)?.selectedOptions ?? [])?.map(
+                return ((next as any)?.detail?.selectedOptions ?? [])?.map(
                     (item: any) => item.id,
                 );
             },

@@ -19,13 +19,14 @@ function makeNotice(
     id: string,
     title: string,
     severity: "info" | "warning" | "error" = "info",
+    target: ServicePropsNotice["target"] = { scope: "global" },
 ): ServicePropsNotice {
     return {
         id,
         type: "public",
         kind: "label",
         severity,
-        target: { scope: "global" },
+        target,
         title,
     };
 }
@@ -55,6 +56,46 @@ function makeProps(noticeTitle: string, optionNoticeTitle: string): ServiceProps
         notices: [
             makeNotice("f:text", noticeTitle),
             makeNotice("o:alpha", optionNoticeTitle, "warning"),
+        ],
+    };
+}
+
+function makeNodeScopedProps(
+    noticeTitle: string,
+    optionNoticeTitle: string,
+): ServiceProps {
+    return {
+        schema_version: "1.0",
+        filters: [{ id: "t:root", label: "Root" }],
+        fields: [
+            {
+                id: "f:text",
+                type: "text",
+                bind_id: "t:root",
+                label: "Text input",
+            },
+            {
+                id: "f:select",
+                type: "select",
+                bind_id: "t:root",
+                label: "Select input",
+                options: [
+                    { id: "o:alpha", label: "Alpha" },
+                    { id: "o:beta", label: "Beta" },
+                ],
+            },
+        ],
+        notices: [
+            makeNotice("n:f:text", noticeTitle, "info", {
+                scope: "node",
+                node_kind: "field",
+                node_id: "f:text",
+            }),
+            makeNotice("n:o:alpha", optionNoticeTitle, "warning", {
+                scope: "node",
+                node_kind: "option",
+                node_id: "o:alpha",
+            }),
         ],
     };
 }
@@ -233,6 +274,72 @@ describe("OrderFlowProvider dev mount regressions", () => {
 
         await act(async () => {
             root?.unmount();
+            await flush();
+        });
+    });
+
+    it("maps node-scoped notices to field and option tags on mount", async () => {
+        const props = makeNodeScopedProps(
+            "Node-targeted field notice",
+            "Node-targeted option notice",
+        );
+
+        const builder = createBuilder();
+        builder.load(props);
+        const api = new CanvasAPI(builder, { autoEmitState: false });
+
+        const renderedProps: CapturedProps = {};
+        const registry = createRegistry(renderedProps);
+
+        function Consumer({
+            consumerProps,
+        }: {
+            consumerProps: ServiceProps;
+        }) {
+            return (
+                <>
+                    {consumerProps.fields.map((field) => (
+                        <Wrapper key={field.id} field={field} />
+                    ))}
+                </>
+            );
+        }
+
+        const host = document.createElement("div");
+        document.body.appendChild(host);
+        const root = createRoot(host);
+
+        await act(async () => {
+            root.render(
+                <OrderFlowProvider
+                    serviceProps={props}
+                    builder={api.builder}
+                    selection={api.selection}
+                    registry={registry}
+                >
+                    <Consumer consumerProps={props} />
+                </OrderFlowProvider>,
+            );
+            await flush();
+        });
+
+        expect(
+            (renderedProps["f:text"]?.tags as Array<{ label: string }> | undefined)?.map(
+                (tag) => tag.label,
+            ),
+        ).toEqual(["Node-targeted field notice"]);
+        expect(
+            (
+                renderedProps["f:select"]?.options as Array<{
+                    id: string;
+                    tags?: Array<{ label: string }>;
+                }>
+            )?.find((option) => option.id === "o:alpha")?.tags?.map((tag) => tag.label),
+        ).toEqual(["Node-targeted option notice"]);
+
+        await act(async () => {
+            root.unmount();
+            host.remove();
             await flush();
         });
     });

@@ -1,15 +1,15 @@
 import React, { useMemo, useState, useCallback } from "react";
 import { useReactFlow } from "@xyflow/react";
 import type { CanvasAPI } from "@/react";
-import { resolveTools } from "./toolbar/merge";
-import type {
+import {
+    LabelPlacement,
     ResolvedTools,
     ToolContext,
-    ToolsConfig,
-    LabelPlacement,
     ToolDescriptor,
-} from "./toolbar/types";
-import { Icons } from "./toolbar/icons";
+    ToolsConfig,
+} from "@/react/workspace/adapters/reactflow/toolbar/types";
+import { resolveTools } from "@/react/workspace/adapters/reactflow/toolbar/merge";
+import { Icons } from "@/react/workspace/adapters/reactflow/toolbar/icons";
 
 export type ToolbarProps = {
     api: CanvasAPI;

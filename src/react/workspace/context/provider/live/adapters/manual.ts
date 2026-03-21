@@ -1,9 +1,9 @@
 // src/react/workspace/context/provider/compose/use-workspace-refresh.ts
 import * as React from "react";
-import type { RunResult } from "../types";
-import type { BackendRuntime } from "../runtime/use-backend-runtime";
 import { PoliciesSlice } from "@/react/workspace/context/provider/slices/use-policies-slice";
 import { CommentsSliceApi } from "@/react/workspace/context/provider/slices/use-comments-slice";
+import type { RunResult } from "@/react/workspace/context/provider/types";
+import type { BackendRuntime } from "@/react/workspace/context/provider/runtime/use-backend-runtime";
 
 export interface WorkspaceRefreshApi {
     readonly refreshAll: (opts?: { strict?: boolean }) => Promise<RunResult>;
