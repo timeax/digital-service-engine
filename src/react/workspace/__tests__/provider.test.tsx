@@ -373,4 +373,164 @@ describe("WorkspaceProvider boot", () => {
         expect(spyPoliciesLoad).toHaveBeenCalled();
         expect(spyCommentsRefresh).toHaveBeenCalled();
     });
+
+    it("clears stale snapshot immediately when switching to an uncached branch", async () => {
+        const actor = makeActor();
+        const workspaceId = `ws-branch-switch-${Date.now()}-${Math.floor(
+            Math.random() * 10000,
+        )}`;
+
+        const backend = createMemoryWorkspaceBackend({
+            workspaceId,
+            actorId: actor.id,
+            seed: {
+                authors: [{ id: actor.id, name: actor.name ?? "Tester" }],
+                branches: [
+                    makeBranch("main", true),
+                    makeBranch("experiment", false),
+                ],
+                snapshots: {
+                    main: {
+                        snapshot: makeSnapshot("main-live"),
+                    },
+                    experiment: {
+                        snapshot: makeSnapshot("experiment-live"),
+                    },
+                },
+                policies: { rules: [] },
+            },
+        });
+
+        const experimentGate = createDeferred<void>();
+        const originalLoad = backend.snapshots.load.bind(backend.snapshots);
+        vi.spyOn(backend.snapshots, "load").mockImplementation(async (args) => {
+            if (args.branchId === "experiment") {
+                await experimentGate.promise;
+            }
+            return originalLoad(args);
+        });
+
+        let api: WorkspaceAPI | undefined;
+
+        function Capture(): null {
+            api = useWorkspace();
+            return null;
+        }
+
+        await act(async () => {
+            root?.render(
+                <WorkspaceProvider
+                    backend={backend}
+                    actor={actor}
+                    autoAutosave={false}
+                >
+                    <Capture />
+                </WorkspaceProvider>,
+            );
+            await flushMicrotasks();
+        });
+
+        await waitFor(() => Boolean(api) && api!.boot.isBooting === false);
+        expect(api!.branches.currentId).toBe("main");
+        expect((api!.snapshot.data as any)?.props?.id).toBe("main-live");
+
+        await act(async () => {
+            api!.setCurrentBranch("experiment");
+            await flushMicrotasks();
+        });
+
+        expect(api!.branches.currentId).toBe("experiment");
+        expect(api!.snapshot.data).toBeUndefined();
+        expect(api!.snapshot.schemaVersion).toBeUndefined();
+
+        experimentGate.resolve();
+
+        await waitFor(
+            () => (api!.snapshot.data as any)?.props?.id === "experiment-live",
+        );
+        expect(api!.snapshot.schemaVersion).toBe("1");
+    });
+
+    it("treats malformed loaded snapshot payload as empty/loading-safe", async () => {
+        const actor = makeActor();
+        const workspaceId = `ws-malformed-snapshot-${Date.now()}-${Math.floor(
+            Math.random() * 10000,
+        )}`;
+
+        const backend = createMemoryWorkspaceBackend({
+            workspaceId,
+            actorId: actor.id,
+            seed: {
+                authors: [{ id: actor.id, name: actor.name ?? "Tester" }],
+                branches: [
+                    makeBranch("main", true),
+                    makeBranch("malformed", false),
+                ],
+                snapshots: {
+                    main: {
+                        snapshot: makeSnapshot("main-live"),
+                    },
+                    malformed: {
+                        snapshot: makeSnapshot("malformed-live"),
+                    },
+                },
+                policies: { rules: [] },
+            },
+        });
+
+        const originalLoad = backend.snapshots.load.bind(backend.snapshots);
+        vi.spyOn(backend.snapshots, "load").mockImplementation(async (args) => {
+            if (args.branchId === "malformed") {
+                return {
+                    ok: true,
+                    value: {
+                        head: undefined,
+                        draft: undefined,
+                        snapshot: {
+                            schema_version: "1",
+                            data: {} as ServiceSnapshot["data"],
+                        },
+                    },
+                };
+            }
+            return originalLoad(args);
+        });
+
+        let api: WorkspaceAPI | undefined;
+
+        function Capture(): null {
+            api = useWorkspace();
+            return null;
+        }
+
+        await act(async () => {
+            root?.render(
+                <WorkspaceProvider
+                    backend={backend}
+                    actor={actor}
+                    autoAutosave={false}
+                >
+                    <Capture />
+                </WorkspaceProvider>,
+            );
+            await flushMicrotasks();
+        });
+
+        await waitFor(() => Boolean(api) && api!.boot.isBooting === false);
+
+        await act(async () => {
+            api!.setCurrentBranch("malformed");
+            await flushMicrotasks();
+        });
+
+        await waitFor(
+            () =>
+                api!.branches.currentId === "malformed" &&
+                api!.boot.sections.snapshotBody.status === "success",
+        );
+
+        expect(api!.snapshot.data).toBeUndefined();
+        expect(api!.snapshot.schemaVersion).toBeUndefined();
+        expect(api!.snapshot.state).toBe("clean");
+    });
 });

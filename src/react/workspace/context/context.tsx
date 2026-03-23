@@ -1,59 +1,52 @@
 import React, {
     createContext,
+    type ReactNode,
     useContext,
     useEffect,
     useMemo,
     useRef,
-    type ReactNode
 } from "react";
 import { CanvasAPI } from "@/react";
 import { Builder, BuilderOptions, createBuilder } from "@/core";
-import type { CanvasOptions } from "@/schema/canvas-types";
+import type { CanvasOptions, CanvasState } from "@/schema/canvas-types";
 import type { CanvasBackendOptions } from "../../canvas/backend";
-import type { ServiceProps } from "@/schema";
+import type { EditorSnapshot, ServiceProps } from "@/schema";
 import { useWorkspaceMaybe } from ".";
-
-/* ───────────────────────── context ───────────────────────── */
 
 const Ctx = createContext<CanvasAPI | null>(null);
 
-/** Managed props (back-compat): host provides the API instance. */
-type CanvasProviderManagedProps = { api: CanvasAPI; children: ReactNode };
+type CanvasProviderManagedProps = {
+    api: CanvasAPI;
+    children: ReactNode;
+};
 
-/** Workspace-aware props: host omits `api`, we attach to Workspace on demand. */
 type CanvasProviderWorkspaceProps = {
     children: ReactNode;
-    /** Optional Builder options (e.g., historyLimit, serviceMap if you already have one). */
     builderOpts?: BuilderOptions;
-    /** Canvas view/backend options for CanvasAPI ctor. */
     canvasOpts?: CanvasOptions & CanvasBackendOptions;
-    /** If false, we won’t attempt to read Workspace; will throw if no api is provided. */
-    attachToWorkspace?: boolean; // default true
+    attachToWorkspace?: boolean;
 };
 
 type CanvasProviderProps =
     | CanvasProviderManagedProps
     | CanvasProviderWorkspaceProps;
 
-/**
- * CanvasProvider
- * - Managed mode (existing): <CanvasProvider api={api}>{...}</CanvasProvider>
- * - Workspace-aware mode (new): if no `api` and inside a Workspace, auto-create Builder+CanvasAPI and load snapshot props.
- */
+type BootSectionStatus = "idle" | "loading" | "success" | "error";
+
 export function CanvasProvider(props: CanvasProviderProps) {
-    // Managed mode: unchanged behavior
     if ("api" in props) {
         return <Ctx.Provider value={props.api}>{props.children}</Ctx.Provider>;
     }
 
-    // Workspace-aware mode
-    const {
-        children,
-        builderOpts,
-        canvasOpts,
-        attachToWorkspace = true,
-    } = props;
+    return <CanvasProviderWorkspaceRuntime {...props} />;
+}
 
+function CanvasProviderWorkspaceRuntime({
+    children,
+    builderOpts,
+    canvasOpts,
+    attachToWorkspace = true,
+}: CanvasProviderWorkspaceProps) {
     const ws = useWorkspaceMaybe();
 
     if (!attachToWorkspace || !ws) {
@@ -63,19 +56,41 @@ export function CanvasProvider(props: CanvasProviderProps) {
         );
     }
 
-    // Pull initial ServiceProps from current editor snapshot (if present)
-    const initialProps: ServiceProps | undefined = ws.snapshot.data?.props as
-        | ServiceProps
-        | undefined;
+    const snapshotSection = ws.boot.sections.snapshotBody;
+    const currentBranchId = ws.branches.currentId;
+    const snapshotData = ws.snapshot.data as EditorSnapshot | undefined;
+    const initialProps = snapshotData?.props as ServiceProps | undefined;
 
-    // If the Workspace exposes services as a map, we can forward it to builderOpts.
-    // (We avoid any normalization here; arrays are ignored by design.)
+    const hasMountedOnceRef = useRef(false);
+
+    // useEffect(() => {
+    //     console.log(
+    //         "service-builder effect from the CanvasProvider",
+    //         JSON.stringify({
+    //             currentBranchId: ws.branches.currentId,
+    //             snapshotState: ws.snapshot.state,
+    //             hasData: !!ws.snapshot.data,
+    //             snapshotKeys: ws.snapshot.data
+    //                 ? Object.keys(ws.snapshot.data)
+    //                 : [],
+    //         }),
+    //     );
+    // }, [ws.branches.currentId, ws.snapshot]);
+
+    const canMountCanvas =
+        ws.boot.isBooting === false &&
+        snapshotSection.status === "success" &&
+        initialProps != null;
+
+    const debug = "";
+
     const resolvedBuilderOpts: BuilderOptions | undefined = useMemo(() => {
         const svc = ws.services.data as unknown;
         const hasMap =
             svc != null &&
             typeof svc === "object" &&
             !Array.isArray(svc as unknown[]);
+
         return hasMap
             ? {
                   ...(builderOpts ?? {}),
@@ -84,39 +99,86 @@ export function CanvasProvider(props: CanvasProviderProps) {
             : builderOpts;
     }, [builderOpts, ws.services.data]);
 
-    const { api } = useCanvasOwned(
-        initialProps,
-        canvasOpts,
-        resolvedBuilderOpts,
+    if (canMountCanvas) {
+        hasMountedOnceRef.current = true;
+    }
+
+    if (!canMountCanvas && !hasMountedOnceRef.current) {
+        return (
+            <>
+                {debug}
+                <WorkspaceBootScreen boot={ws.boot} />
+            </>
+        );
+    }
+
+    if (!canMountCanvas) {
+        return (
+            <>
+                {debug}
+                <WorkspaceBootOverlay boot={ws.boot} />
+                <CanvasShellPlaceholder />
+            </>
+        );
+    }
+
+    const mountKey = currentBranchId ?? "workspace-canvas";
+
+    return (
+        <>
+            {debug}
+            <CanvasProviderOwned
+                key={mountKey}
+                initialSnapshot={snapshotData!}
+                canvasOpts={canvasOpts}
+                builderOpts={resolvedBuilderOpts}
+            >
+                {children}
+            </CanvasProviderOwned>
+        </>
     );
+}
+
+function CanvasProviderOwned({
+    children,
+    initialSnapshot,
+    canvasOpts,
+    builderOpts,
+}: {
+    children: ReactNode;
+    initialSnapshot: EditorSnapshot;
+    canvasOpts?: CanvasOptions & CanvasBackendOptions;
+    builderOpts?: BuilderOptions;
+}) {
+    const { api } = useCanvasOwned(
+        initialSnapshot.props,
+        canvasOpts,
+        builderOpts,
+    );
+
+    useHydrateEditorSnapshot(api, initialSnapshot);
 
     return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
 }
 
 export function useCanvasAPI(): CanvasAPI {
     const api = useContext(Ctx);
-    if (!api)
+    if (!api) {
         throw new Error("useCanvasAPI must be used within <CanvasProvider>");
+    }
     return api;
 }
 
-/**
- * Create & memoize a CanvasAPI from a Builder.
- * - Disposes the previous API when builder changes.
- * - Accepts both view/state options and backend options.
- * - Warns (DEV only) if `opts` identity is changing every render.
- */
 export function useCanvasFromBuilder(
     builder: Builder,
     opts?: CanvasOptions & CanvasBackendOptions,
 ): CanvasAPI {
-    // Warn (DEV) if the raw opts reference is churning each render
     useDevWarnOnOptsChurn(opts);
 
-    // Stabilize opts content to avoid churn-driven re-instantiation
     const lastOptsRef = useRef<
         (CanvasOptions & CanvasBackendOptions) | undefined
     >(undefined);
+
     const stableOpts =
         opts &&
         lastOptsRef.current &&
@@ -131,7 +193,6 @@ export function useCanvasFromBuilder(
 
     useEffect(() => {
         return () => {
-            // Clean up listeners / timers when API instance is replaced or unmounted
             api.dispose?.();
         };
     }, [api]);
@@ -139,16 +200,294 @@ export function useCanvasFromBuilder(
     return api;
 }
 
-/**
- * Use an existing CanvasAPI instance without creating/disposing anything.
- * Useful when the host fully manages the API lifecycle (e.g., from a parent).
- */
 export function useCanvasFromExisting(api: CanvasAPI): CanvasAPI {
-    // No disposal here—the host owns the instance
     return api;
 }
 
-/* ───────────────────────── helpers ───────────────────────── */
+function useHydrateEditorSnapshot(api: CanvasAPI, snapshot?: EditorSnapshot) {
+    const hydratedRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        if (!snapshot?.props) return;
+
+        const hydrationKey = getSnapshotHydrationKey(snapshot);
+        if (hydratedRef.current === hydrationKey) return;
+        hydratedRef.current = hydrationKey;
+
+        hydrateEditorFromSnapshot(api, snapshot);
+    }, [api, snapshot]);
+}
+
+function getSnapshotHydrationKey(snapshot: EditorSnapshot): string {
+    const meta = snapshot.meta as Record<string, unknown> | undefined;
+
+    const preferred =
+        meta?.snapshot_id ??
+        meta?.snapshotId ??
+        meta?.version_id ??
+        meta?.versionId ??
+        meta?.branch_id ??
+        meta?.branchId;
+
+    if (preferred != null) {
+        return String(preferred);
+    }
+
+    const layout = snapshot.layout?.canvas;
+    const positionKeys = layout?.positions
+        ? Object.keys(layout.positions).sort().join("|")
+        : "";
+    const viewport = layout?.viewport
+        ? `${layout.viewport.x}:${layout.viewport.y}:${layout.viewport.zoom}`
+        : "";
+    const selection = layout?.selection
+        ? Array.from(layout.selection).sort().join("|")
+        : "";
+    const catalogKey = snapshot.catalog
+        ? JSON.stringify({
+              opened: (snapshot.catalog as any).opened ?? null,
+              mode: (snapshot.catalog as any).mode ?? null,
+              tab: (snapshot.catalog as any).tab ?? null,
+              query: (snapshot.catalog as any).query ?? null,
+          })
+        : "";
+
+    return [
+        String((snapshot.props?.fields ?? []).length),
+        String((snapshot.props?.filters ?? []).length),
+        positionKeys,
+        viewport,
+        selection,
+        catalogKey,
+    ].join("::");
+}
+
+function hydrateEditorFromSnapshot(api: CanvasAPI, snapshot: EditorSnapshot) {
+    api.refreshGraph();
+
+    hydrateCatalog(api, snapshot);
+    hydrateCanvasLayout(api, snapshot.layout?.canvas);
+}
+
+function hydrateCatalog(api: CanvasAPI, snapshot: EditorSnapshot) {
+    if (snapshot.catalog) {
+        api.editor.setCatalog(snapshot.catalog);
+        return;
+    }
+
+    api.editor.clearCatalog();
+}
+
+function hydrateCanvasLayout(api: CanvasAPI, canvas?: CanvasState) {
+    if (!canvas) return;
+
+    if (canvas.positions) {
+        api.setPositions(canvas.positions);
+    }
+
+    if (canvas.viewport) {
+        api.setViewport(canvas.viewport);
+    }
+
+    if (canvas.selection) {
+        const ids = Array.isArray(canvas.selection)
+            ? canvas.selection
+            : Array.from(canvas.selection);
+
+        if (ids.length > 0) {
+            api.select(ids);
+        } else {
+            api.clearSelection();
+        }
+    } else {
+        api.clearSelection();
+    }
+
+    if ((canvas as any).highlighted) {
+        const ids = Array.isArray((canvas as any).highlighted)
+            ? (canvas as any).highlighted
+            : Array.from((canvas as any).highlighted);
+
+        api.setHighlighted(ids);
+    }
+
+    if ("hoverId" in canvas) {
+        api.setHover((canvas as any).hoverId);
+    }
+}
+
+function WorkspaceBootScreen({
+    boot,
+}: {
+    boot: {
+        isBooting: boolean;
+        totalSections: number;
+        completedSections: number;
+        sections: Record<
+            string,
+            {
+                status: BootSectionStatus;
+                error?: { message?: string } | null;
+            }
+        >;
+    };
+}) {
+    const sections = getOrderedBootSections(boot.sections);
+    const percent =
+        boot.totalSections > 0
+            ? (boot.completedSections / boot.totalSections) * 100
+            : 0;
+
+    return (
+        <div className="flex min-h-screen items-center justify-center bg-white px-6 py-10 dark:bg-slate-950">
+            <div className="w-full max-w-2xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                <div className="mb-5">
+                    <div className="text-[11px] uppercase tracking-[0.22em] text-slate-400 dark:text-slate-500">
+                        Workspace boot
+                    </div>
+                    <h2 className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100">
+                        Loading Service Builder
+                    </h2>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                        {boot.completedSections} of {boot.totalSections}{" "}
+                        sections completed
+                    </p>
+                </div>
+
+                <div className="mb-5 h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+                    <div
+                        className="h-full rounded-full bg-blue-600 transition-all"
+                        style={{ width: `${percent}%` }}
+                    />
+                </div>
+
+                <div className="grid gap-2">
+                    {sections.map(({ key, status, error }) => (
+                        <div
+                            key={key}
+                            className="flex items-center justify-between rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-800"
+                        >
+                            <div className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                                {formatBootSection(key)}
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                                {error?.message ? (
+                                    <span className="max-w-[18rem] truncate text-xs text-rose-500">
+                                        {error.message}
+                                    </span>
+                                ) : null}
+                                <BootStatusBadge status={status} />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function WorkspaceBootOverlay({
+    boot,
+}: {
+    boot: {
+        isBooting: boolean;
+        totalSections: number;
+        completedSections: number;
+    };
+}) {
+    if (!boot.isBooting) return null;
+
+    return (
+        <div className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center px-4 pt-3">
+            <div className="pointer-events-auto inline-flex items-center gap-3 rounded-full border border-slate-200 bg-white/95 px-4 py-2 text-sm shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/95">
+                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-blue-600" />
+                <span className="text-slate-700 dark:text-slate-200">
+                    Refreshing workspace… {boot.completedSections}/
+                    {boot.totalSections}
+                </span>
+            </div>
+        </div>
+    );
+}
+
+function CanvasShellPlaceholder() {
+    return <div className="min-h-screen bg-white dark:bg-slate-950" />;
+}
+
+function BootStatusBadge({ status }: { status: BootSectionStatus }) {
+    if (status === "success") {
+        return (
+            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+                Loaded
+            </span>
+        );
+    }
+
+    if (status === "error") {
+        return (
+            <span className="rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700 dark:bg-rose-500/10 dark:text-rose-300">
+                Failed
+            </span>
+        );
+    }
+
+    if (status === "loading") {
+        return (
+            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-300">
+                Loading
+            </span>
+        );
+    }
+
+    return (
+        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+            Pending
+        </span>
+    );
+}
+
+function getOrderedBootSections(
+    sections: Record<
+        string,
+        {
+            status: BootSectionStatus;
+            error?: { message?: string } | null;
+        }
+    >,
+) {
+    const order = [
+        "authors",
+        "permissions",
+        "branches",
+        "services",
+        "participants",
+        "templates",
+        "snapshotPointers",
+        "snapshotBody",
+        "policies",
+        "comments",
+    ];
+
+    return order
+        .filter((key) => key in sections)
+        .map((key) => ({
+            key,
+            status: sections[key]?.status ?? "idle",
+            error: sections[key]?.error ?? null,
+        }));
+}
+
+function formatBootSection(section: string) {
+    switch (section) {
+        case "snapshotPointers":
+            return "Snapshot pointers";
+        case "snapshotBody":
+            return "Snapshot body";
+        default:
+            return section.charAt(0).toUpperCase() + section.slice(1);
+    }
+}
 
 function shallowEqualOpts(
     a?: CanvasOptions & CanvasBackendOptions,
@@ -156,18 +495,21 @@ function shallowEqualOpts(
 ) {
     if (a === b) return true;
     if (!a || !b) return false;
+
     const aKeys = Object.keys(a) as (keyof (CanvasOptions &
         CanvasBackendOptions))[];
     const bKeys = Object.keys(b) as (keyof (CanvasOptions &
         CanvasBackendOptions))[];
+
     if (aKeys.length !== bKeys.length) return false;
+
     for (const k of aKeys) {
         if ((a as any)[k] !== (b as any)[k]) return false;
     }
+
     return true;
 }
 
-/** DEV-only: warn if opts identity changes on most renders (suggests wrapping in useMemo). */
 function useDevWarnOnOptsChurn(opts?: CanvasOptions & CanvasBackendOptions) {
     const rawRef = useRef<typeof opts>(undefined);
     const churnCountRef = useRef(0);
@@ -177,9 +519,9 @@ function useDevWarnOnOptsChurn(opts?: CanvasOptions & CanvasBackendOptions) {
     useEffect(() => {
         // @ts-ignore
         if (window.SITE?.env === "production") return;
+
         const now = Date.now();
 
-        // Reset window every 2s
         if (now - lastWindowStartRef.current > 2000) {
             lastWindowStartRef.current = now;
             churnCountRef.current = 0;
@@ -190,10 +532,8 @@ function useDevWarnOnOptsChurn(opts?: CanvasOptions & CanvasBackendOptions) {
             rawRef.current = opts;
         }
 
-        // If we see churn on most renders in the window, warn once.
         if (!warnedRef.current && churnCountRef.current >= 5) {
             warnedRef.current = true;
-            // eslint-disable-next-line no-console
             console.warn(
                 "[digital-service-ui-builder] useCanvasFromBuilder: `opts` is changing identity frequently. " +
                     "Wrap your options in useMemo to avoid unnecessary API re-instantiation.",
@@ -202,30 +542,30 @@ function useDevWarnOnOptsChurn(opts?: CanvasOptions & CanvasBackendOptions) {
     });
 }
 
-type UseCanvasOwnedReturn = { api: CanvasAPI; builder: Builder };
+type UseCanvasOwnedReturn = {
+    api: CanvasAPI;
+    builder: Builder;
+};
 
-/** Creates a Builder once, loads initial props, and owns the CanvasAPI lifecycle. */
 export function useCanvasOwned(
     initialProps?: ServiceProps,
     canvasOpts?: CanvasOptions & CanvasBackendOptions,
-    builderOpts?: BuilderOptions, // ← pass builder params here
+    builderOpts?: BuilderOptions,
 ): UseCanvasOwnedReturn {
-    // 1) Create the builder ONCE with the provided builder options
     const builderRef = useRef<Builder>();
     const builderOptsRef = useRef<BuilderOptions | undefined>(builderOpts);
     const loadedOnceRef = useRef<boolean>(false);
 
     if (!builderRef.current) {
-        builderRef.current = createBuilder(builderOptsRef.current); // ← forwarded
+        builderRef.current = createBuilder(builderOptsRef.current);
+
         if (initialProps) {
             builderRef.current.load(initialProps);
             loadedOnceRef.current = true;
         }
         // @ts-ignore
     } else if (window.SITE?.env !== "production") {
-        // Warn if builderOpts identity changes after first mount (they won't be applied)
         if (builderOptsRef.current !== builderOpts) {
-            // eslint-disable-next-line no-console
             console.warn(
                 "[useCanvasOwned] builderOpts changed after init; new values are ignored. " +
                     "If you need to recreate the builder, remount the hook (e.g. change a React key).",
@@ -233,9 +573,9 @@ export function useCanvasOwned(
             builderOptsRef.current = builderOpts;
         }
     }
+
     const builder = builderRef.current!;
 
-    // If initial props arrive later (async Workspace load), load them once.
     useEffect(() => {
         if (!loadedOnceRef.current && initialProps) {
             builderRef.current!.load(initialProps);
@@ -243,35 +583,36 @@ export function useCanvasOwned(
         }
     }, [initialProps]);
 
-    // 2) Stabilize canvas options to avoid churn re-instantiation of CanvasAPI
     const lastCanvasOptsRef = useRef<typeof canvasOpts>();
+
     const stableCanvasOpts = useMemo(() => {
         if (!lastCanvasOptsRef.current) {
             lastCanvasOptsRef.current = canvasOpts;
             return canvasOpts;
         }
+
         const a = canvasOpts ?? {};
         const b = lastCanvasOptsRef.current ?? {};
         const same = Object.keys({ ...a, ...b }).every(
             (k) => (a as any)[k] === (b as any)[k],
         );
+
         if (same) return lastCanvasOptsRef.current;
+
         lastCanvasOptsRef.current = canvasOpts;
         return canvasOpts;
     }, [canvasOpts]);
 
-    // 3) Create CanvasAPI and dispose on change/unmount
     const api = useMemo(
         () => new CanvasAPI(builder, stableCanvasOpts),
         [builder, stableCanvasOpts],
     );
 
-    useEffect(
-        () => () => {
+    useEffect(() => {
+        return () => {
             api.dispose?.();
-        },
-        [api],
-    );
+        };
+    }, [api]);
 
     return { api, builder };
 }

@@ -51,6 +51,65 @@ function setSnapshotError(error: BackendError): {
     return { ok: false, error };
 }
 
+function hasSnapshotProps(data: unknown): data is EditorSnapshot {
+    if (!data || typeof data !== "object") return false;
+    const props = (data as { props?: unknown }).props;
+    return Boolean(props && typeof props === "object");
+}
+
+function hasUsableSnapshotPayload(input: {
+    schemaVersion?: string;
+    data?: unknown;
+}): boolean {
+    return (
+        typeof input.schemaVersion === "string" &&
+        input.schemaVersion.length > 0 &&
+        hasSnapshotProps(input.data)
+    );
+}
+
+function createClearedSnapshotState(): SnapshotSlice {
+    return {
+        schemaVersion: undefined,
+        data: undefined,
+        head: undefined,
+        draft: undefined,
+        state: "clean",
+        saving: false,
+        dirty: false,
+        lastSavedAt: undefined,
+        lastDraftAt: undefined,
+    };
+}
+
+function normalizeSnapshotState(input: {
+    schemaVersion?: string;
+    data?: unknown;
+    head?: Commit;
+    draft?: Draft;
+    state?: SnapshotSlice["state"];
+    saving?: boolean;
+    dirty?: boolean;
+    lastSavedAt?: number;
+    lastDraftAt?: number;
+}): SnapshotSlice {
+    if (!hasUsableSnapshotPayload(input)) {
+        return createClearedSnapshotState();
+    }
+
+    return {
+        schemaVersion: input.schemaVersion,
+        data: input.data as EditorSnapshot,
+        head: input.head,
+        draft: input.draft,
+        state: input.state ?? (input.draft ? "uncommitted" : "clean"),
+        saving: input.saving ?? false,
+        dirty: input.dirty ?? false,
+        lastSavedAt: input.lastSavedAt,
+        lastDraftAt: input.lastDraftAt,
+    };
+}
+
 export interface UseSnapshotsSliceParams {
     readonly backend: WorkspaceBackend;
     readonly workspaceId: string;
@@ -87,15 +146,17 @@ export function useSnapshotsSlice(
         runtime,
     } = params;
 
-    const [snapshot, setSnapshot] = React.useState<SnapshotSlice>({
-        schemaVersion: initialSnapshot?.schema_version,
-        data: initialSnapshot?.data as EditorSnapshot | undefined,
-        head: initialHead,
-        draft: initialDraft,
-        state: initialDraft ? "uncommitted" : "clean",
-        saving: false,
-        dirty: false,
-    });
+    const [snapshot, setSnapshot] = React.useState<SnapshotSlice>(() =>
+        normalizeSnapshotState({
+            schemaVersion: initialSnapshot?.schema_version,
+            data: initialSnapshot?.data,
+            head: initialHead,
+            draft: initialDraft,
+            state: initialDraft ? "uncommitted" : "clean",
+            saving: false,
+            dirty: false,
+        }),
+    );
 
     const autosaveTimerRef = React.useRef<number | null>(null);
 
@@ -113,17 +174,19 @@ export function useSnapshotsSlice(
 
             if (res.ok) {
                 const { head, draft, snapshot: snap } = res.value;
-                setSnapshot({
-                    schemaVersion: snap.schema_version,
-                    data: snap.data,
-                    head,
-                    draft,
-                    state: draft ? "uncommitted" : "clean",
-                    saving: false,
-                    dirty: false,
-                    lastSavedAt: undefined,
-                    lastDraftAt: undefined,
-                });
+                setSnapshot(
+                    normalizeSnapshotState({
+                        schemaVersion: snap.schema_version,
+                        data: snap.data,
+                        head,
+                        draft,
+                        state: draft ? "uncommitted" : "clean",
+                        saving: false,
+                        dirty: false,
+                        lastSavedAt: undefined,
+                        lastDraftAt: undefined,
+                    }),
+                );
             }
 
             return res;
@@ -162,7 +225,9 @@ export function useSnapshotsSlice(
     const refreshSnapshotPointersForBranch = React.useCallback(
         async (
             branchId: string,
-        ): Promise<BackendResult<Readonly<{ head?: Commit; draft?: Draft }>>> => {
+        ): Promise<
+            BackendResult<Readonly<{ head?: Commit; draft?: Draft }>>
+        > => {
             const res = await backend.snapshots.refresh({
                 workspaceId,
                 branchId,
@@ -193,23 +258,22 @@ export function useSnapshotsSlice(
         ],
     );
 
-    const refreshSnapshotPointers =
-        React.useCallback(async (): Promise<
-            BackendResult<Readonly<{ head?: Commit; draft?: Draft }>>
-        > => {
-            const branchId = getCurrentBranchId();
-            if (!branchId) {
-                return {
-                    ok: false,
-                    error: {
-                        code: "no_branch",
-                        message:
-                            "No current branch to refresh snapshot pointers for.",
-                    },
-                };
-            }
-            return refreshSnapshotPointersForBranch(branchId);
-        }, [getCurrentBranchId, refreshSnapshotPointersForBranch]);
+    const refreshSnapshotPointers = React.useCallback(async (): Promise<
+        BackendResult<Readonly<{ head?: Commit; draft?: Draft }>>
+    > => {
+        const branchId = getCurrentBranchId();
+        if (!branchId) {
+            return {
+                ok: false,
+                error: {
+                    code: "no_branch",
+                    message:
+                        "No current branch to refresh snapshot pointers for.",
+                },
+            };
+        }
+        return refreshSnapshotPointersForBranch(branchId);
+    }, [getCurrentBranchId, refreshSnapshotPointersForBranch]);
 
     const autosave = React.useCallback<
         WorkspaceAPI["snapshot"]["autosave"]
@@ -222,20 +286,22 @@ export function useSnapshotsSlice(
             }) as any;
         }
 
-        if (!snapshot.data || !snapshot.schemaVersion) {
+        if (!hasUsableSnapshotPayload(snapshot)) {
             return setSnapshotError({
                 code: "no_snapshot",
                 message: "Nothing to autosave.",
             }) as any;
         }
+        const schemaVersion = snapshot.schemaVersion as string;
+        const data = snapshot.data as EditorSnapshot;
 
         const res = await backend.snapshots.autosave({
             workspaceId,
             branchId,
             actorId: actor.id,
             snapshot: {
-                schema_version: snapshot.schemaVersion,
-                data: snapshot.data,
+                schema_version: schemaVersion,
+                data,
             },
             etag: snapshot.draft?.etag,
         });
@@ -272,12 +338,14 @@ export function useSnapshotsSlice(
                 }) as any;
             }
 
-            if (!snapshot.data || !snapshot.schemaVersion) {
+            if (!hasUsableSnapshotPayload(snapshot)) {
                 return setSnapshotError({
                     code: "no_snapshot",
                     message: "Nothing to save.",
                 }) as any;
             }
+            const schemaVersion = snapshot.schemaVersion as string;
+            const data = snapshot.data as EditorSnapshot;
 
             setSnapshot((s) => ({ ...s, state: "saving", saving: true }));
 
@@ -286,12 +354,14 @@ export function useSnapshotsSlice(
                 branchId,
                 actorId: actor.id,
                 snapshot: {
-                    schema_version: snapshot.schemaVersion,
-                    data: snapshot.data,
+                    schema_version: schemaVersion,
+                    data,
                 },
                 message,
                 draftId: snapshot.draft?.id,
-                etag: snapshot.head?.etag,
+                etag: snapshot.draft?.id
+                    ? snapshot.draft?.etag
+                    : snapshot.head?.etag,
             });
 
             if (res.ok) {
@@ -411,16 +481,32 @@ export function useSnapshotsSlice(
     }, [snapshot.dirty, autosaveMs, autoAutosave, autosave]);
 
     const resetSnapshotForBranch = React.useCallback((): void => {
-        setSnapshot((s) => ({
-            ...s,
-            head: undefined,
-            draft: undefined,
-            state: "clean",
-            saving: false,
-            dirty: false,
-            lastSavedAt: undefined,
-            lastDraftAt: undefined,
-        }));
+        setSnapshot(createClearedSnapshotState());
+    }, []);
+
+    const setSnapshotStateSafe = React.useCallback<
+        React.Dispatch<React.SetStateAction<SnapshotSlice>>
+    >((updater) => {
+        setSnapshot((current) => {
+            const next =
+                typeof updater === "function"
+                    ? (updater as (prev: SnapshotSlice) => SnapshotSlice)(
+                          current,
+                      )
+                    : updater;
+
+            return normalizeSnapshotState({
+                schemaVersion: next.schemaVersion,
+                data: next.data,
+                head: next.head,
+                draft: next.draft,
+                state: next.state,
+                saving: next.saving,
+                dirty: next.dirty,
+                lastSavedAt: next.lastSavedAt,
+                lastDraftAt: next.lastDraftAt,
+            });
+        });
     }, []);
 
     return React.useMemo<SnapshotsSliceApi>(
@@ -435,7 +521,7 @@ export function useSnapshotsSlice(
             save,
             publish,
             discardDraft,
-            __setSnapshotState: setSnapshot,
+            __setSnapshotState: setSnapshotStateSafe,
             resetSnapshotForBranch,
         }),
         [
@@ -450,6 +536,7 @@ export function useSnapshotsSlice(
             publish,
             discardDraft,
             resetSnapshotForBranch,
+            setSnapshotStateSafe,
         ],
     );
 }

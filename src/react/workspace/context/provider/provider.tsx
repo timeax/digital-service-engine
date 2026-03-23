@@ -198,6 +198,19 @@ export function WorkspaceProvider(
         debounceMs: liveDebounceMs,
     });
 
+    const currentBranchIdRef = React.useRef<string | undefined>(
+        branchesSlice.branches.currentId,
+    );
+    const currentSnapshotRef = React.useRef(snapshotsSlice.snapshot);
+
+    React.useEffect(() => {
+        currentBranchIdRef.current = branchesSlice.branches.currentId;
+    }, [branchesSlice.branches.currentId]);
+
+    React.useEffect(() => {
+        currentSnapshotRef.current = snapshotsSlice.snapshot;
+    }, [snapshotsSlice.snapshot]);
+
     /* ---------------- branch ops ---------------- */
 
     const setCurrentBranch = React.useCallback(
@@ -224,6 +237,8 @@ export function WorkspaceProvider(
                 },
                 resetSnapshot: snapshotsSlice.resetSnapshotForBranch,
                 setCurrentBranchId: branchesSlice.setCurrentBranchId,
+                getCurrentBranchId: () => currentBranchIdRef.current,
+                getCurrentSnapshot: () => currentSnapshotRef.current,
             });
 
             void bootCtl.refreshBranchContext({

@@ -42,6 +42,8 @@ export interface BranchCacheApi {
             resetSnapshot: () => void;
 
             setCurrentBranchId: (id: string) => void;
+            getCurrentBranchId: () => string | undefined;
+            getCurrentSnapshot: () => SnapshotSlice;
         }>,
     ) => void;
 }
@@ -60,8 +62,12 @@ const branchPrefixOf = (workspaceId: string): string =>
     `${WS_PREFIX}${workspaceId}:branch:`;
 
 type PendingSwitch = Readonly<{
+    token: number;
     workspaceId: string;
     nextId: string;
+
+    getCurrentBranchId: () => string | undefined;
+    getCurrentSnapshot: () => SnapshotSlice;
 
     setTemplates: React.Dispatch<
         React.SetStateAction<Loadable<readonly FieldTemplate[]>>
@@ -71,6 +77,21 @@ type PendingSwitch = Readonly<{
     >;
     setSnapshot: React.Dispatch<React.SetStateAction<SnapshotSlice>>;
 }>;
+
+function hasSnapshotProps(data: unknown): boolean {
+    if (!data || typeof data !== "object") return false;
+    const props = (data as { props?: unknown }).props;
+    return Boolean(props && typeof props === "object");
+}
+
+function hasUsableSnapshot(slice?: SnapshotSlice): boolean {
+    return Boolean(
+        slice &&
+            typeof slice.schemaVersion === "string" &&
+            slice.schemaVersion.length > 0 &&
+            hasSnapshotProps(slice.data),
+    );
+}
 
 export function useBranchCache(workspaceId: string): BranchCacheApi {
     // IndexedDB-backed cache instance (scoped by ns + key prefixing).
@@ -93,29 +114,28 @@ export function useBranchCache(workspaceId: string): BranchCacheApi {
 
     // IDB hydration is async. We keep it internal to preserve the hook API.
     const readyRef = React.useRef<boolean>(cache.isReady());
+    const switchTokenRef = React.useRef(0);
 
-    // If switchBranch runs before hydration completes, we defer the “load snapshot” decision.
+    // If switchBranch runs before hydration completes, defer the cache-apply decision.
     const pendingRef = React.useRef<PendingSwitch | null>(null);
 
-    const applyCached = React.useCallback(
-        (
-            wsId: string,
-            nextId: string,
-            p: PendingSwitch,
-        ): { cached?: BranchCacheEntry; hasCachedSnapshot: boolean } => {
-            const cached = cache.get<BranchCacheEntry>(keyOf(wsId, nextId));
+    const applyPendingCacheIfSafe = React.useCallback(
+        (p: PendingSwitch): void => {
+            if (p.token !== switchTokenRef.current) return;
+            if (p.getCurrentBranchId() !== p.nextId) return;
+            if (hasUsableSnapshot(p.getCurrentSnapshot())) return;
 
-            if (cached) {
-                p.setTemplates(cached.templates);
-                p.setParticipants(cached.participants);
+            const cached = cache.get<BranchCacheEntry>(
+                keyOf(p.workspaceId, p.nextId),
+            );
+            if (!cached) return;
+
+            p.setTemplates(cached.templates);
+            p.setParticipants(cached.participants);
+
+            if (hasUsableSnapshot(cached.snapshot)) {
                 p.setSnapshot(cached.snapshot);
             }
-
-            const hasCachedSnapshot = Boolean(
-                cached?.snapshot?.data && cached?.snapshot?.schemaVersion,
-            );
-
-            return { cached, hasCachedSnapshot };
         },
         [cache],
     );
@@ -132,15 +152,15 @@ export function useBranchCache(workspaceId: string): BranchCacheApi {
             const p = pendingRef.current;
             if (!p) return;
 
-            applyCached(p.workspaceId, p.nextId, p);
-
+            applyPendingCacheIfSafe(p);
             pendingRef.current = null;
         });
 
         return () => unsub();
-    }, [cache, applyCached]);
+    }, [cache, applyPendingCacheIfSafe]);
 
     const clear = React.useCallback((): void => {
+        switchTokenRef.current += 1;
         pendingRef.current = null;
 
         // Clear ONLY this workspace scope.
@@ -174,15 +194,19 @@ export function useBranchCache(workspaceId: string): BranchCacheApi {
                 resetSnapshot: () => void;
 
                 setCurrentBranchId: (id: string) => void;
+                getCurrentBranchId: () => string | undefined;
+                getCurrentSnapshot: () => SnapshotSlice;
             }>,
         ): void => {
+            const token = switchTokenRef.current + 1;
+            switchTokenRef.current = token;
+
             const hookWsId: string = wsIdRef.current;
             const callWsId: string = args.workspaceId;
 
             // Redundant-by-design safety check (catch wiring mistakes).
             if (callWsId !== hookWsId) {
                 // Keep it non-fatal (warn) to avoid breaking UX in production.
-                // If you want strict behavior later, we can throw in dev only.
                 // eslint-disable-next-line no-console
                 console.warn(
                     `[useBranchCache] workspaceId mismatch: hook="${hookWsId}" vs switchBranch="${callWsId}". Using switchBranch workspaceId.`,
@@ -205,29 +229,35 @@ export function useBranchCache(workspaceId: string): BranchCacheApi {
             const cached = cache.get<BranchCacheEntry>(
                 keyOf(wsId, args.nextId),
             );
+            const cachedSnapshot = hasUsableSnapshot(cached?.snapshot)
+                ? cached!.snapshot
+                : undefined;
 
             if (cached) {
                 args.setTemplates(cached.templates);
                 args.setParticipants(cached.participants);
-                args.setSnapshot(cached.snapshot);
             } else {
                 args.resetTemplates();
                 args.resetParticipants();
+            }
+
+            if (cachedSnapshot) {
+                args.setSnapshot(cachedSnapshot);
+            } else {
                 args.resetSnapshot();
             }
 
             args.setCurrentBranchId(args.nextId);
 
-            const hasCachedSnapshot: boolean = Boolean(
-                cached?.snapshot?.data && cached?.snapshot?.schemaVersion,
-            );
-
-            // If not hydrated yet, defer the “no cache → load snapshot” decision because hydration
-            // might bring in a cached snapshot for this workspace+branch.
-            if (!readyRef.current && !hasCachedSnapshot) {
+            // If not hydrated yet, defer the no-cache => load decision because hydration
+            // might still reveal a valid cached snapshot for this workspace+branch.
+            if (!readyRef.current && !cachedSnapshot) {
                 pendingRef.current = {
+                    token,
                     workspaceId: wsId,
                     nextId: args.nextId,
+                    getCurrentBranchId: args.getCurrentBranchId,
+                    getCurrentSnapshot: args.getCurrentSnapshot,
                     setTemplates: args.setTemplates,
                     setParticipants: args.setParticipants,
                     setSnapshot: args.setSnapshot,
