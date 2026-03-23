@@ -28,7 +28,13 @@ export default defineConfig([
         sourcemap: true,
         outDir: "dist",
         clean: false,
-        external: ["react", "react-dom", "reactflow", "react/jsx-runtime"],
+        external: [
+            "react",
+            "react-dom",
+            "reactflow",
+            "react/jsx-runtime",
+            "@timeax/form-palette",
+        ],
     },
 
     {
@@ -43,6 +49,12 @@ export default defineConfig([
         clean: false,
 
         // MUST include jsx-runtime here too
-        external: ["react", "react-dom", "reactflow", "react/jsx-runtime", "@timeax/form-palette"],
+        external: [
+            "react",
+            "react-dom",
+            "reactflow",
+            "react/jsx-runtime",
+            "@timeax/form-palette",
+        ],
     },
 ]);

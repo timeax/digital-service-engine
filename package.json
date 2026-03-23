@@ -1,6 +1,6 @@
 {
     "name": "@timeax/digital-service-engine",
-    "version": "0.0.8",
+    "version": "0.0.9",
     "description": "Headless service props builder + minimal React Flow workspace.",
     "type": "module",
     "exports": {
@@ -60,9 +60,10 @@
     "sideEffects": false,
     "peerDependencies": {
         "@xyflow/react": "^12.9.2",
-        "react": "^18.3.1",
+        "react": "^19.2.4",
         "react-day-picker": "^9.8.1",
-        "react-dom": "^18.3.1"
+        "react-dom": "^19.2.4",
+        "@timeax/form-palette": "^0.1.34"
     },
     "devDependencies": {
         "@radix-ui/react-label": "^2.1.8",
@@ -91,7 +92,6 @@
         "@radix-ui/react-separator": "^1.1.7",
         "@radix-ui/react-tabs": "^1.1.13",
         "@timeax/cache-store": "^0.0.1",
-        "@timeax/form-palette": "^0.1.28",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "elkjs": "^0.11.0",
