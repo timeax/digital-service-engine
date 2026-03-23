@@ -1,12 +1,17 @@
 // src/react/workspace/context/provider/slices/use-authors-slice.ts
 import * as React from "react";
-import type { Author, BackendError, WorkspaceBackend } from "../../backend";
+import type {
+    Author,
+    BackendError,
+    BackendResult,
+    WorkspaceBackend,
+} from "../../backend";
 import type { Loadable } from "@/react/workspace";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
 
 export interface AuthorsSliceApi {
     readonly authors: Loadable<readonly Author[]>;
-    readonly refreshAuthors: () => Promise<void>;
+    readonly refreshAuthors: () => Promise<BackendResult<readonly Author[]>>;
     readonly invalidateAuthors: () => void;
 }
 
@@ -35,7 +40,9 @@ export function useAuthorsSlice(
         updatedAt: initialAuthors ? runtime.now() : undefined,
     });
 
-    const refreshAuthors = React.useCallback(async (): Promise<void> => {
+    const refreshAuthors = React.useCallback(async (): Promise<
+        BackendResult<readonly Author[]>
+    > => {
         setAuthors((s) => ({ ...s, loading: true }));
         const res = await backend.authors.refresh(workspaceId);
 
@@ -45,8 +52,10 @@ export function useAuthorsSlice(
                 loading: false,
                 updatedAt: runtime.now(),
             });
+            return res;
         } else {
             setLoadableError(setAuthors, res.error);
+            return res;
         }
     }, [backend.authors, workspaceId, runtime]);
 

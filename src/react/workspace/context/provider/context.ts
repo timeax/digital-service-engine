@@ -1,6 +1,6 @@
 // src/react/workspace/context/provider/context.ts
 import * as React from "react";
-import type { WorkspaceAPI } from "./types";
+import type { WorkspaceAPI, WorkspaceBootState } from "./types";
 
 export const WorkspaceContext = React.createContext<WorkspaceAPI | null>(null);
 
@@ -16,4 +16,8 @@ export function useWorkspace(): WorkspaceAPI {
 
 export function useWorkspaceMaybe(): WorkspaceAPI | null {
     return React.useContext(WorkspaceContext);
+}
+
+export function useWorkspaceBoot(): WorkspaceBootState {
+    return useWorkspace().boot;
 }

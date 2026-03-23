@@ -2,6 +2,7 @@
 import * as React from "react";
 import type {
     BackendError,
+    BackendResult,
     Branch,
     BranchParticipant,
     WorkspaceBackend,
@@ -15,10 +16,10 @@ export interface BranchesSliceApi {
 
     readonly setCurrentBranchId: (id: string) => void;
 
-    readonly refreshBranches: () => Promise<void>;
+    readonly refreshBranches: () => Promise<BackendResult<readonly Branch[]>>;
     readonly refreshParticipants: (
         params?: Partial<{ branchId: string; since?: number | string }>,
-    ) => Promise<void>;
+    ) => Promise<BackendResult<readonly BranchParticipant[]>>;
 
     readonly invalidateBranches: () => void;
     readonly invalidateParticipants: () => void;
@@ -110,13 +111,15 @@ export function useBranchesSlice(
         setBranches((s) => ({ ...s, currentId: id }));
     }, []);
 
-    const refreshBranches = React.useCallback(async (): Promise<void> => {
+    const refreshBranches = React.useCallback(async (): Promise<
+        BackendResult<readonly Branch[]>
+    > => {
         setBranches((s) => ({ ...s, loading: true }));
         const res = await backend.branches.refresh(workspaceId);
 
         if (!res.ok) {
             setBranches((s) => ({ ...s, loading: false, error: res.error }));
-            return;
+            return res;
         }
 
         const data: readonly Branch[] = res.value;
@@ -138,15 +141,24 @@ export function useBranchesSlice(
                 updatedAt: runtime.now(),
             };
         });
+        return res;
     }, [backend.branches, workspaceId, runtime]);
 
     const refreshParticipants = React.useCallback(
         async (
             params?: Partial<{ branchId: string; since?: number | string }>,
-        ): Promise<void> => {
+        ): Promise<BackendResult<readonly BranchParticipant[]>> => {
             const branchId: string | undefined =
                 params?.branchId ?? branches.currentId;
-            if (!branchId) return;
+            if (!branchId) {
+                return {
+                    ok: false,
+                    error: {
+                        code: "no_branch",
+                        message: "No current branch to load participants for.",
+                    },
+                };
+            }
 
             setParticipants((s) => ({ ...s, loading: true }));
 
@@ -162,8 +174,10 @@ export function useBranchesSlice(
                     loading: false,
                     updatedAt: runtime.now(),
                 });
+                return res;
             } else {
                 setLoadableError(setParticipants, res.error);
+                return res;
             }
         },
         [

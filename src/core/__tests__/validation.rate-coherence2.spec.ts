@@ -1,263 +1,288 @@
-import { describe, it, expect } from "vitest";
-import { ServiceProps } from "@/schema";
-import { DgpServiceMap } from "@/schema/provider";
-import { Builder, createBuilder } from "@/core";
-import { validateRateCoherenceDeep } from "@/core";
+import { describe, expect, it } from "vitest";
+import { Builder, createBuilder, validate, validateRateCoherenceDeep } from "@/core";
+import type { DgpServiceMap } from "@/schema/provider";
+import type { ServiceProps } from "@/schema";
 
-/* helpers */
-function svc(id: number, rate: number) {
+function svc(id: string | number, rate: number) {
     return { id, rate };
 }
+
 function makeBuilder(props: ServiceProps, services: DgpServiceMap): Builder {
-    const b = createBuilder({ serviceMap: services });
-    b.load(props);
-    return b;
+    const builder = createBuilder({ serviceMap: services });
+    builder.load(props);
+    return builder;
 }
 
-describe("validateRateCoherenceDeep (no tag-base primary)", () => {
-    it("within_pct: anchor without base → first revealed base becomes primary; flags > 10% over primary", () => {
+function contextual(diags: ReturnType<typeof validateRateCoherenceDeep>) {
+    return diags.filter(
+        (diag): diag is Extract<(typeof diags)[number], { kind: "contextual" }> =>
+            diag.kind === "contextual",
+    );
+}
+
+describe("validateRateCoherenceDeep", () => {
+    it("eq_primary passes only on exact equality", () => {
         const services: DgpServiceMap = {
-            // tag base present but must not be used
-            2100: svc(2100, 999),
-            2101: svc(2101, 100), // will be chosen as primary (first revealed)
-            2102: svc(2102, 112), // 12% above -> violation
+            a: svc("a", 100),
+            b: svc("b", 100),
+            c: svc("c", 101),
         };
 
         const props: ServiceProps = {
             schema_version: "1.0",
-            filters: [{ id: "t:root", label: "Root", service_id: 2100 }],
+            filters: [{ id: "t:root", label: "Root" }],
             fields: [
                 {
-                    id: "f:probe",
-                    type: "switch",
-                    label: "Probe",
-                    bind_id: "t:root",
-                    button: true,
-                    pricing_role: "base",
-                },
-                // order matters: f:A before f:B to make 100 the primary
-                {
-                    id: "f:A",
+                    id: "f:a",
                     type: "select",
                     label: "A",
                     bind_id: "t:root",
-                    options: [
-                        {
-                            id: "o:100",
-                            label: "100",
-                            pricing_role: "base",
-                            service_id: 2101,
-                        },
-                    ],
+                    options: [{ id: "o:a", label: "100", pricing_role: "base", service_id: "a" }],
                 },
                 {
-                    id: "f:B",
+                    id: "f:b",
                     type: "select",
                     label: "B",
                     bind_id: "t:root",
-                    options: [
-                        {
-                            id: "o:112",
-                            label: "112",
-                            pricing_role: "base",
-                            service_id: 2102,
-                        },
-                    ],
+                    options: [{ id: "o:b", label: "100", pricing_role: "base", service_id: "b" }],
+                },
+                {
+                    id: "f:c",
+                    type: "select",
+                    label: "C",
+                    bind_id: "t:root",
+                    options: [{ id: "o:c", label: "101", pricing_role: "base", service_id: "c" }],
                 },
             ],
-            includes_for_buttons: {
-                "f:probe": ["f:A", "f:B"],
-            },
         };
 
-        const b = makeBuilder(props, services);
-        const diags = validateRateCoherenceDeep({
-            builder: b,
-            services,
-            tagId: "t:root",
-            ratePolicy: { kind: "within_pct", pct: 10 },
-        });
+        const diags = contextual(
+            validateRateCoherenceDeep({
+                builder: makeBuilder(props, services),
+                services,
+                tagId: "t:root",
+                ratePolicy: { kind: "eq_primary" },
+            }),
+        );
 
-        // offender 112 must be flagged; 100 is primary
-        const flagged112 = diags.filter((d) => d.offender.service_id === 2102);
-        expect(flagged112.length).toBeGreaterThan(0);
-        expect(
-            flagged112.some((d) => d.simulationAnchor.id === "f:probe"),
-        ).toBe(true);
-
-        const flagged100 = diags.filter((d) => d.offender.service_id === 2101);
-        expect(flagged100.length).toBe(0);
+        expect(diags.some((diag) => diag.offender.service_id === "a")).toBe(true);
+        expect(diags.some((diag) => diag.offender.service_id === "b")).toBe(true);
+        expect(diags.some((diag) => diag.offender.service_id === "c")).toBe(false);
     });
 
-    it("lte_primary: when reveal shows 100 then 105, 105 violates vs primary 100", () => {
+    it("bounded lte_primary uses the highest visible single-select candidate as primary and rejects values too far below it", () => {
         const services: DgpServiceMap = {
-            2200: { id: 2200, rate: 777 }, // tag base (ignored for primary)
-            2201: { id: 2201, rate: 100 }, // primary candidate
-            2202: { id: 2202, rate: 105 }, // offender
+            100: svc(100, 100),
+            96: svc(96, 96),
+            80: svc(80, 80),
         };
 
         const props: ServiceProps = {
             schema_version: "1.0",
-            filters: [{ id: "t:root", label: "Root", service_id: 2200 }],
-            fields: [
-                // Anchor (bound) – selecting this should reveal the two base candidates
-                { id: "f:reveal", type: "switch", label: "Reveal", bind_id: "t:root", button: true, pricing_role: "base" },
-
-                // Two base buttons (UNBOUND): only become visible during the simulation via includes_for_buttons
-                { id: "f:ok",  type: "switch", label: "OK",  /* no bind_id */ button: true, pricing_role: "base", service_id: 2201 },
-                { id: "f:aux", type: "switch", label: "Aux", /* no bind_id */ button: true, pricing_role: "base", service_id: 2202 },
-            ],
-            includes_for_buttons: {
-                // selecting f:reveal reveals f:ok then f:aux (order matters; 100 becomes primary)
-                "f:reveal": ["f:ok", "f:aux"],
-            },
-        };
-
-        const b = createBuilder({ serviceMap: services });
-        b.load(props);
-
-        const diags = validateRateCoherenceDeep({
-            builder: b,
-            services,
-            tagId: "t:root",
-            ratePolicy: { kind: "lte_primary" },
-        });
-
-        // 105 must be flagged against primary 100
-        const flagged105 = diags.filter((d) => d.offender.service_id === 2202);
-        expect(flagged105.length).toBeGreaterThan(0);
-        expect(flagged105.some((d) => d.simulationAnchor.id === "f:reveal")).toBe(true);
-
-        // 100 never flagged
-        const flagged100 = diags.filter((d) => d.offender.service_id === 2201);
-        expect(flagged100.length).toBe(0);
-    });
-
-    it("anchor with its own base uses itself as primary (no tag), other ≤10% is OK", () => {
-        const services: DgpServiceMap = {
-            2300: svc(2300, 999),
-            2301: svc(2301, 109),
-            2302: svc(2302, 111), // within ~1.83% of 109 -> OK
-        };
-
-        const props: ServiceProps = {
-            schema_version: "1.0",
-            filters: [{ id: "t:root", label: "Root", service_id: 2300 }],
+            filters: [{ id: "t:root", label: "Root" }],
             fields: [
                 {
-                    id: "f:opt",
+                    id: "f:primary",
                     type: "select",
-                    label: "Opt",
+                    label: "Primary",
                     bind_id: "t:root",
-                    options: [
-                        {
-                            id: "o:109",
-                            label: "109",
-                            pricing_role: "base",
-                            service_id: 2301,
-                        },
-                        {
-                            id: "o:111",
-                            label: "111",
-                            pricing_role: "base",
-                            service_id: 2302,
-                        },
-                    ],
+                    options: [{ id: "o:100", label: "100", pricing_role: "base", service_id: 100 }],
+                },
+                {
+                    id: "f:ok",
+                    type: "select",
+                    label: "Okay",
+                    bind_id: "t:root",
+                    options: [{ id: "o:96", label: "96", pricing_role: "base", service_id: 96 }],
+                },
+                {
+                    id: "f:bad",
+                    type: "select",
+                    label: "Bad",
+                    bind_id: "t:root",
+                    options: [{ id: "o:80", label: "80", pricing_role: "base", service_id: 80 }],
                 },
             ],
-            includes_for_buttons: {},
         };
 
-        const b = makeBuilder(props, services);
-        const diags = validateRateCoherenceDeep({
-            builder: b,
-            services,
-            tagId: "t:root",
-            ratePolicy: { kind: "within_pct", pct: 10 },
-        });
+        const diags = contextual(
+            validateRateCoherenceDeep({
+                builder: makeBuilder(props, services),
+                services,
+                tagId: "t:root",
+                ratePolicy: { kind: "lte_primary", pct: 5 },
+            }),
+        );
 
-        expect(diags.length).toBe(0);
+        expect(diags.some((diag) => diag.offender.service_id === 80)).toBe(true);
+        expect(diags.some((diag) => diag.offender.service_id === 96)).toBe(false);
+        expect(diags.every((diag) => diag.primary.service_id === 100)).toBe(true);
     });
 
-    it("utility-role candidates are ignored as base even if they carry service_id", () => {
+    it("single-select fields are evaluated by actual candidate path, not averaged across options", () => {
         const services: DgpServiceMap = {
-            2400: svc(2400, 100),
-            2401: svc(2401, 1000), // absurd, but utility → must be ignored
+            100: svc(100, 100),
+            190: svc(190, 190),
+            200: svc(200, 200),
         };
 
         const props: ServiceProps = {
             schema_version: "1.0",
-            filters: [{ id: "t:root", label: "Root", service_id: 2400 }],
+            filters: [{ id: "t:root", label: "Root" }],
             fields: [
                 {
-                    id: "f:u",
+                    id: "f:single",
                     type: "select",
-                    label: "Util",
+                    label: "Single",
                     bind_id: "t:root",
                     options: [
-                        {
-                            id: "o:util",
-                            label: "Util",
-                            pricing_role: "utility",
-                            service_id: 2401 as any,
-                        },
+                        { id: "o:100", label: "100", pricing_role: "base", service_id: 100 },
+                        { id: "o:200", label: "200", pricing_role: "base", service_id: 200 },
                     ],
                 },
+                {
+                    id: "f:peer",
+                    type: "select",
+                    label: "Peer",
+                    bind_id: "t:root",
+                    options: [{ id: "o:190", label: "190", pricing_role: "base", service_id: 190 }],
+                },
             ],
-            includes_for_buttons: {
-                "f:u::o:util": [],
-            },
         };
 
-        const b = makeBuilder(props, services);
-        const diags = validateRateCoherenceDeep({
-            builder: b,
-            services,
-            tagId: "t:root",
-            ratePolicy: { kind: "lte_primary" },
-        });
+        const diags = contextual(
+            validateRateCoherenceDeep({
+                builder: makeBuilder(props, services),
+                services,
+                tagId: "t:root",
+                ratePolicy: { kind: "lte_primary", pct: 5 },
+            }),
+        );
 
-        expect(diags.length).toBe(0);
+        expect(diags).toEqual([]);
     });
 
-    it("at_least_pct_lower: primary=190 (first), 195 violates (not ≥5% lower)", () => {
+    it("multi-select uses average for contextual comparison but still reports internal invalid state", () => {
         const services: DgpServiceMap = {
-            2500: { id: 2500, rate: 777 }, // tag base (ignored for primary)
-            2501: { id: 2501, rate: 190 }, // primary
-            2502: { id: 2502, rate: 195 }, // offender
+            40: svc(40, 40),
+            100: svc(100, 100),
+            60: svc(60, 60),
         };
 
         const props: ServiceProps = {
             schema_version: "1.0",
-            filters: [{ id: "t:root", label: "Root", service_id: 2500 }],
+            filters: [{ id: "t:root", label: "Root" }],
             fields: [
-                // Anchor (bound)
-                { id: "f:probe", type: "switch", label: "Probe", bind_id: "t:root", button: true, pricing_role: "base" },
-
-                // Two base buttons (UNBOUND), revealed (in order) by selecting the anchor
-                { id: "f:A", type: "switch", label: "A", /* no bind_id */ button: true, pricing_role: "base", service_id: 2501 }, // first => primary
-                { id: "f:B", type: "switch", label: "B", /* no bind_id */ button: true, pricing_role: "base", service_id: 2502 },
+                {
+                    id: "f:multi",
+                    type: "multiselect",
+                    label: "Multi",
+                    bind_id: "t:root",
+                    options: [
+                        { id: "o:40a", label: "40a", pricing_role: "base", service_id: 40 },
+                        { id: "o:40b", label: "40b", pricing_role: "base", service_id: 40 },
+                        { id: "o:100", label: "100", pricing_role: "base", service_id: 100 },
+                    ],
+                },
+                {
+                    id: "f:peer",
+                    type: "select",
+                    label: "Peer",
+                    bind_id: "t:root",
+                    options: [{ id: "o:60", label: "60", pricing_role: "base", service_id: 60 }],
+                },
             ],
-            includes_for_buttons: {
-                "f:probe": ["f:A", "f:B"],
-            },
         };
 
-        const b = createBuilder({ serviceMap: services });
-        b.load(props);
-
         const diags = validateRateCoherenceDeep({
-            builder: b,
+            builder: makeBuilder(props, services),
             services,
             tagId: "t:root",
-            ratePolicy: { kind: "at_least_pct_lower", pct: 5 },
+            ratePolicy: { kind: "lte_primary", pct: 5 },
+            invalidFieldIds: new Set(["f:multi"]),
         });
 
-        const bad = diags.filter((d) => d.offender.service_id === 2502);
-        const good = diags.filter((d) => d.offender.service_id === 2501);
+        expect(diags.some((diag) => diag.kind === "internal_field" && diag.fieldId === "f:multi")).toBe(true);
+        expect(contextual(diags)).toEqual([]);
+    });
 
-        expect(bad.length).toBeGreaterThan(0);
-        expect(bad.some((d) => d.simulationAnchor.id === "f:probe")).toBe(true);
-        expect(good.length).toBe(0);
+    it("supports string and UUID-like service ids", () => {
+        const premiumId = "svc-premium-550e8400-e29b-41d4-a716-446655440000";
+        const basicId = "svc-basic-550e8400-e29b-41d4-a716-446655440001";
+        const services: DgpServiceMap = {
+            [premiumId]: svc(premiumId, 100),
+            [basicId]: svc(basicId, 80),
+        };
+
+        const props: ServiceProps = {
+            schema_version: "1.0",
+            filters: [{ id: "t:root", label: "Root" }],
+            fields: [
+                {
+                    id: "f:premium",
+                    type: "select",
+                    label: "Premium",
+                    bind_id: "t:root",
+                    options: [{ id: "o:premium", label: "Premium", pricing_role: "base", service_id: premiumId }],
+                },
+                {
+                    id: "f:basic",
+                    type: "select",
+                    label: "Basic",
+                    bind_id: "t:root",
+                    options: [{ id: "o:basic", label: "Basic", pricing_role: "base", service_id: basicId }],
+                },
+            ],
+        };
+
+        const diags = contextual(
+            validateRateCoherenceDeep({
+                builder: makeBuilder(props, services),
+                services,
+                tagId: "t:root",
+                ratePolicy: { kind: "lte_primary", pct: 5 },
+            }),
+        );
+
+        expect(diags.some((diag) => diag.offender.service_id === basicId)).toBe(true);
+    });
+});
+
+describe("validate() deep rate coherence integration", () => {
+    it("surfaces deep contextual failures with a dedicated validation code", () => {
+        const services: DgpServiceMap = {
+            100: svc(100, 100),
+            80: svc(80, 80),
+        };
+
+        const props: ServiceProps = {
+            schema_version: "1.0",
+            filters: [{ id: "t:root", label: "Root" }],
+            fields: [
+                {
+                    id: "f:a",
+                    type: "select",
+                    label: "A",
+                    bind_id: "t:root",
+                    options: [{ id: "o:100", label: "100", pricing_role: "base", service_id: 100 }],
+                },
+                {
+                    id: "f:b",
+                    type: "select",
+                    label: "B",
+                    bind_id: "t:root",
+                    options: [{ id: "o:80", label: "80", pricing_role: "base", service_id: 80 }],
+                },
+            ],
+        };
+
+        const errors = validate(props, {
+            serviceMap: services,
+            fallbackSettings: { ratePolicy: { kind: "lte_primary", pct: 5 } },
+        });
+
+        const coherence = errors.find((error) => error.code === "rate_coherence_violation");
+        expect(coherence).toBeTruthy();
+        expect(coherence?.details?.policy).toBe("lte_primary");
     });
 });

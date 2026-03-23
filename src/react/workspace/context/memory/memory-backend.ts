@@ -7,29 +7,29 @@ import type {
     BackendScope,
     Branch,
     BranchAccessBackend,
-    BranchParticipant,
     BranchesBackend,
+    BranchParticipant,
     CommentsBackend,
     Commit,
     Draft,
     FieldTemplate,
+    MergeResult,
+    PermissionsBackend,
+    PermissionsMap,
     PoliciesBackend,
     PoliciesLoadResult,
     PolicyScope,
-    ServiceSnapshot,
     ServicesBackend,
     ServicesInput,
+    ServiceSnapshot,
     SnapshotsBackend,
     SnapshotsLoadResult,
+    TemplateCreateInput,
     TemplatesBackend,
     TemplatesListParams,
-    TemplateCreateInput,
     TemplateUpdatePatch,
     WorkspaceBackend,
     WorkspaceInfo,
-    PermissionsBackend,
-    PermissionsMap,
-    MergeResult,
 } from "../backend";
 
 import type {
@@ -50,7 +50,7 @@ import {
     newTemplateKey,
     newThreadId,
 } from "./ids";
-import { ok, fail } from "./errors";
+import { fail, ok } from "./errors";
 import { isoNow } from "./time";
 import type {
     CreateMemoryWorkspaceBackendOptions,
@@ -59,10 +59,21 @@ import type {
 import {
     ensureThread,
     findMessageIndex,
+    type MemoryWorkspaceStore,
     newBranchSnapshotState,
     newCommentsBranchState,
-    type MemoryWorkspaceStore,
 } from "./store";
+import {
+    applyPersistedMemoryWorkspaceStore,
+    createIndexedDbMemoryPersistence,
+    type PersistedMemoryWorkspaceStore,
+    serializeMemoryWorkspaceStore,
+} from "./persistence";
+
+const workspaceBootstrapPromises = new Map<
+    string,
+    Promise<PersistedMemoryWorkspaceStore | null>
+>();
 
 function emptySnapshot(): ServiceSnapshot {
     // EditorSnapshot shape is host-defined; keep memory backend generic.
@@ -376,14 +387,89 @@ function seedStore(
     return store;
 }
 
+type AsyncBackendMethod = (...args: readonly unknown[]) => Promise<unknown>;
+
+function wrapBackendMethods<T extends object>(
+    backend: T,
+    initStore: () => Promise<void>,
+    persistStore: () => Promise<void>,
+    mutatingKeys: readonly (keyof T)[],
+): T {
+    const wrapped: Partial<T> = {};
+    const mutating = new Set<PropertyKey>(
+        mutatingKeys as readonly PropertyKey[],
+    );
+
+    for (const key of Object.keys(backend) as Array<keyof T>) {
+        const method = backend[key] as AsyncBackendMethod;
+        wrapped[key] = (async (...args: readonly unknown[]) => {
+            await initStore();
+            const result = await method(...args);
+            if (
+                mutating.has(key as PropertyKey) &&
+                typeof result === "object" &&
+                result !== null &&
+                "ok" in result &&
+                result.ok
+            ) {
+                await persistStore();
+            }
+            return result;
+        }) as T[keyof T];
+    }
+
+    return wrapped as T;
+}
+
 export function createMemoryWorkspaceBackend(
     opts: CreateMemoryWorkspaceBackendOptions,
 ): WorkspaceBackend {
     const store: MemoryWorkspaceStore = seedStore(opts);
-
     const info: WorkspaceInfo = store.info;
+    const persistence = createIndexedDbMemoryPersistence();
 
-    const authors: AuthorsBackend = {
+    let initPromise: Promise<void> | null = null;
+    const initStore = async (): Promise<void> => {
+        if (!initPromise) {
+            initPromise = (async () => {
+                if (!persistence) return;
+                let bootstrap = workspaceBootstrapPromises.get(opts.workspaceId);
+                if (!bootstrap) {
+                    bootstrap = (async () => {
+                        try {
+                            const persisted = await persistence.load(
+                                opts.workspaceId,
+                            );
+                            if (persisted) {
+                                return persisted;
+                            }
+
+                            await persistence.save(opts.workspaceId, store);
+                            return serializeMemoryWorkspaceStore(store);
+                        } finally {
+                            workspaceBootstrapPromises.delete(opts.workspaceId);
+                        }
+                    })();
+                    workspaceBootstrapPromises.set(opts.workspaceId, bootstrap);
+                }
+
+                const persisted = await bootstrap;
+                if (persisted) {
+                    applyPersistedMemoryWorkspaceStore(store, persisted);
+                }
+            })();
+        }
+        await initPromise;
+    };
+
+    const persistStore = async (): Promise<void> => {
+        if (!persistence) return;
+        await persistence.save(opts.workspaceId, store);
+    };
+
+    void initStore();
+
+    const authorsBase: AuthorsBackend = {
         list: async (workspaceId: string) => {
             if (workspaceId !== info.id)
                 return fail("not_found", "Workspace not found.");
@@ -399,8 +485,14 @@ export function createMemoryWorkspaceBackend(
             return ok(Array.from(store.authors.values()));
         },
     };
+    const authors: AuthorsBackend = wrapBackendMethods(
+        authorsBase,
+        initStore,
+        persistStore,
+        [],
+    );
 
-    const permissions: PermissionsBackend = {
+    const permissionsBase: PermissionsBackend = {
         get: async (workspaceId: string, actor: Actor) => {
             if (workspaceId !== info.id)
                 return fail("not_found", "Workspace not found.");
@@ -422,8 +514,14 @@ export function createMemoryWorkspaceBackend(
             return ok(seeded ?? permissivePermissions());
         },
     };
+    const permissions: PermissionsBackend = wrapBackendMethods(
+        permissionsBase,
+        initStore,
+        persistStore,
+        [],
+    );
 
-    const branches: BranchesBackend = {
+    const branchesBase: BranchesBackend = {
         list: async (workspaceId: string) => {
             if (workspaceId !== info.id)
                 return fail("not_found", "Workspace not found.");
@@ -571,8 +669,14 @@ export function createMemoryWorkspaceBackend(
             return ok(Array.from(store.branches.values()));
         },
     };
+    const branches: BranchesBackend = wrapBackendMethods(
+        branchesBase,
+        initStore,
+        persistStore,
+        ["create", "setMain", "merge", "delete"],
+    );
 
-    const access: BranchAccessBackend = {
+    const accessBase: BranchAccessBackend = {
         listParticipants: async (workspaceId: string, branchId: string) => {
             if (workspaceId !== info.id)
                 return fail("not_found", "Workspace not found.");
@@ -588,8 +692,14 @@ export function createMemoryWorkspaceBackend(
             return ok(list);
         },
     };
+    const access: BranchAccessBackend = wrapBackendMethods(
+        accessBase,
+        initStore,
+        persistStore,
+        [],
+    );
 
-    const services: ServicesBackend = {
+    const servicesBase: ServicesBackend = {
         get: async (workspaceId: string) => {
             if (workspaceId !== info.id)
                 return fail("not_found", "Workspace not found.");
@@ -603,8 +713,14 @@ export function createMemoryWorkspaceBackend(
             return ok(store.services);
         },
     };
+    const services: ServicesBackend = wrapBackendMethods(
+        servicesBase,
+        initStore,
+        persistStore,
+        [],
+    );
 
-    const templates: TemplatesBackend = {
+    const templatesBase: TemplatesBackend = {
         list: async (params: TemplatesListParams) => {
             if (params.workspaceId !== info.id)
                 return fail("not_found", "Workspace not found.");
@@ -805,11 +921,17 @@ export function createMemoryWorkspaceBackend(
         refresh: async (
             params: Omit<TemplatesListParams, "q" | "tags" | "category">,
         ) => {
-            return templates.list({ ...params });
+            return templatesBase.list({ ...params });
         },
     };
+    const templates: TemplatesBackend = wrapBackendMethods(
+        templatesBase,
+        initStore,
+        persistStore,
+        ["create", "update", "clone", "publish", "unpublish", "delete"],
+    );
 
-    const snapshots: SnapshotsBackend = {
+    const snapshotsBase: SnapshotsBackend = {
         load: async (params) => {
             if (params.workspaceId !== info.id)
                 return fail("not_found", "Workspace not found.");
@@ -1022,6 +1144,12 @@ export function createMemoryWorkspaceBackend(
             return ok({ head, draft });
         },
     };
+    const snapshots: SnapshotsBackend = wrapBackendMethods(
+        snapshotsBase,
+        initStore,
+        persistStore,
+        ["autosave", "save", "publish", "discard"],
+    );
 
     function ensureThreadContext(ctx: BackendScope, threadId: string) {
         if (ctx.workspaceId !== info.id)
@@ -1036,7 +1164,7 @@ export function createMemoryWorkspaceBackend(
         return ok({ st, th, nowN });
     }
 
-    const commentsImpl: CommentsBackend<
+    const commentsImplBase: CommentsBackend<
         CommentThread,
         CommentMessage,
         CommentAnchor
@@ -1214,9 +1342,22 @@ export function createMemoryWorkspaceBackend(
 
     // WorkspaceBackend.comments expects CommentsBackend (default unknown generics);
     // we return a structurally compatible implementation.
-    const comments: WorkspaceBackend["comments"] = commentsImpl;
+    const comments: WorkspaceBackend["comments"] = wrapBackendMethods(
+        commentsImplBase,
+        initStore,
+        persistStore,
+        [
+            "createThread",
+            "addMessage",
+            "editMessage",
+            "deleteMessage",
+            "moveThread",
+            "resolveThread",
+            "deleteThread",
+        ],
+    );
 
-    const policies: PoliciesBackend = {
+    const policiesBase: PoliciesBackend = {
         load: async (ctx: PolicyScope) => {
             if (ctx.workspaceId !== info.id)
                 return fail("not_found", "Workspace not found.");
@@ -1274,6 +1415,12 @@ export function createMemoryWorkspaceBackend(
             return ok({ updatedAt });
         },
     };
+    const policies: PoliciesBackend = wrapBackendMethods(
+        policiesBase,
+        initStore,
+        persistStore,
+        ["save", "clear"],
+    );
 
     const backend: WorkspaceBackend = {
         info,

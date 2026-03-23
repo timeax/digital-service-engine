@@ -1,6 +1,10 @@
 // src/react/workspace/context/provider/slices/use-services-slice.ts
 import * as React from "react";
-import type { BackendError, WorkspaceBackend } from "../../backend";
+import type {
+    BackendError,
+    BackendResult,
+    WorkspaceBackend,
+} from "../../backend";
 import type { DgpServiceMap } from "@/schema";
 import type { Loadable } from "@/react/workspace";
 import type { BackendRuntime } from "../runtime/use-backend-runtime";
@@ -8,7 +12,7 @@ import { toServiceMap } from "../helpers";
 
 export interface ServicesSliceApi {
     readonly services: Loadable<DgpServiceMap>;
-    readonly refreshServices: () => Promise<void>;
+    readonly refreshServices: () => Promise<BackendResult<DgpServiceMap>>;
     readonly invalidateServices: () => void;
 }
 
@@ -37,7 +41,9 @@ export function useServicesSlice(
         updatedAt: initialServices ? runtime.now() : undefined,
     });
 
-    const refreshServices = React.useCallback(async (): Promise<void> => {
+    const refreshServices = React.useCallback(async (): Promise<
+        BackendResult<DgpServiceMap>
+    > => {
         setServices((s) => ({ ...s, loading: true }));
 
         const res = await backend.services.refresh(workspaceId, {
@@ -46,7 +52,7 @@ export function useServicesSlice(
 
         if (!res.ok) {
             setLoadableError(setServices, res.error);
-            return;
+            return res;
         }
 
         const map: DgpServiceMap | null = toServiceMap(res.value);
@@ -55,6 +61,7 @@ export function useServicesSlice(
             loading: false,
             updatedAt: runtime.now(),
         });
+        return { ok: true, value: map ?? ({} as DgpServiceMap) };
     }, [backend.services, workspaceId, services.updatedAt, runtime]);
 
     const invalidateServices = React.useCallback((): void => {

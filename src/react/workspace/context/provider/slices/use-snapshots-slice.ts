@@ -3,6 +3,7 @@ import * as React from "react";
 import type {
     Actor,
     BackendError,
+    BackendResult,
     Commit,
     Draft,
     Result,
@@ -24,8 +25,10 @@ export interface SnapshotsSliceApi {
     readonly loadSnapshot: WorkspaceAPI["snapshot"]["load"];
     readonly refreshSnapshotPointersForBranch: (
         branchId: string,
-    ) => Promise<void>;
-    readonly refreshSnapshotPointers: () => Promise<void>;
+    ) => Promise<BackendResult<Readonly<{ head?: Commit; draft?: Draft }>>>;
+    readonly refreshSnapshotPointers: () => Promise<
+        BackendResult<Readonly<{ head?: Commit; draft?: Draft }>>
+    >;
 
     readonly setSnapshotData: WorkspaceAPI["snapshot"]["set"];
     readonly autosave: WorkspaceAPI["snapshot"]["autosave"];
@@ -157,7 +160,9 @@ export function useSnapshotsSlice(
     );
 
     const refreshSnapshotPointersForBranch = React.useCallback(
-        async (branchId: string): Promise<void> => {
+        async (
+            branchId: string,
+        ): Promise<BackendResult<Readonly<{ head?: Commit; draft?: Draft }>>> => {
             const res = await backend.snapshots.refresh({
                 workspaceId,
                 branchId,
@@ -165,7 +170,7 @@ export function useSnapshotsSlice(
                 since: snapshot.lastSavedAt ?? snapshot.lastDraftAt,
             });
 
-            if (!res.ok) return;
+            if (!res.ok) return res;
 
             setSnapshot((s) => ({
                 ...s,
@@ -177,6 +182,7 @@ export function useSnapshotsSlice(
                       ? "dirty"
                       : "clean",
             }));
+            return res;
         },
         [
             backend.snapshots,
@@ -188,10 +194,21 @@ export function useSnapshotsSlice(
     );
 
     const refreshSnapshotPointers =
-        React.useCallback(async (): Promise<void> => {
+        React.useCallback(async (): Promise<
+            BackendResult<Readonly<{ head?: Commit; draft?: Draft }>>
+        > => {
             const branchId = getCurrentBranchId();
-            if (!branchId) return;
-            await refreshSnapshotPointersForBranch(branchId);
+            if (!branchId) {
+                return {
+                    ok: false,
+                    error: {
+                        code: "no_branch",
+                        message:
+                            "No current branch to refresh snapshot pointers for.",
+                    },
+                };
+            }
+            return refreshSnapshotPointersForBranch(branchId);
         }, [getCurrentBranchId, refreshSnapshotPointersForBranch]);
 
     const autosave = React.useCallback<

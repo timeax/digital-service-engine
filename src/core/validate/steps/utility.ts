@@ -1,6 +1,6 @@
 // src/core/validate/steps/utility.ts
 import type { ValidationCtx } from "../shared";
-import { isFiniteNumber, withAffected } from "../shared";
+import { isFiniteNumber, isServiceIdRef, withAffected } from "../shared";
 
 export function validateUtilityMarkers(v: ValidationCtx): void {
     const ALLOWED_UTILITY_MODES: Set<string> = new Set<string>([
@@ -15,7 +15,7 @@ export function validateUtilityMarkers(v: ValidationCtx): void {
         const optsArr = Array.isArray(f.options) ? f.options : [];
         for (const o of optsArr) {
             const role: string = o.pricing_role ?? f.pricing_role ?? "base";
-            const hasService: boolean = isFiniteNumber(o.service_id);
+            const hasService: boolean = isServiceIdRef(o.service_id);
             const util: unknown = (o.meta as any)?.utility;
 
             if (role === "utility" && hasService) {

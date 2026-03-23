@@ -1,6 +1,10 @@
 import { cloneDeep } from "lodash-es";
 import { Builder, normalise } from "@/core";
 import type {
+    CatalogId,
+    CatalogNode,
+    CatalogServiceId,
+    CatalogSmartRule,
     Command,
     EditorEvents,
     EditorOptions,
@@ -8,6 +12,8 @@ import type {
     FallbackSettings,
     Field,
     FieldValidationRule,
+    ServiceIdRef,
+    ServiceCatalogState,
     ServiceProps,
     ServicePropsNotice,
     Tag,
@@ -26,11 +32,7 @@ import type {
     WireKind,
 } from "./editor/editor-types";
 import { duplicate } from "./editor/editor-duplicate";
-import {
-    addNotice,
-    removeNotice,
-    updateNotice,
-} from "./editor/editor-notices";
+import { addNotice, removeNotice, updateNotice } from "./editor/editor-notices";
 import {
     addField,
     addOption,
@@ -71,6 +73,22 @@ import {
 import { filterServicesForVisibleGroup } from "./editor/editor-service-filter";
 import { genId, uniqueId, uniqueOptionId } from "./editor/editor-ids";
 import { placeNode, placeOption } from "./editor/editor-placement";
+import {
+    addCatalogGroup,
+    addSmartCatalogGroup,
+    assignServicesToCatalogGroup,
+    createEmptyCatalog,
+    moveCatalogNode as moveCatalogNodeState,
+    removeCatalogNode as removeCatalogNodeState,
+    resolveSmartCatalogGroup,
+    setActiveCatalogNode as setActiveCatalogNodeState,
+    setCatalogExpanded,
+    setCatalogViewMode,
+    setSelectedCatalogService,
+    toggleCatalogExpanded,
+    toggleCatalogPinned,
+    updateCatalogNode as updateCatalogNodeState,
+} from "./editor/editor-catalog";
 
 const MAX_LIMIT = 100;
 
@@ -86,6 +104,7 @@ export class Editor {
     private txnLabel?: string;
     private stagedBefore?: EditorSnapshot;
     private _lastPolicyDiagnostics?: PolicyDiagnostic[];
+    private catalog?: ServiceCatalogState;
 
     constructor(builder: Builder, api: CanvasAPI, opts: EditorOptions = {}) {
         this.builder = builder;
@@ -223,7 +242,7 @@ export class Editor {
         input: {
             id?: string;
             label: string;
-            service_id?: number;
+            service_id?: ServiceIdRef;
             pricing_role?: "base" | "utility" | "addon";
             [k: string]: any;
         },
@@ -236,7 +255,7 @@ export class Editor {
         patch: Partial<
             {
                 label: string;
-                service_id: number;
+                service_id: ServiceIdRef;
                 pricing_role: "base" | "utility" | "addon";
             } & Record<string, any>
         >,
@@ -258,7 +277,7 @@ export class Editor {
 
     setService(
         id: string,
-        input: { service_id?: number; pricing_role?: "base" | "utility" },
+        input: { service_id?: ServiceIdRef; pricing_role?: "base" | "utility" },
     ): void {
         return setService(this.moduleCtx(), id, input);
     }
@@ -277,9 +296,7 @@ export class Editor {
         return removeTag(this.moduleCtx(), id);
     }
 
-    addNotice(
-        input: Omit<ServicePropsNotice, "id"> & { id?: string },
-    ): string {
+    addNotice(input: Omit<ServicePropsNotice, "id"> & { id?: string }): string {
         return addNotice(this.moduleCtx(), input);
     }
 
@@ -369,6 +386,209 @@ export class Editor {
         return clearFieldValidation(this.moduleCtx(), id);
     }
 
+    getCatalog(): ServiceCatalogState | undefined {
+        return cloneDeep(this.catalog);
+    }
+
+    setCatalog(next?: ServiceCatalogState): void {
+        this.replaceCatalog(next, "catalog:set");
+    }
+
+    clearCatalog(): void {
+        this.replaceCatalog(undefined, "catalog:clear");
+    }
+
+    ensureCatalog(): ServiceCatalogState {
+        const next = this.catalog
+            ? cloneDeep(this.catalog)
+            : createEmptyCatalog();
+        this.catalog = cloneDeep(next);
+        return next;
+    }
+
+    createCatalogGroup(input: {
+        id?: string;
+        label: string;
+        parentId?: string;
+        description?: string;
+        serviceIds?: CatalogServiceId[];
+        collapsed?: boolean;
+        order?: number;
+        color?: string;
+        icon?: string;
+    }): string {
+        const next = addCatalogGroup(this.catalog, input);
+        this.replaceCatalog(next, "catalog:create-group");
+        return next.activeNodeId!;
+    }
+
+    createSmartCatalogGroup(input: {
+        id?: string;
+        label: string;
+        parentId?: string;
+        description?: string;
+        rules: CatalogSmartRule[];
+        match?: "all" | "any";
+        collapsed?: boolean;
+        order?: number;
+        color?: string;
+        icon?: string;
+    }): string {
+        const next = addSmartCatalogGroup(this.catalog, input);
+        this.replaceCatalog(next, "catalog:create-smart-group");
+        return next.activeNodeId!;
+    }
+
+    updateCatalogNode(
+        id: CatalogId,
+        patch: Partial<Omit<CatalogNode, "id" | "kind">>,
+    ): void {
+        this.replaceCatalog(
+            updateCatalogNodeState(this.catalog, id, patch),
+            "catalog:update-node",
+        );
+    }
+
+    removeCatalogNode(id: CatalogId, opts?: { cascade?: boolean }): void {
+        this.replaceCatalog(
+            removeCatalogNodeState(this.catalog, id, opts),
+            "catalog:remove-node",
+        );
+    }
+
+    moveCatalogNode(
+        nodeId: CatalogId,
+        opts: {
+            parentId?: CatalogId;
+            beforeId?: CatalogId;
+            afterId?: CatalogId;
+            index?: number;
+        },
+    ): void {
+        this.replaceCatalog(
+            moveCatalogNodeState(this.catalog, nodeId, opts),
+            "catalog:move-node",
+        );
+    }
+
+    assignServicesToCatalogGroup(
+        nodeId: CatalogId,
+        serviceIds: CatalogServiceId[],
+        mode: "append" | "replace" | "remove" = "append",
+    ): void {
+        this.replaceCatalog(
+            assignServicesToCatalogGroup(
+                this.catalog,
+                nodeId,
+                serviceIds,
+                mode,
+            ),
+            "catalog:assign-services",
+        );
+    }
+
+    setActiveCatalogNode(id?: CatalogId): void {
+        const next = setActiveCatalogNodeState(this.catalog, id);
+        this.catalog = cloneDeep(next);
+
+        this.emit(
+            "catalog:active-change" as any,
+            {
+                activeNodeId: id,
+            } as any,
+        );
+
+        this.emit(
+            "catalog:change" as any,
+            {
+                catalog: cloneDeep(this.catalog),
+                reason: "catalog:set-active",
+            } as any,
+        );
+    }
+
+    setCatalogViewMode(mode: ServiceCatalogState["viewMode"]): void {
+        this.replaceCatalog(
+            setCatalogViewMode(this.catalog, mode),
+            "catalog:set-view-mode",
+        );
+    }
+
+    setSelectedCatalogService(serviceId?: CatalogServiceId): void {
+        this.replaceCatalog(
+            setSelectedCatalogService(this.catalog, serviceId),
+            "catalog:set-selected-service",
+        );
+    }
+
+    toggleCatalogExpanded(id: CatalogId): void {
+        this.replaceCatalog(
+            toggleCatalogExpanded(this.catalog, id),
+            "catalog:toggle-expanded",
+        );
+    }
+
+    setCatalogExpanded(id: CatalogId, expanded: boolean): void {
+        this.replaceCatalog(
+            setCatalogExpanded(this.catalog, id, expanded),
+            "catalog:set-expanded",
+        );
+    }
+
+    toggleCatalogPinned(id: CatalogId): void {
+        this.replaceCatalog(
+            toggleCatalogPinned(this.catalog, id),
+            "catalog:toggle-pinned",
+        );
+    }
+
+    resolveSmartCatalogGroup(
+        nodeId: CatalogId,
+        candidates: CatalogServiceId[],
+        matchers: {
+            serviceField?: (
+                candidate: CatalogServiceId,
+                rule: Extract<CatalogSmartRule, { type: "service-field" }>,
+            ) => boolean;
+            policyFamily?: (
+                candidate: CatalogServiceId,
+                rule: Extract<CatalogSmartRule, { type: "policy-family" }>,
+            ) => boolean;
+            compatibility?: (
+                candidate: CatalogServiceId,
+                rule: Extract<CatalogSmartRule, { type: "compatibility" }>,
+            ) => boolean;
+        },
+    ): CatalogServiceId[] {
+        const next = resolveSmartCatalogGroup(
+            this.catalog,
+            nodeId,
+            candidates,
+            matchers,
+        );
+
+        this.replaceCatalog(next, "catalog:resolve-smart-group");
+
+        const node = next?.nodes.find(
+            (x) => x.id === nodeId && x.kind === "smart-group",
+        ) as Extract<CatalogNode, { kind: "smart-group" }> | undefined;
+
+        return node?.resolvedServiceIds?.slice() ?? [];
+    }
+
+    private replaceCatalog(
+        next: ServiceCatalogState | undefined,
+        reason = "catalog:set",
+    ) {
+        this.catalog = cloneDeep(next);
+        this.emit(
+            "catalog:change" as any,
+            {
+                catalog: cloneDeep(this.catalog),
+                reason,
+            } as any,
+        );
+    }
     private replaceProps(next: ServiceProps): void {
         const norm = normalise(next, {
             constraints: this.builder
@@ -388,19 +608,22 @@ export class Editor {
 
     private afterMutation(command: string, _before: EditorSnapshot) {
         if (this.txnDepth > 0) return;
-        this.pushHistory(this.makeSnapshot(command));
+        const snap = this.makeSnapshot(command);
+        this.pushHistory(snap);
         this.emit("editor:command", { name: command });
         if (this.opts.validateAfterEach) {
             this.emit("editor:change", {
-                props: this.builder.getProps(),
+                props: snap.props,
                 reason: "validate",
                 command,
+                snapshot: snap,
             });
         } else {
             this.emit("editor:change", {
-                props: this.builder.getProps(),
+                props: snap.props,
                 reason: "mutation",
                 command,
+                snapshot: snap,
             });
         }
     }
@@ -412,6 +635,7 @@ export class Editor {
             props: snap.props,
             reason: "transaction",
             command: this.txnLabel,
+            snapshot: snap,
         });
     }
 
@@ -423,6 +647,7 @@ export class Editor {
             layout: {
                 canvas,
             },
+            catalog: cloneDeep(this.catalog),
         };
     }
 
@@ -445,7 +670,7 @@ export class Editor {
         } else {
             this.api.refreshGraph();
         }
-        this.emit("editor:change", { props: this.builder.getProps(), reason });
+        this.emit("editor:change", { props: s.props, reason, snapshot: s });
     }
 
     private pushHistory(snap: EditorSnapshot) {
@@ -506,7 +731,7 @@ export class Editor {
             uniqueId: (base) => uniqueId(this.moduleCtx(), base),
             uniqueOptionId: (fieldId, base) =>
                 uniqueOptionId(this.moduleCtx(), fieldId, base),
-            genId: (prefix) => genId(this.moduleCtx(), prefix),
+            genId: (prefix) => genId(this.moduleCtx(), prefix as any),
             setLastPolicyDiagnostics: (value) => {
                 this._lastPolicyDiagnostics = value;
             },

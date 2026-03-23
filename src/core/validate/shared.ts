@@ -16,6 +16,7 @@ export interface ValidationCtx {
 
     readonly tags: Tag[];
     readonly fields: Field[];
+    invalidRateFieldIds: Set<string>;
 
     readonly tagById: Map<string, Tag>;
     readonly fieldById: Map<string, Field>;
@@ -27,8 +28,15 @@ export function isFiniteNumber(v: unknown): v is number {
     return typeof v === "number" && Number.isFinite(v);
 }
 
+export function isServiceIdRef(v: unknown): v is import("@/schema").ServiceIdRef {
+    return (
+        (typeof v === "string" && v.trim().length > 0) ||
+        (typeof v === "number" && Number.isFinite(v))
+    );
+}
+
 export function hasAnyServiceOption(f: Field): boolean {
-    return (f.options ?? []).some((o) => isFiniteNumber(o.service_id));
+    return (f.options ?? []).some((o) => isServiceIdRef(o.service_id));
 }
 
 export function isBoundTo(f: Field, tagId: string): boolean {

@@ -22,12 +22,13 @@ const svc = (
 
 const serviceMap: DgpServiceMap = {
     100: svc(100, 10, { dripfeed: false }), // base for T
-    101: svc(101, 8, { dripfeed: false }), // cheaper, fits constraints
+    101: svc(101, 9.8, { dripfeed: false }), // cheaper, fits constraints
     102: svc(102, 12, { dripfeed: false }), // more expensive (rate violation)
-    103: svc(103, 9, { dripfeed: true }), // cheaper but dripfeed true (constraint mismatch if tag wants false)
-    104: svc(104, 7, { dripfeed: false }), // cheaper, fits constraints
+    103: svc(103, 9.6, { dripfeed: true }), // cheaper but dripfeed true (constraint mismatch if tag wants true/false context)
+    104: svc(104, 9.7, { dripfeed: false }), // cheaper, fits constraints
     105: svc(105, 11, { dripfeed: false }), // option base
     106: svc(106, 9, { dripfeed: false }), // option base (multi-context)
+    107: svc(107, 8.8, { dripfeed: false }), // option fallback within 5% of 106
 };
 
 function baseProps(): ServiceProps {
@@ -208,7 +209,7 @@ describe("fallbacks: node-scoped (rate + constraints)", () => {
 
         const settings = {
             requireConstraintFit: true,
-            ratePolicy: { kind: "lte_primary" as const },
+            ratePolicy: { kind: "lte_primary" as const, pct: 5 },
         };
 
         // Candidate 101 has dripfeed: false (lacks the required capability) → mismatch
@@ -245,19 +246,19 @@ describe("fallbacks: option node with multi-tag context", () => {
 
         // Ensure optM fallbacks include a candidate that lacks dripfeed (to fail T1)
         // and one that is a rate violation (to be pruned).
-        // service 101 -> dripfeed:false, service 102 -> rate 12 (violates lte_primary vs base 106=9)
-        props.fallbacks!.nodes!.optM = [101, 102];
+        // service 107 -> dripfeed:false, service 102 -> rate 12 (violates lte_primary vs base 106=9)
+        props.fallbacks!.nodes!.optM = [107, 102];
 
         const settings = {
             requireConstraintFit: true,
-            ratePolicy: { kind: "lte_primary" as const },
+            ratePolicy: { kind: "lte_primary" as const, pct: 5 },
         };
 
         const diags = collectFailedFallbacks(props, serviceMap, settings);
 
         // 101 should have at least one constraint failure (against T1)
         expect(
-            reasonsFor(diags, { nodeId: ["optM"], candidate: 101 }),
+            reasonsFor(diags, { nodeId: ["optM"], candidate: 107 }),
         ).toContain("constraint_mismatch");
 
         // Prune only candidates that fail all contexts or violate rate policy
@@ -267,8 +268,8 @@ describe("fallbacks: option node with multi-tag context", () => {
             settings,
         );
 
-        // 101 kept (fails T1, passes T2)
-        expect(pruned.fallbacks?.nodes?.optM).toContain(101);
+        // 107 kept (fails T1, passes T2)
+        expect(pruned.fallbacks?.nodes?.optM).toContain(107);
 
         // 102 pruned (rate violation vs base 106=9)
         expect(

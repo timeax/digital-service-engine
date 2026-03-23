@@ -63,32 +63,6 @@ export function CanvasProvider(props: CanvasProviderProps) {
         );
     }
 
-    // 🔹 NEW: if snapshot props aren’t loaded yet, trigger a one-time load
-    const triedInitialLoadRef = useRef<boolean>(false);
-    useEffect(() => {
-        const hasProps = Boolean(ws.snapshot.data?.props);
-        if (!hasProps && !triedInitialLoadRef.current) {
-            triedInitialLoadRef.current = true;
-            void ws.snapshot.load().then((res) => {
-                // dev-only noise; stay silent in prod
-                if (
-                    typeof window !== "undefined" &&
-                    // @ts-expect-error allow host env guard
-                    window.SITE?.env !== "production"
-                ) {
-                    if (!res.ok) {
-                        // eslint-disable-next-line no-console
-                        console.warn(
-                            "[CanvasProvider] snapshot.load() failed:",
-                            res.error?.code ?? "load_error",
-                            res.error?.message ?? "(no message)",
-                        );
-                    }
-                }
-            });
-        }
-    }, [ws]);
-
     // Pull initial ServiceProps from current editor snapshot (if present)
     const initialProps: ServiceProps | undefined = ws.snapshot.data?.props as
         | ServiceProps

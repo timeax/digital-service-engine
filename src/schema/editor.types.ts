@@ -1,12 +1,21 @@
-import type { ServiceProps } from "./index";
+import type { EditorSnapshot, ServiceProps } from "./index";
 import { SelectionOptions } from "@/react/canvas/selection";
+import { ServiceCatalogState } from "@/schema/catalog";
 
 export type EditorEvents = {
     "editor:command": { name: string; payload?: any };
-    "editor:change": { props: ServiceProps; reason: string; command?: string };
+    "editor:change": { props: ServiceProps; reason: string; command?: string, snapshot: EditorSnapshot };
     "editor:undo": { stackSize: number; index: number };
     "editor:redo": { stackSize: number; index: number };
     "editor:error": { message: string; code?: string; meta?: any };
+
+    "catalog:change": {
+        catalog?: ServiceCatalogState;
+        reason: string;
+    };
+    "catalog:active-change": {
+        activeNodeId?: string;
+    };
 };
 
 export type Command = {

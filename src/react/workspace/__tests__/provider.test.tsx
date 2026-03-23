@@ -1,21 +1,21 @@
-// src/react/workspace/context/provider/__tests__/workspace-provider.integration.test.ts
 // @vitest-environment jsdom
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
-import { WorkspaceProvider, useWorkspace } from "@/react/workspace";
-import type { Actor, Branch } from "@/react/workspace";
-import type { WorkspaceAPI } from "@/react/workspace";
+import {
+    WorkspaceProvider,
+    createMemoryWorkspaceBackend,
+    useWorkspace,
+    type Actor,
+    type BackendError,
+    type Branch,
+    type ServiceSnapshot,
+    type WorkspaceAPI,
+} from "@/react/workspace";
 
-import { createMemoryWorkspaceBackend } from "../context/memory";
-
-/**
- * React’s act() warnings happen if the test environment doesn’t opt in.
- * This silences: “The current testing environment is not configured to support act(...)”
- */
 (
     globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
@@ -23,18 +23,75 @@ import { createMemoryWorkspaceBackend } from "../context/memory";
 async function flushMicrotasks(): Promise<void> {
     await Promise.resolve();
     await Promise.resolve();
+    await Promise.resolve();
+}
+
+async function waitFor(
+    predicate: () => boolean,
+    attempts = 20,
+): Promise<void> {
+    for (let index = 0; index < attempts; index += 1) {
+        await act(async () => {
+            await flushMicrotasks();
+        });
+
+        if (predicate()) {
+            return;
+        }
+    }
+
+    throw new Error("Timed out waiting for condition.");
 }
 
 function makeActor(): Actor {
     return { id: "actor-1", name: "Tester" };
 }
 
-function makeBranch(id: string, isMain: boolean): Branch {
+function makeBranch(id = "main", isMain = true): Branch {
     const iso = new Date(0).toISOString();
     return { id, name: id, isMain, createdAt: iso, updatedAt: iso };
 }
 
-describe("WorkspaceProvider (integration)", () => {
+function makeSnapshot(label: string): ServiceSnapshot {
+    return {
+        schema_version: "1",
+        data: {
+            props: {
+                id: label,
+                label,
+                filters: [],
+                fields: [],
+            },
+        } as ServiceSnapshot["data"],
+    };
+}
+
+function makeBootBackend(workspaceId: string, actor: Actor) {
+    return createMemoryWorkspaceBackend({
+        workspaceId,
+        actorId: actor.id,
+        seed: {
+            authors: [{ id: actor.id, name: actor.name ?? "Tester" }],
+            branches: [makeBranch("main", true)],
+            snapshots: {
+                main: {
+                    snapshot: makeSnapshot(`snapshot-${workspaceId}`),
+                },
+            },
+            policies: { rules: [] },
+        },
+    });
+}
+
+function createDeferred<T = void>() {
+    let resolve!: (value: T | PromiseLike<T>) => void;
+    const promise = new Promise<T>((res) => {
+        resolve = res;
+    });
+    return { promise, resolve };
+}
+
+describe("WorkspaceProvider boot", () => {
     let container: HTMLDivElement;
     let root: Root | null;
 
@@ -50,41 +107,18 @@ describe("WorkspaceProvider (integration)", () => {
             root = null;
         }
         container.remove();
-        vi.useRealTimers();
         vi.restoreAllMocks();
     });
 
-    it("refresh.all() calls workspace-wide refreshers then current-branch context refreshers (memory backend)", async () => {
-        const actor: Actor = makeActor();
+    it("boots from identity alone and loads the snapshot body in the provider", async () => {
+        const actor = makeActor();
+        const backend = makeBootBackend("ws-boot-no-initial", actor);
+        const snapshotLoadSpy = vi.spyOn(backend.snapshots, "load");
 
-        const backend = createMemoryWorkspaceBackend({
-            workspaceId: "ws-1",
-            actorId: actor.id,
-            seed: {
-                authors: [{ id: actor.id, name: actor.name ?? "Tester" }],
-                branches: [makeBranch("b1", true)],
-            },
-        });
-
-        // spy on the real backend methods
-        const spyAuthorsRefresh = vi.spyOn(backend.authors, "refresh");
-        const spyPermissionsRefresh = vi.spyOn(backend.permissions, "refresh");
-        const spyBranchesRefresh = vi.spyOn(backend.branches, "refresh");
-        const spyServicesRefresh = vi.spyOn(backend.services, "refresh");
-        const spyAccessRefreshParticipants = vi.spyOn(
-            backend.access,
-            "refreshParticipants",
-        );
-        const spyTemplatesRefresh = vi.spyOn(backend.templates, "refresh");
-        const spySnapshotsRefresh = vi.spyOn(backend.snapshots, "refresh");
-
-        let api: WorkspaceAPI | null = null;
+        let api: WorkspaceAPI | undefined;
 
         function Capture(): null {
-            const ctx: WorkspaceAPI = useWorkspace();
-            React.useEffect(() => {
-                api = ctx;
-            }, [ctx]);
+            api = useWorkspace();
             return null;
         }
 
@@ -94,11 +128,6 @@ describe("WorkspaceProvider (integration)", () => {
                     backend={backend}
                     actor={actor}
                     autoAutosave={false}
-                    initial={{
-                        branches: [makeBranch("b1", true)],
-                        mainId: "b1",
-                        currentBranchId: "b1",
-                    }}
                 >
                     <Capture />
                 </WorkspaceProvider>,
@@ -106,81 +135,38 @@ describe("WorkspaceProvider (integration)", () => {
             await flushMicrotasks();
         });
 
-        expect(api).not.toBeNull();
+        await waitFor(() => Boolean(api) && api!.boot.isBooting === false);
+        const workspace = api!;
 
-        vi.clearAllMocks();
-
-        await act(async () => {
-            await api!.refresh.all({ strict: true });
-            await flushMicrotasks();
+        expect(snapshotLoadSpy).toHaveBeenCalledWith({
+            workspaceId: backend.info.id,
+            branchId: "main",
+            actorId: actor.id,
+            versionId: undefined,
         });
-
-        const wsId: string = backend.info.id;
-
-        // workspace-wide
-        expect(spyAuthorsRefresh).toHaveBeenCalledWith(wsId);
-        expect(spyPermissionsRefresh).toHaveBeenCalledWith(wsId, actor);
-        expect(spyBranchesRefresh).toHaveBeenCalledWith(wsId);
-
-        // services.refresh(workspaceId, { since? }) — provider may pass a second arg
-        expect(spyServicesRefresh).toHaveBeenCalledWith(
-            wsId,
-            expect.objectContaining({ since: undefined }),
-        );
-
-        // branch-local (participants, templates, snapshot pointers for current branch)
-        expect(spyAccessRefreshParticipants).toHaveBeenCalledWith(
-            wsId,
-            "b1",
-            expect.anything(),
-        );
-
-        expect(spyTemplatesRefresh).toHaveBeenCalledWith(
-            expect.objectContaining({
-                workspaceId: wsId,
-                branchId: "b1",
-            }),
-        );
-
-        expect(spySnapshotsRefresh).toHaveBeenCalledWith(
-            expect.objectContaining({
-                workspaceId: wsId,
-                branchId: "b1",
-                actorId: actor.id,
-            }),
+        expect(workspace.boot.isReady).toBe(true);
+        expect(workspace.boot.sections.snapshotBody.status).toBe("success");
+        expect(workspace.snapshot.data).toEqual(
+            makeSnapshot("snapshot-ws-boot-no-initial").data,
         );
     });
 
-    it("refresh.branchContext({ includeWorkspaceData:false }) refreshes only branch-local context (memory backend)", async () => {
-        const actor: Actor = makeActor();
+    it("treats initial as seeded view only and still performs live boot loading", async () => {
+        const actor = makeActor();
+        const backend = makeBootBackend("ws-initial-live", actor);
+        const authorsGate = createDeferred<void>();
+        const originalRefresh = backend.authors.refresh.bind(backend.authors);
+        const authorsRefreshSpy = vi
+            .spyOn(backend.authors, "refresh")
+            .mockImplementation(async (...args) => {
+                await authorsGate.promise;
+                return originalRefresh(...args);
+            });
 
-        const backend = createMemoryWorkspaceBackend({
-            workspaceId: "ws-1",
-            actorId: actor.id,
-            seed: {
-                authors: [{ id: actor.id, name: actor.name ?? "Tester" }],
-                branches: [makeBranch("b1", true)],
-            },
-        });
-
-        const spyAuthorsRefresh = vi.spyOn(backend.authors, "refresh");
-        const spyPermissionsRefresh = vi.spyOn(backend.permissions, "refresh");
-        const spyServicesRefresh = vi.spyOn(backend.services, "refresh");
-
-        const spyAccessRefreshParticipants = vi.spyOn(
-            backend.access,
-            "refreshParticipants",
-        );
-        const spyTemplatesRefresh = vi.spyOn(backend.templates, "refresh");
-        const spySnapshotsRefresh = vi.spyOn(backend.snapshots, "refresh");
-
-        let api: WorkspaceAPI | null = null;
+        let api: WorkspaceAPI | undefined;
 
         function Capture(): null {
-            const ctx: WorkspaceAPI = useWorkspace();
-            React.useEffect(() => {
-                api = ctx;
-            }, [ctx]);
+            api = useWorkspace();
             return null;
         }
 
@@ -191,9 +177,11 @@ describe("WorkspaceProvider (integration)", () => {
                     actor={actor}
                     autoAutosave={false}
                     initial={{
-                        branches: [makeBranch("b1", true)],
-                        mainId: "b1",
-                        currentBranchId: "b1",
+                        authors: [{ id: actor.id, name: "Seeded Name" }],
+                        branches: [makeBranch("main", true)],
+                        mainId: "main",
+                        currentBranchId: "main",
+                        snapshot: makeSnapshot("seeded"),
                     }}
                 >
                     <Capture />
@@ -202,55 +190,187 @@ describe("WorkspaceProvider (integration)", () => {
             await flushMicrotasks();
         });
 
-        expect(api).not.toBeNull();
+        expect(api!.authors.data?.[0]?.name).toBe("Seeded Name");
+        expect(api!.boot.isSeededView).toBe(true);
 
+        authorsGate.resolve();
+
+        await waitFor(() => Boolean(api) && api!.boot.isBooting === false);
+        const workspace = api!;
+
+        expect(authorsRefreshSpy).toHaveBeenCalled();
+        expect(workspace.authors.data?.[0]?.name).toBe("Tester");
+        expect(workspace.snapshot.data).toEqual(
+            makeSnapshot("snapshot-ws-initial-live").data,
+        );
+        expect(workspace.boot.isReady).toBe(true);
+        expect(workspace.boot.isLiveConfirmed).toBe(true);
+        expect(workspace.boot.isSeededView).toBe(false);
+    });
+
+    it("tracks per-section errors and keeps comments non-blocking", async () => {
+        const actor = makeActor();
+        const backend = makeBootBackend("ws-comment-failure", actor);
+        const commentError: BackendError = {
+            code: "comment_failure",
+            message: "Comment refresh failed.",
+        };
+
+        const commentSpy = vi
+            .spyOn(backend.comments, "listThreads")
+            .mockResolvedValue({
+                ok: false,
+                error: commentError,
+            });
+
+        let api: WorkspaceAPI | undefined;
+
+        function Capture(): null {
+            api = useWorkspace();
+            return null;
+        }
+
+        await act(async () => {
+            root?.render(
+                <WorkspaceProvider
+                    backend={backend}
+                    actor={actor}
+                    autoAutosave={false}
+                >
+                    <Capture />
+                </WorkspaceProvider>,
+            );
+            await flushMicrotasks();
+        });
+
+        await waitFor(
+            () =>
+                Boolean(api) &&
+                api!.boot.sections.comments.status === "error" &&
+                api!.boot.isBooting === false,
+        );
+        const workspace = api!;
+
+        expect(commentSpy).toHaveBeenCalled();
+        expect(workspace.boot.isReady).toBe(true);
+        expect(workspace.boot.hasErrors).toBe(true);
+        expect(workspace.boot.hasPartialFailure).toBe(true);
+        expect(workspace.boot.errorsBySection.comments).toEqual(commentError);
+
+        commentSpy.mockResolvedValue({ ok: true, value: [] });
+
+        await act(async () => {
+            await workspace.boot.retrySection("comments");
+            await flushMicrotasks();
+        });
+
+        expect(api!.boot.sections.comments.status).toBe("success");
+    });
+
+    it("treats policy failures as blocking and exposes the failed section", async () => {
+        const actor = makeActor();
+        const backend = makeBootBackend("ws-policy-failure", actor);
+        const policyError: BackendError = {
+            code: "policy_failure",
+            message: "Policy refresh failed.",
+        };
+
+        vi.spyOn(backend.policies, "load").mockResolvedValue({
+            ok: false,
+            error: policyError,
+        });
+
+        let api: WorkspaceAPI | undefined;
+
+        function Capture(): null {
+            api = useWorkspace();
+            return null;
+        }
+
+        await act(async () => {
+            root?.render(
+                <WorkspaceProvider
+                    backend={backend}
+                    actor={actor}
+                    autoAutosave={false}
+                >
+                    <Capture />
+                </WorkspaceProvider>,
+            );
+            await flushMicrotasks();
+        });
+
+        await waitFor(
+            () =>
+                Boolean(api) &&
+                api!.boot.sections.policies.status === "error" &&
+                api!.boot.isBooting === false,
+        );
+        const workspace = api!;
+
+        expect(workspace.boot.isReady).toBe(false);
+        expect(workspace.boot.hasErrors).toBe(true);
+        expect(workspace.boot.errorsBySection.policies).toEqual(policyError);
+    });
+
+    it("refresh.branchContext without workspace data only reloads branch-local sections", async () => {
+        const actor = makeActor();
+        const backend = makeBootBackend("ws-branch-context", actor);
+
+        const spyAuthorsRefresh = vi.spyOn(backend.authors, "refresh");
+        const spyPermissionsRefresh = vi.spyOn(backend.permissions, "refresh");
+        const spyServicesRefresh = vi.spyOn(backend.services, "refresh");
+        const spyParticipantsRefresh = vi.spyOn(
+            backend.access,
+            "refreshParticipants",
+        );
+        const spyTemplatesRefresh = vi.spyOn(backend.templates, "refresh");
+        const spySnapshotsRefresh = vi.spyOn(backend.snapshots, "refresh");
+        const spySnapshotsLoad = vi.spyOn(backend.snapshots, "load");
+        const spyPoliciesLoad = vi.spyOn(backend.policies, "load");
+        const spyCommentsRefresh = vi.spyOn(backend.comments, "listThreads");
+
+        let api: WorkspaceAPI | undefined;
+
+        function Capture(): null {
+            api = useWorkspace();
+            return null;
+        }
+
+        await act(async () => {
+            root?.render(
+                <WorkspaceProvider
+                    backend={backend}
+                    actor={actor}
+                    autoAutosave={false}
+                >
+                    <Capture />
+                </WorkspaceProvider>,
+            );
+            await flushMicrotasks();
+        });
+
+        await waitFor(() => Boolean(api) && api!.boot.isBooting === false);
+        const workspace = api!;
         vi.clearAllMocks();
 
         await act(async () => {
-            await (
-                api!.refresh.branchContext as (
-                    opts?: Readonly<{
-                        branchId?: string;
-                        strict?: boolean;
-                        includeWorkspaceData?: boolean;
-                    }>,
-                ) => Promise<unknown>
-            )({
-                branchId: "b1",
+            await workspace.refresh.branchContext({
+                branchId: "main",
                 strict: true,
                 includeWorkspaceData: false,
             });
             await flushMicrotasks();
         });
 
-        const wsId: string = backend.info.id;
-
-        // must NOT run workspace-wide refreshers
         expect(spyAuthorsRefresh).not.toHaveBeenCalled();
         expect(spyPermissionsRefresh).not.toHaveBeenCalled();
         expect(spyServicesRefresh).not.toHaveBeenCalled();
-
-        // must run branch-local refreshers
-        expect(spyAccessRefreshParticipants).toHaveBeenCalledWith(
-            wsId,
-            "b1",
-            expect.anything(),
-        );
-
-        expect(spyTemplatesRefresh).toHaveBeenCalledWith(
-            expect.objectContaining({
-                workspaceId: wsId,
-                branchId: "b1",
-            }),
-        );
-
-        expect(spySnapshotsRefresh).toHaveBeenCalledWith(
-            expect.objectContaining({
-                workspaceId: wsId,
-                branchId: "b1",
-                actorId: actor.id,
-            }),
-        );
+        expect(spyParticipantsRefresh).toHaveBeenCalled();
+        expect(spyTemplatesRefresh).toHaveBeenCalled();
+        expect(spySnapshotsRefresh).toHaveBeenCalled();
+        expect(spySnapshotsLoad).toHaveBeenCalled();
+        expect(spyPoliciesLoad).toHaveBeenCalled();
+        expect(spyCommentsRefresh).toHaveBeenCalled();
     });
-
 });

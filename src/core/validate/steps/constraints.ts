@@ -1,10 +1,11 @@
 // src/core/validate/steps/constraints.ts
 import type { ValidationCtx } from "../shared";
 import {
-    isFiniteNumber,
+    isServiceIdRef,
     isServiceFlagEnabled,
     withAffected, // <-- your helper (adjust name/import if you named it differently)
 } from "../shared";
+import { getServiceCapability } from "@/utils/util";
 
 type ConstraintBag = Record<string, boolean | undefined>;
 
@@ -75,9 +76,9 @@ export function validateConstraints(v: ValidationCtx): void {
 
         for (const f of visible) {
             for (const o of f.options ?? []) {
-                if (!isFiniteNumber(o.service_id)) continue;
+                if (!isServiceIdRef(o.service_id)) continue;
 
-                const svc: unknown = (v.serviceMap as any)[o.service_id];
+                const svc: unknown = getServiceCapability(v.serviceMap, o.service_id);
                 if (!svc || typeof svc !== "object") continue;
 
                 for (const [k, val] of Object.entries(eff)) {
@@ -106,9 +107,9 @@ export function validateConstraints(v: ValidationCtx): void {
     // Unsupported constraint vs tag's mapped service capabilities
     for (const t of v.tags) {
         const sid: unknown = t.service_id;
-        if (!isFiniteNumber(sid)) continue;
+        if (!isServiceIdRef(sid)) continue;
 
-        const svc: unknown = (v.serviceMap as any)[Number(sid)];
+        const svc: unknown = getServiceCapability(v.serviceMap, sid);
         if (!svc || typeof svc !== "object") continue;
 
         const eff: ConstraintBag = effectiveConstraints(v, t.id);

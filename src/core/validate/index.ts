@@ -22,6 +22,8 @@ import { validateFallbacks } from "./steps/fallbacks";
 import { applyPolicies } from "./policies/apply-policies";
 import type { ValidationCtx } from "./shared";
 import { buildNodeMap } from "@/core/node-map";
+import { createBuilder } from "@/core/builder";
+import { validateRateCoherenceDeep } from "@/core/rate-coherence";
 
 /**
  * We read simulation options from ctx without changing the public ValidatorOptions type.
@@ -109,6 +111,7 @@ export function validate(
         selectedKeys,
         tags,
         fields,
+        invalidRateFieldIds: new Set<string>(),
         tagById,
         fieldById,
         fieldsVisibleUnder: (_tagId: string): Field[] => [],
@@ -147,6 +150,40 @@ export function validate(
 
     // 7) rates & pricing roles
     validateRates(v);
+
+    if (Object.keys(serviceMap).length > 0 && tags.length > 0) {
+        const builder = createBuilder({ serviceMap });
+        builder.load(props);
+
+        for (const tag of tags) {
+            const diags = validateRateCoherenceDeep({
+                builder,
+                services: serviceMap,
+                tagId: tag.id,
+                ratePolicy: ctx.fallbackSettings?.ratePolicy,
+                invalidFieldIds: v.invalidRateFieldIds,
+            });
+
+            for (const diag of diags) {
+                if (diag.kind !== "contextual") continue;
+                errors.push({
+                    code: "rate_coherence_violation",
+                    severity: "error",
+                    message: diag.message,
+                    nodeId: diag.nodeId,
+                    details: {
+                        tagId: diag.tagId,
+                        simulationAnchor: diag.simulationAnchor,
+                        primary: diag.primary,
+                        offender: diag.offender,
+                        policy: diag.policy,
+                        policyPct: diag.policyPct,
+                        invalidFieldIds: diag.invalidFieldIds,
+                    },
+                });
+            }
+        }
+    }
 
     // 8) constraints vs capabilities + inheritance
     validateConstraints(v);

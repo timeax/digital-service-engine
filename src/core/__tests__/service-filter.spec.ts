@@ -102,7 +102,7 @@ describe("core.filterServicesForVisibleGroup", () => {
                         },
                     ],
                     fallback: {
-                        ratePolicy: { kind: "lte_primary" },
+                        ratePolicy: { kind: "lte_primary", pct: 10 },
                     } as FallbackSettings,
                 },
             },
@@ -111,11 +111,11 @@ describe("core.filterServicesForVisibleGroup", () => {
 
         const byId = new Map(result.checks.map((c) => [String(c.id), c]));
         expect(byId.has("101")).toBe(false);
-        expect(byId.get("102")?.ok).toBe(true);
+        expect(byId.get("202")?.ok).toBe(true);
         expect(byId.get("103")?.reasons).toContain("constraint_mismatch");
         expect(byId.get("104")?.reasons).toContain("rate_policy");
         expect(byId.get("201")?.policyErrors).toContain("no_mix_platform");
-        expect(byId.get("202")?.ok).toBe(true);
+        expect(byId.get("102")?.reasons).toContain("rate_policy");
     });
 
     it("marks missing capability as not ok", () => {
@@ -150,7 +150,7 @@ describe("core.filterServicesForVisibleGroup", () => {
                     usedServiceIds: [],
                     effectiveConstraints: {},
                     policies: [],
-                    fallback: { ratePolicy: { kind: "lte_primary" } },
+                    fallback: { ratePolicy: { kind: "lte_primary", pct: 5 } },
                 },
             },
             { builder: b },
@@ -185,6 +185,79 @@ describe("core.filterServicesForVisibleGroup", () => {
         expect(byId.get("104")?.passesRate).toBe(false);
     });
 
+    it("supports eq_primary and within_pct semantics against an explicit primary", () => {
+        const b = createBuilder({ serviceMap });
+        b.load(baseProps());
+
+        const eqResult = filterServicesForVisibleGroup(
+            {
+                candidates: [101, 102],
+                context: {
+                    tagId: "root",
+                    usedServiceIds: [100],
+                    effectiveConstraints: {},
+                    policies: [],
+                    fallback: {
+                        ratePolicy: { kind: "eq_primary" },
+                    },
+                },
+            },
+            { builder: b },
+        );
+
+        const eqById = new Map(eqResult.checks.map((c) => [String(c.id), c]));
+        expect(eqById.get("101")?.passesRate).toBe(false);
+        expect(eqById.get("102")?.passesRate).toBe(false);
+
+        const withinPctResult = filterServicesForVisibleGroup(
+            {
+                candidates: [101, 104],
+                context: {
+                    tagId: "root",
+                    usedServiceIds: [100],
+                    effectiveConstraints: {},
+                    policies: [],
+                    fallback: {
+                        ratePolicy: { kind: "within_pct", pct: 20 },
+                    },
+                },
+            },
+            { builder: b },
+        );
+
+        const withinById = new Map(
+            withinPctResult.checks.map((c) => [String(c.id), c]),
+        );
+        expect(withinById.get("101")?.passesRate).toBe(true);
+        expect(withinById.get("104")?.passesRate).toBe(false);
+    });
+
+    it("bounded lte_primary rejects both candidates above primary and candidates too far below it", () => {
+        const b = createBuilder({ serviceMap });
+        b.load(baseProps());
+
+        const result = filterServicesForVisibleGroup(
+            {
+                candidates: [101, 102, 103],
+                context: {
+                    tagId: "root",
+                    usedServiceIds: [100],
+                    effectiveConstraints: {},
+                    policies: [],
+                    fallback: {
+                        ratePolicy: { kind: "lte_primary", pct: 10 },
+                    },
+                },
+            },
+            { builder: b },
+        );
+
+        const byId = new Map(result.checks.map((c) => [String(c.id), c]));
+        expect(byId.get("101")?.passesRate).toBe(false);
+        expect(byId.get("102")?.passesRate).toBe(false);
+        expect(byId.get("103")?.passesRate).toBe(true);
+    });
+
     it("handles loose policy input and returns diagnostics", () => {
         const b = createBuilder({ serviceMap });
         b.load(baseProps());
@@ -199,7 +272,7 @@ describe("core.filterServicesForVisibleGroup", () => {
                     policies: [
                         { subject: "services", scope: "visible_group", op: "all_true" },
                     ],
-                    fallback: { ratePolicy: { kind: "lte_primary" } },
+                    fallback: { ratePolicy: { kind: "within_pct", pct: 30 } },
                 },
             },
             { builder: b },
@@ -262,6 +335,7 @@ describe("core.filterServicesForVisibleGroup", () => {
                     selectedButtons: [],
                     usedServiceIds: [100, 201],
                     policies,
+                    fallback: { ratePolicy: { kind: "within_pct", pct: 30 } },
                 },
             },
             { builder: b },
@@ -335,6 +409,7 @@ describe("core.filterServicesForVisibleGroup", () => {
                     selectedButtons: [],
                     usedServiceIds: [100, 201],
                     policies,
+                    fallback: { ratePolicy: { kind: "within_pct", pct: 30 } },
                 },
             },
             { builder: b },

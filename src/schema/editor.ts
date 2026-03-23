@@ -1,5 +1,7 @@
 import type { ServiceProps } from "./index";
 import { CanvasState } from "./canvas-types";
+import { ServiceCatalogState } from "@/schema/catalog";
+
 
 export type CommentNode = {
     id: string;
@@ -23,5 +25,6 @@ export type EditorSnapshot = {
     props: ServiceProps;
     layout?: LayoutState;
     comments?: CommentNode[];
+    catalog?: ServiceCatalogState;
     meta?: Record<string, unknown>;
 };

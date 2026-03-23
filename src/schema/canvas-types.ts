@@ -1,5 +1,6 @@
 import type { GraphSnapshot, GraphNode, GraphEdge, EdgeKind } from "./graph";
 import { CommentMessage, CommentThread } from "./comments";
+import { EditorEvents } from "@/schema/editor.types";
 
 export type Viewport = { x: number; y: number; zoom: number };
 
@@ -53,7 +54,7 @@ export type CanvasEvents = {
         nextDelayMs?: number;
         error?: any;
     };
-};
+} & EditorEvents;
 
 export type NodeView = GraphNode & { position?: NodePos };
 export type EdgeView = GraphEdge;

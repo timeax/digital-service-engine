@@ -1,7 +1,12 @@
 // src/react/workspace/context/provider/slices/use-policies-slice.ts
 import * as React from "react";
 
-import type { WorkspaceBackend, Result, BackendError } from "../../backend";
+import type {
+    WorkspaceBackend,
+    Result,
+    BackendError,
+    BackendResult,
+} from "../../backend";
 import type { Loadable } from "@/react/workspace";
 
 import type { DynamicRule } from "@/schema";
@@ -47,7 +52,7 @@ export type PoliciesSlice = {
 
     readonly refreshPolicies: (
         params?: Readonly<{ since?: number | string; branchId?: string }>,
-    ) => Promise<void>;
+    ) => Promise<BackendResult<readonly DynamicRule[]>>;
 
     readonly savePolicies: (
         rules: readonly DynamicRule[],
@@ -99,21 +104,24 @@ export function usePoliciesSlice(
     const refreshPolicies = React.useCallback(
         async (
             params?: Readonly<{ since?: number | string; branchId?: string }>,
-        ): Promise<void> => {
+        ): Promise<BackendResult<readonly DynamicRule[]>> => {
             const branchId: string | undefined =
                 params?.branchId ?? getCurrentBranchId();
 
             const api: any = (backend as any).policies;
 
-            // Prefer refresh(); fallback to get()
-            const fn: any = api?.refresh ?? api?.get;
-            const fnKey: string = api?.refresh ? "refresh" : "get";
+            // Prefer refresh(); fallback to get(); backend contract exposes load().
+            const fn: any = api?.refresh ?? api?.get ?? api?.load;
+            const fnKey: string = api?.refresh
+                ? "refresh"
+                : api?.get
+                  ? "get"
+                  : "load";
 
             if (!fn) {
-                __setPoliciesState((s) =>
-                    failed(s, missingBackendError(fnKey)),
-                );
-                return;
+                const error = missingBackendError(fnKey);
+                __setPoliciesState((s) => failed(s, error));
+                return { ok: false, error };
             }
 
             __setPoliciesState((s) => loading(s));
@@ -126,17 +134,23 @@ export function usePoliciesSlice(
             });
 
             if (!res?.ok) {
-                __setPoliciesState((s) =>
-                    failed(s, res?.error ?? missingBackendError(fnKey)),
-                );
-                return;
+                const error = res?.error ?? missingBackendError(fnKey);
+                __setPoliciesState((s) => failed(s, error));
+                return { ok: false, error };
             }
 
-            const list: readonly DynamicRule[] = (res.value?.policies ??
-                res.value ??
-                []) as readonly DynamicRule[];
+            const loaded = res.value;
+            const raw = loaded?.raw;
+            const compiled =
+                loaded?.compiled ??
+                (raw != null ? compilePolicies(raw).policies : []);
+            const diagnostics =
+                loaded?.diagnostics ??
+                (raw != null ? compilePolicies(raw).diagnostics : []);
 
-            __setPoliciesState(() => ready(list));
+            __setPoliciesState(() => ready(compiled));
+            __setPolicyDiagnosticsState(() => ready(diagnostics));
+            return { ok: true, value: compiled };
         },
         [backend, workspaceId, actorId, getCurrentBranchId],
     );

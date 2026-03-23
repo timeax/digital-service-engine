@@ -1,4 +1,4 @@
-import Node from "./node";
+import Node from "./nodes/node";
 import React from "react";
 import type { FlowNode } from "@/schema/graph";
 

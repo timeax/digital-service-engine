@@ -9,3 +9,4 @@ export * from "./policies";
 export * from "./provider";
 export * from "./validation";
 export * from "./fallback-editor"
+export * from './catalog'

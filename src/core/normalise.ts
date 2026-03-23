@@ -172,7 +172,7 @@ function coerceTag(src: any, flagKeys: string[]): Tag {
     const id = str(src.id);
     const label = str(src.label);
     const bind_id = str(src.bind_id) || (id == "t:root" ? undefined : "t:root");
-    const service_id = toNumberOrUndefined(src.service_id);
+    const service_id = toServiceIdOrUndefined(src.service_id);
 
     const includes = toStringArray(src.includes);
     const excludes = toStringArray(src.excludes);
@@ -267,7 +267,7 @@ function coerceField(src: any, defRole: PricingRole): Field {
     const validation = normalizeFieldValidation(src.validation);
 
     // field-level service_id is allowed only for *buttons* with base role
-    const field_service_id_raw = toNumberOrUndefined(src.service_id);
+    const field_service_id_raw = toServiceIdOrUndefined(src.service_id);
     const field_service_id =
         button &&
         pricing_role !== "utility" &&
@@ -300,7 +300,7 @@ function coerceOption(src: any, inheritRole: PricingRole): FieldOption {
     if (!src || typeof src !== "object") src = {};
     const id = str(src.id);
     const label = str(src.label);
-    const service_id = toNumberOrUndefined(src.service_id);
+    const service_id = toServiceIdOrUndefined(src.service_id);
     const value =
         typeof src.value === "string" || typeof src.value === "number"
             ? (src.value as string | number)
@@ -405,10 +405,16 @@ function toNoticeArray(v: any): ServicePropsNotice[] {
         .map((item) => cloneDeep(item as ServicePropsNotice));
 }
 
-function toNumberOrUndefined(v: any): number | undefined {
+function toServiceIdOrUndefined(v: any): ServiceIdRef | undefined {
     if (v === null || v === undefined) return undefined;
-    const n = Number(v);
-    return Number.isFinite(n) ? n : undefined;
+    if (typeof v === "number") {
+        return Number.isFinite(v) ? v : undefined;
+    }
+    if (typeof v === "string") {
+        const trimmed = v.trim();
+        return trimmed.length > 0 ? trimmed : undefined;
+    }
+    return undefined;
 }
 
 function str(v: any): string | undefined {

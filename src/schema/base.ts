@@ -1,5 +1,8 @@
 // persisted schema + shared types
-import { ServiceFallback } from "@/schema/fallback-editor";
+import type { ServiceFallback } from "@/schema/fallback-editor";
+import type { IdType } from "./provider";
+
+export type ServiceIdRef = IdType;
 
 export type PricingRole = "base" | "utility";
 export type FieldType = "custom" | (string & {});
@@ -199,7 +202,7 @@ export type FieldOption = {
     id: string;
     label: string;
     value?: string | number;
-    service_id?: number;
+    service_id?: ServiceIdRef;
     pricing_role?: PricingRole;
     meta?: Record<string, unknown> & UtilityMark & WithQuantityDefault;
 };
@@ -224,7 +227,7 @@ export type Field = BaseFieldUI & {
           }
         | ({
               button: true;
-              service_id?: number;
+              service_id?: ServiceIdRef;
           } & WithQuantityDefault)
     );
 
@@ -240,7 +243,7 @@ export type Tag = {
     id: string;
     label: string;
     bind_id?: string;
-    service_id?: number;
+    service_id?: ServiceIdRef;
     includes?: string[];
     excludes?: string[];
     meta?: Record<string, unknown> & WithQuantityDefault;

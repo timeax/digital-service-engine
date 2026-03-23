@@ -1,5 +1,5 @@
 import { cloneDeep } from "lodash-es";
-import type { Field, ServiceProps, Tag } from "@/schema";
+import type { Field, ServiceIdRef, ServiceProps, Tag } from "@/schema";
 import type {
     EditorModuleContext,
     EditorNodeLookup,
@@ -71,9 +71,19 @@ export function setFieldName(
                     return;
                 }
 
-                const fieldHasService = typeof (f as any).service_id === "number";
+                const fieldHasService =
+                    (typeof (f as any).service_id === "number" &&
+                        Number.isFinite((f as any).service_id)) ||
+                    (typeof (f as any).service_id === "string" &&
+                        (f as any).service_id.trim().length > 0);
                 const optionHasService = Array.isArray(f.options)
-                    ? f.options.some((o) => typeof (o as any).service_id === "number")
+                    ? f.options.some(
+                          (o) =>
+                              (typeof (o as any).service_id === "number" &&
+                                  Number.isFinite((o as any).service_id)) ||
+                              (typeof (o as any).service_id === "string" &&
+                                  (o as any).service_id.trim().length > 0),
+                      )
                     : false;
 
                 if (fieldHasService || optionHasService) {
@@ -119,7 +129,7 @@ export function addOption(
     input: {
         id?: string;
         label: string;
-        service_id?: number;
+        service_id?: ServiceIdRef;
         pricing_role?: "base" | "utility" | "addon";
         [k: string]: any;
     },
@@ -150,7 +160,7 @@ export function updateOption(
     patch: Partial<
         {
             label: string;
-            service_id: number;
+            service_id: ServiceIdRef;
             pricing_role: "base" | "utility" | "addon";
         } & Record<string, any>
     >,
@@ -254,7 +264,7 @@ export function editName(
 export function setService(
     ctx: EditorModuleContext,
     id: string,
-    input: { service_id?: number; pricing_role?: "base" | "utility" },
+    input: { service_id?: ServiceIdRef; pricing_role?: "base" | "utility" },
 ): void {
     ctx.exec({
         name: "setService",
@@ -266,10 +276,14 @@ export function setService(
                 );
                 const validId =
                     hasSidKey &&
-                    typeof input.service_id === "number" &&
-                    Number.isFinite(input.service_id);
-                const sid: number | undefined = validId
-                    ? Number(input.service_id)
+                    ((typeof input.service_id === "number" &&
+                        Number.isFinite(input.service_id)) ||
+                        (typeof input.service_id === "string" &&
+                            input.service_id.trim().length > 0));
+                const sid: ServiceIdRef | undefined = validId
+                    ? typeof input.service_id === "string"
+                        ? input.service_id.trim()
+                        : Number(input.service_id)
                     : undefined;
                 const nextRole = input.pricing_role;
 

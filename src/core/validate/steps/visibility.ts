@@ -2,7 +2,7 @@
 
 import type { Field, Tag } from "@/schema";
 import type { ValidationCtx } from "../shared";
-import { isFiniteNumber, withAffected } from "../shared";
+import { isServiceIdRef, withAffected } from "../shared";
 import { visibleFieldsUnder } from "@/core/visibility";
 
 /**
@@ -172,7 +172,7 @@ function runVisibilityRulesOnce(v: ValidationCtx): void {
 
         for (const f of visible) {
             for (const o of f.options ?? []) {
-                if (!isFiniteNumber(o.service_id)) continue;
+                if (!isServiceIdRef(o.service_id)) continue;
 
                 const role: string =
                     o.pricing_role ?? (f as any).pricing_role ?? "base";

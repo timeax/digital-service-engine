@@ -1,6 +1,6 @@
 // src/core/builder.ts
-import { normalise } from "./normalise";
-import { validate } from "./validate";
+import {normalise} from "./normalise";
+import {validate} from "./validate";
 
 import type {
     DgpServiceMap,
@@ -13,10 +13,11 @@ import type {
     ServiceProps,
     Tag,
     ValidationError,
-    ValidatorOptions
+    ValidatorOptions,
 } from "@/schema";
-import { visibleFieldIdsUnder } from "@/core/visibility";
-import { buildNodeMap, NodeMap } from "@/core/node-map";
+import {visibleFieldIdsUnder} from "@/core/visibility";
+import {buildNodeMap, NodeMap} from "@/core/node-map";
+import {cloneDeep} from "lodash-es";
 
 /** Options you can set on the builder (used for validation/visibility) */
 export type BuilderOptions = Omit<ValidatorOptions, "serviceMap"> & {
@@ -401,6 +402,10 @@ class BuilderImpl implements Builder {
         return validate(this.props, this.options);
     }
 
+    getOptions() {
+        return cloneDeep(this.options);
+    }
+
     visibleFields(tagId: string, selectedKeys?: string[]): string[] {
         return visibleFieldIdsUnder(this.props, tagId, {
             selectedKeys: new Set(
@@ -440,7 +445,3 @@ function toStringSet(v: Set<string> | string[] | undefined): Set<string> {
     if (v instanceof Set) return new Set(Array.from(v).map(String));
     return new Set((v as string[]).map(String));
 }
-
-
-
-

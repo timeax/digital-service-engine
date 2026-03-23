@@ -1,310 +1,379 @@
-import { RatePolicy } from "@/schema/validation";
+import type {
+    DgpServiceMap,
+    Field,
+    PricingRole,
+    ServiceIdRef,
+    ServiceProps,
+    Tag,
+} from "@/schema";
+import type { RatePolicy } from "@/schema/validation";
 import { Builder } from "./builder";
-import { DgpServiceCapability, DgpServiceMap } from "@/schema/provider";
-import { Field, PricingRole, ServiceProps, Tag } from "@/schema";
+import {
+    getServiceCapability,
+    normalizeRatePolicy,
+    passesRatePolicy,
+} from "@/utils/util";
+import { isMultiField } from "@/utils";
 
-type BaseCandidate = {
+type BaseMember = {
     kind: "field" | "option";
     id: string;
+    fieldId: string;
     label?: string;
-    service_id: number;
+    service_id: ServiceIdRef;
     rate: number;
 };
 
-/** Result for each violation discovered during deep simulation. */
-export type RateCoherenceDiagnostic = {
-    scope: "visible_group";
-    tagId: string;
-    /** The “primary” used for comparison in this simulation:
-     *  anchor service if present; otherwise, the first base service among simulated candidates.
-     *  (Tag service is never used as primary.)
-     */
-    primary: BaseCandidate;
-    /** The item that violated the policy against the primary. */
-    offender: {
-        kind: "field" | "option";
-        id: string;
-        label?: string;
-        service_id: number;
-        rate: number;
-    };
-    policy: RatePolicy["kind"];
-    policyPct?: number; // for within_pct / at_least_pct_lower
-    message: string;
-    /** Which button triggered this simulation */
-    simulationAnchor: {
-        kind: "field" | "option";
-        id: string;
-        fieldId: string;
-        label?: string;
-    };
+type FieldReference = {
+    refKind: "single" | "multi";
+    nodeId: string;
+    fieldId: string;
+    label?: string;
+    rate: number;
+    service_id?: ServiceIdRef;
+    members: BaseMember[];
 };
 
-/** Run deep rate-coherence validation by simulating each button selection in the active tag. */
+type Anchor = {
+    kind: "field" | "option";
+    id: string;
+    fieldId: string;
+    label?: string;
+};
+
+type SimulationAnchor = {
+    kind: "field" | "option";
+    id: string;
+    fieldId: string;
+    label?: string;
+};
+
+type SharedDiagnostic = {
+    scope: "visible_group";
+    tagId: string;
+    nodeId: string;
+    message: string;
+    simulationAnchor?: SimulationAnchor;
+    invalidFieldIds: string[];
+};
+
+export type RateCoherenceDiagnostic =
+    | (SharedDiagnostic & {
+          kind: "contextual";
+          primary: {
+              nodeId: string;
+              fieldId: string;
+              label?: string;
+              refKind: "single" | "multi";
+              service_id?: ServiceIdRef;
+              rate: number;
+          };
+          offender: {
+              nodeId: string;
+              fieldId: string;
+              label?: string;
+              refKind: "single" | "multi";
+              service_id?: ServiceIdRef;
+              rate: number;
+          };
+          policy: RatePolicy["kind"];
+          policyPct?: number;
+      })
+    | (SharedDiagnostic & {
+          kind: "internal_field";
+          fieldId: string;
+      });
+
 export function validateRateCoherenceDeep(params: {
     builder: Builder;
     services: DgpServiceMap;
     tagId: string;
-    /** Optional rate policy (defaults to { kind: 'lte_primary' }) */
     ratePolicy?: RatePolicy;
+    invalidFieldIds?: Iterable<string>;
 }): RateCoherenceDiagnostic[] {
     const { builder, services, tagId } = params;
-    const ratePolicy: RatePolicy = params.ratePolicy ?? { kind: "lte_primary" };
+    const ratePolicy = normalizeRatePolicy(params.ratePolicy);
     const props = builder.getProps() as ServiceProps;
+    const invalidFieldIds = new Set(params.invalidFieldIds ?? []);
 
-    // Indexes
     const fields = props.fields ?? [];
     const fieldById = new Map(fields.map((f) => [f.id, f]));
     const tagById = new Map((props.filters ?? []).map((t) => [t.id, t]));
-    const tag: Tag | undefined = tagById.get(tagId);
+    const tag = tagById.get(tagId);
 
-    // Baseline visible fields (no selection)
     const baselineFieldIds = builder.visibleFields(tagId, []);
     const baselineFields = baselineFieldIds
         .map((fid) => fieldById.get(fid))
         .filter(Boolean) as Field[];
 
-    // Build the list of *simulation anchors* = every button in the baseline group
-    const anchors: Array<{
-        kind: "field" | "option";
-        id: string;
-        fieldId: string;
-        label?: string;
-        service_id?: number;
-    }> = [];
-
-    for (const f of baselineFields) {
-        if (!isButton(f)) continue;
-
-        if (Array.isArray(f.options) && f.options.length) {
-            // Option buttons → every option becomes an anchor (even if it has no base service)
-            for (const o of f.options) {
-                anchors.push({
-                    kind: "option",
-                    id: o.id,
-                    fieldId: f.id,
-                    label: o.label ?? o.id,
-                    service_id: numberOrUndefined((o as any).service_id),
-                });
-            }
-        } else {
-            // Non-option button → the field itself is an anchor (even if it has no base service)
-            anchors.push({
-                kind: "field",
-                id: f.id,
-                fieldId: f.id,
-                label: f.label ?? f.id,
-                service_id: numberOrUndefined((f as any).service_id),
-            });
-        }
-    }
-
-    const diags: RateCoherenceDiagnostic[] = [];
-    const seen = new Set<string>(); // dedupe across simulations
+    const anchors = collectAnchors(baselineFields);
+    const diagnostics: RateCoherenceDiagnostic[] = [];
+    const seen = new Set<string>();
 
     for (const anchor of anchors) {
-        // Build the simulated “selected keys” (how includes_for_buttons is addressed)
         const selectedKeys =
             anchor.kind === "option"
                 ? [`${anchor.fieldId}::${anchor.id}`]
                 : [anchor.fieldId];
 
-        // Recompute the visible group under this simulation
-        const vgFieldIds = builder.visibleFields(tagId, selectedKeys);
-        const vgFields = vgFieldIds
+        const visibleFields = builder
+            .visibleFields(tagId, selectedKeys)
             .map((fid) => fieldById.get(fid))
             .filter(Boolean) as Field[];
 
-        // Collect base service candidates in this simulated group
-        const baseCandidates: Array<BaseCandidate> = [];
+        const visibleInvalidFieldIds = visibleFields
+            .map((field) => field.id)
+            .filter((fieldId) => invalidFieldIds.has(fieldId));
 
-        for (const f of vgFields) {
-            if (!isButton(f)) continue;
-
-            if (Array.isArray(f.options) && f.options.length) {
-                for (const o of f.options) {
-                    const sid = numberOrUndefined((o as any).service_id);
-                    const role = normalizeRole(o.pricing_role, "base");
-                    if (sid == null || role !== "base") continue;
-                    const r = rateOf(services, sid);
-                    if (!isFiniteNumber(r)) continue;
-                    baseCandidates.push({
-                        kind: "option",
-                        id: o.id,
-                        label: o.label ?? o.id,
-                        service_id: sid,
-                        rate: r!,
-                    });
-                }
-            } else {
-                const sid = numberOrUndefined((f as any).service_id);
-                const role = normalizeRole((f as any).pricing_role, "base");
-                if (sid == null || role !== "base") continue;
-                const r = rateOf(services, sid);
-                if (!isFiniteNumber(r)) continue;
-                baseCandidates.push({
-                    kind: "field",
-                    id: f.id,
-                    label: f.label ?? f.id,
-                    service_id: sid,
-                    rate: r!,
-                });
-            }
+        for (const fieldId of visibleInvalidFieldIds) {
+            const key = `internal|${tagId}|${fieldId}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            diagnostics.push({
+                kind: "internal_field",
+                scope: "visible_group",
+                tagId,
+                fieldId,
+                nodeId: fieldId,
+                message: `Field "${fieldId}" is internally invalid under rate policy "${ratePolicy.kind}".`,
+                simulationAnchor: {
+                    kind: anchor.kind,
+                    id: anchor.id,
+                    fieldId: anchor.fieldId,
+                    label: anchor.label,
+                },
+                invalidFieldIds: [fieldId],
+            });
         }
 
-        if (baseCandidates.length === 0) continue;
+        const references = visibleFields.flatMap((field) =>
+            collectFieldReferences(field, services),
+        );
+        if (references.length <= 1) continue;
 
-        // Choose the “primary” for this simulation:
-        // 1) Anchor’s base service (if present),
-        // 2) else first base candidate (deterministic).
-        const anchorPrimary =
-            anchor.service_id != null
-                ? pickByServiceId(baseCandidates, anchor.service_id)
-                : undefined;
-
-        const primary = anchorPrimary ? anchorPrimary : baseCandidates[0]!;
-
-        // Compare every *other* candidate against the primary using the configured policy
-        for (const cand of baseCandidates) {
-            if (sameService(primary, cand)) continue;
-
-            if (!rateOkWithPolicy(ratePolicy, cand.rate, primary.rate)) {
-                const key = dedupeKey(tagId, anchor, primary, cand, ratePolicy);
-                if (seen.has(key)) continue;
-                seen.add(key);
-
-                diags.push({
-                    scope: "visible_group",
-                    tagId,
-                    primary,
-                    offender: {
-                        kind: cand.kind,
-                        id: cand.id,
-                        label: cand.label,
-                        service_id: cand.service_id,
-                        rate: cand.rate,
-                    },
-                    policy: ratePolicy.kind,
-                    policyPct: "pct" in ratePolicy ? ratePolicy.pct : undefined,
-                    message: explainRateMismatch(
-                        ratePolicy,
-                        primary.rate,
-                        cand.rate,
-                        describeLabel(tag),
-                    ),
-                    simulationAnchor: {
-                        kind: anchor.kind,
-                        id: anchor.id,
-                        fieldId: anchor.fieldId,
-                        label: anchor.label,
-                    },
-                });
+        const primary = references.reduce((best, current) => {
+            if (current.rate !== best.rate) {
+                return current.rate > best.rate ? current : best;
             }
+            const bestKey = `${best.fieldId}|${best.nodeId}`;
+            const currentKey = `${current.fieldId}|${current.nodeId}`;
+            return currentKey < bestKey ? current : best;
+        });
+
+        for (const candidate of references) {
+            if (candidate.nodeId === primary.nodeId) continue;
+            if (candidate.fieldId === primary.fieldId) continue;
+            if (passesRatePolicy(ratePolicy, primary.rate, candidate.rate)) {
+                continue;
+            }
+
+            const key = contextualKey(tagId, primary, candidate, ratePolicy);
+            if (seen.has(key)) continue;
+            seen.add(key);
+
+            diagnostics.push({
+                kind: "contextual",
+                scope: "visible_group",
+                tagId,
+                nodeId: candidate.nodeId,
+                primary: toDiagnosticRef(primary),
+                offender: toDiagnosticRef(candidate),
+                policy: ratePolicy.kind,
+                policyPct: "pct" in ratePolicy ? ratePolicy.pct : undefined,
+                message: explainRateMismatch(
+                    ratePolicy,
+                    primary,
+                    candidate,
+                    describeLabel(tag),
+                ),
+                simulationAnchor: {
+                    kind: anchor.kind,
+                    id: anchor.id,
+                    fieldId: anchor.fieldId,
+                    label: anchor.label,
+                },
+                invalidFieldIds: visibleInvalidFieldIds,
+            });
         }
     }
 
-    return diags;
+    return diagnostics;
 }
 
-/* ───────────────────────── helpers ───────────────────────── */
+function collectAnchors(fields: Field[]): Anchor[] {
+    const anchors: Anchor[] = [];
 
-function isButton(f: Field): boolean {
-    // Buttons = explicit flag OR any option-based field
-    if ((f as any).button === true) return true;
-    return Array.isArray(f.options) && f.options.length > 0;
+    for (const field of fields) {
+        if (!isButton(field)) continue;
+
+        if (Array.isArray(field.options) && field.options.length > 0) {
+            for (const option of field.options) {
+                anchors.push({
+                    kind: "option",
+                    id: option.id,
+                    fieldId: field.id,
+                    label: option.label ?? option.id,
+                });
+            }
+            continue;
+        }
+
+        anchors.push({
+            kind: "field",
+            id: field.id,
+            fieldId: field.id,
+            label: field.label ?? field.id,
+        });
+    }
+
+    return anchors;
+}
+
+function collectFieldReferences(
+    field: Field,
+    services: DgpServiceMap,
+): FieldReference[] {
+    const members = collectBaseMembers(field, services);
+    if (members.length === 0) return [];
+
+    if (isMultiField(field)) {
+        const averageRate =
+            members.reduce((sum, member) => sum + member.rate, 0) /
+            members.length;
+        return [
+            {
+                refKind: "multi",
+                nodeId: field.id,
+                fieldId: field.id,
+                label: field.label ?? field.id,
+                rate: averageRate,
+                members,
+            },
+        ];
+    }
+
+    return members.map((member) => ({
+        refKind: "single",
+        nodeId: member.id,
+        fieldId: field.id,
+        label: member.label,
+        rate: member.rate,
+        service_id: member.service_id,
+        members: [member],
+    }));
+}
+
+function collectBaseMembers(
+    field: Field,
+    services: DgpServiceMap,
+): BaseMember[] {
+    const members: BaseMember[] = [];
+
+    if (Array.isArray(field.options) && field.options.length > 0) {
+        for (const option of field.options) {
+            const role = normalizeRole(option.pricing_role ?? field.pricing_role, "base");
+            if (role !== "base") continue;
+            if (option.service_id === undefined || option.service_id === null) {
+                continue;
+            }
+            const cap = getServiceCapability(services, option.service_id);
+            if (!cap || typeof cap.rate !== "number" || !Number.isFinite(cap.rate)) {
+                continue;
+            }
+            members.push({
+                kind: "option",
+                id: option.id,
+                fieldId: field.id,
+                label: option.label ?? option.id,
+                service_id: option.service_id,
+                rate: cap.rate,
+            });
+        }
+        return members;
+    }
+
+    const role = normalizeRole(field.pricing_role, "base");
+    if (role !== "base") return members;
+    if (field.service_id === undefined || field.service_id === null) return members;
+
+    const cap = getServiceCapability(services, field.service_id);
+    if (!cap || typeof cap.rate !== "number" || !Number.isFinite(cap.rate)) {
+        return members;
+    }
+
+    members.push({
+        kind: "field",
+        id: field.id,
+        fieldId: field.id,
+        label: field.label ?? field.id,
+        service_id: field.service_id,
+        rate: cap.rate,
+    });
+    return members;
+}
+
+function isButton(field: Field): boolean {
+    if ((field as any).button === true) return true;
+    return Array.isArray(field.options) && field.options.length > 0;
 }
 
 function normalizeRole(
     role: PricingRole | undefined,
-    d: PricingRole,
+    fallback: PricingRole,
 ): PricingRole {
-    return role === "utility" || role === "base" ? role : d;
+    return role === "base" || role === "utility" ? role : fallback;
 }
 
-function numberOrUndefined(v: unknown): number | undefined {
-    const n = Number(v);
-    return Number.isFinite(n) ? n : undefined;
+function toDiagnosticRef(reference: FieldReference) {
+    return {
+        nodeId: reference.nodeId,
+        fieldId: reference.fieldId,
+        label: reference.label,
+        refKind: reference.refKind,
+        service_id: reference.service_id,
+        rate: reference.rate,
+    };
 }
 
-function isFiniteNumber(v: unknown): v is number {
-    return typeof v === "number" && Number.isFinite(v);
-}
-
-function rateOf(
-    map: DgpServiceMap,
-    id: number | string | undefined,
-): number | undefined {
-    if (id === undefined || id === null) return undefined;
-    const cap: DgpServiceCapability | undefined =
-        map[Number(id)] ?? (map as any)[id];
-    return cap?.rate;
-}
-
-function pickByServiceId<T extends BaseCandidate>(
-    arr: T[],
-    sid: number,
-): T | undefined {
-    return arr.find((x) => x.service_id === sid);
-}
-
-function sameService(a: { service_id: number }, b: { service_id: number }) {
-    return a.service_id === b.service_id;
-}
-
-function rateOkWithPolicy(
-    policy: RatePolicy,
-    candRate: number,
-    primaryRate: number,
-): boolean {
-    const rp = policy ?? { kind: "lte_primary" as const };
-    switch (rp.kind) {
-        case "lte_primary":
-            return candRate <= primaryRate;
-        case "within_pct": {
-            const pct = Math.max(0, rp.pct ?? 0);
-            return candRate <= primaryRate * (1 + pct / 100);
-        }
-        case "at_least_pct_lower": {
-            const pct = Math.max(0, rp.pct ?? 0);
-            return candRate <= primaryRate * (1 - pct / 100);
-        }
-        default:
-            return candRate <= primaryRate;
-    }
+function contextualKey(
+    tagId: string,
+    primary: FieldReference,
+    candidate: FieldReference,
+    ratePolicy: RatePolicy,
+): string {
+    const pctKey = "pct" in ratePolicy ? `:${ratePolicy.pct}` : "";
+    return [
+        "contextual",
+        tagId,
+        primary.fieldId,
+        primary.nodeId,
+        candidate.fieldId,
+        candidate.nodeId,
+        `${ratePolicy.kind}${pctKey}`,
+    ].join("|");
 }
 
 function describeLabel(tag?: Tag): string {
-    const tagName = tag?.label ?? tag?.id ?? "tag";
-    return `${tagName}`;
+    return tag?.label ?? tag?.id ?? "tag";
 }
 
 function explainRateMismatch(
     policy: RatePolicy,
-    primary: number,
-    candidate: number,
+    primary: FieldReference,
+    candidate: FieldReference,
     where: string,
 ): string {
-    switch (policy.kind) {
-        case "lte_primary":
-            return `Rate coherence failed (${where}): candidate ${candidate} must be ≤ primary ${primary}.`;
-        case "within_pct":
-            return `Rate coherence failed (${where}): candidate ${candidate} must be within ${policy.pct}% of primary ${primary}.`;
-        case "at_least_pct_lower":
-            return `Rate coherence failed (${where}): candidate ${candidate} must be at least ${policy.pct}% lower than primary ${primary}.`;
-        default:
-            return `Rate coherence failed (${where}): candidate ${candidate} mismatches primary ${primary}.`;
-    }
-}
+    const primaryLabel = `${primary.label ?? primary.nodeId} (${primary.rate})`;
+    const candidateLabel = `${candidate.label ?? candidate.nodeId} (${candidate.rate})`;
 
-function dedupeKey(
-    tagId: string,
-    anchor: { kind: "field" | "option"; id: string },
-    primary: { service_id: number },
-    cand: { service_id: number; id: string },
-    rp: RatePolicy,
-) {
-    const rpKey =
-        rp.kind +
-        ("pct" in rp && typeof rp.pct === "number" ? `:${rp.pct}` : "");
-    return `${tagId}|${anchor.kind}:${anchor.id}|p${primary.service_id}|c${cand.service_id}:${cand.id}|${rpKey}`;
+    switch (policy.kind) {
+        case "eq_primary":
+            return `Rate coherence failed (${where}): ${candidateLabel} must exactly match ${primaryLabel}.`;
+        case "lte_primary":
+            return `Rate coherence failed (${where}): ${candidateLabel} must stay within ${policy.pct}% below and never above ${primaryLabel}.`;
+        case "within_pct":
+            return `Rate coherence failed (${where}): ${candidateLabel} must be within ${policy.pct}% of ${primaryLabel}.`;
+        case "at_least_pct_lower":
+            return `Rate coherence failed (${where}): ${candidateLabel} must be at least ${policy.pct}% lower than ${primaryLabel}.`;
+    }
 }

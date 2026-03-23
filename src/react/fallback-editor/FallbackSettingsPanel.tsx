@@ -42,7 +42,10 @@ export function FallbackSettingsPanel() {
         }));
     }
 
-    const ratePolicy: RatePolicy = draft.ratePolicy ?? { kind: "lte_primary" };
+    const ratePolicy: RatePolicy = draft.ratePolicy ?? {
+        kind: "lte_primary",
+        pct: 5,
+    };
 
     return (
         <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
@@ -120,35 +123,40 @@ export function FallbackSettingsPanel() {
                                 const kind = e.target
                                     .value as RatePolicy["kind"];
 
+                                if (kind === "eq_primary") {
+                                    setRatePolicy({ kind: "eq_primary" });
+                                    return;
+                                }
+
+                                const currentPct =
+                                    ratePolicy.kind === "eq_primary"
+                                        ? 5
+                                        : ratePolicy.pct;
+
                                 if (kind === "lte_primary") {
-                                    setRatePolicy({ kind: "lte_primary" });
+                                    setRatePolicy({
+                                        kind: "lte_primary",
+                                        pct: currentPct,
+                                    });
                                     return;
                                 }
 
                                 if (kind === "within_pct") {
                                     setRatePolicy({
                                         kind: "within_pct",
-                                        pct:
-                                            ratePolicy.kind === "within_pct" ||
-                                            ratePolicy.kind ===
-                                                "at_least_pct_lower"
-                                                ? ratePolicy.pct
-                                                : 10,
+                                        pct: currentPct,
                                     });
                                     return;
                                 }
 
                                 setRatePolicy({
                                     kind: "at_least_pct_lower",
-                                    pct:
-                                        ratePolicy.kind === "within_pct" ||
-                                        ratePolicy.kind === "at_least_pct_lower"
-                                            ? ratePolicy.pct
-                                            : 10,
+                                    pct: currentPct,
                                 });
                             }}
                             className="w-56 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
                         >
+                            <option value="eq_primary">eq_primary</option>
                             <option value="lte_primary">lte_primary</option>
                             <option value="within_pct">within_pct</option>
                             <option value="at_least_pct_lower">
@@ -156,8 +164,7 @@ export function FallbackSettingsPanel() {
                             </option>
                         </select>
 
-                        {(ratePolicy.kind === "within_pct" ||
-                            ratePolicy.kind === "at_least_pct_lower") && (
+                        {ratePolicy.kind !== "eq_primary" && (
                             <div className="flex items-center gap-2">
                                 <input
                                     type="number"
@@ -167,18 +174,7 @@ export function FallbackSettingsPanel() {
                                     onChange={(e) => {
                                         const pct = Number(e.target.value || 0);
 
-                                        if (ratePolicy.kind === "within_pct") {
-                                            setRatePolicy({
-                                                kind: "within_pct",
-                                                pct,
-                                            });
-                                            return;
-                                        }
-
-                                        setRatePolicy({
-                                            kind: "at_least_pct_lower",
-                                            pct,
-                                        });
+                                        setRatePolicy({ ...ratePolicy, pct });
                                     }}
                                     className="w-32 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
                                 />

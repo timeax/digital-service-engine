@@ -1,11 +1,16 @@
 // src/schema/order.ts
-import { ServiceFallback, UtilityMark, WithQuantityDefault } from "./index";
+import {
+    ServiceFallback,
+    ServiceIdRef,
+    UtilityMark,
+    WithQuantityDefault,
+} from "./index";
 
 export interface ButtonValue {
     id: string; // option id OR field id (for option-less buttons)
     value: string | number; // host’s payload
     // Enrichment added by InputWrapper (not required from host):
-    service_id?: number;
+    service_id?: ServiceIdRef;
     pricing_role?: "base" | "utility";
     meta?: Record<string, unknown> & UtilityMark & WithQuantityDefault;
 }
@@ -73,7 +78,11 @@ export type SnapshotContext = {
 
     /** Client pruning policy used (so server can mirror/compare). */
     policy: {
-        ratePolicy: { kind: "lte_primary" | "none"; thresholdPct?: number };
+        ratePolicy:
+            | { kind: "eq_primary" }
+            | { kind: "lte_primary"; pct: number }
+            | { kind: "within_pct"; pct: number }
+            | { kind: "at_least_pct_lower"; pct: number };
         requireConstraintFit: boolean; // node-level constraint enforcement on client
     };
 };

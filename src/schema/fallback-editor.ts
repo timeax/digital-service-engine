@@ -1,11 +1,10 @@
 // src/schema/fallback-editor.ts
 
-import type { DgpServiceMap, ServiceProps } from "@/schema";
+import type { DgpServiceMap, ServiceIdRef, ServiceProps } from "@/schema";
 import type { OrderSnapshot } from "@/schema/order";
 import type { FallbackSettings } from "@/schema/validation";
 
 // Ids
-export type ServiceIdRef = number | string; // provider service id
 export type NodeIdRef = string; // tag.id or option.id
 
 export type ServiceFallback = {

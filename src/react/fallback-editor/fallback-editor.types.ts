@@ -2,7 +2,11 @@ import type { ServiceIdRef } from "@/schema";
 
 export type EditorSettings = {
     requireConstraintFit: boolean;
-    ratePolicy: "lte_primary" | "ignore";
+    ratePolicy:
+        | { kind: "eq_primary" }
+        | { kind: "lte_primary"; pct: number }
+        | { kind: "within_pct"; pct: number }
+        | { kind: "at_least_pct_lower"; pct: number };
     selectionStrategy: "priority" | "cheapest";
     mode: "strict" | "dev";
 };

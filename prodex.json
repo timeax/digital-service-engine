@@ -36,6 +36,9 @@
         "react-inputs": {
             "include": ["src/react/inputs/**"]
         },
+        "react-fallback": {
+            "include": ["src/react/fallback-editor/**"]
+        },
         "react-workspace": {
             "include": ["src/react/workspace/**"]
         },

@@ -4,6 +4,7 @@ export {
     WorkspaceContext,
     useWorkspace,
     useWorkspaceMaybe,
+    useWorkspaceBoot,
 } from "./provider/context";
 
 export { WorkspaceProvider } from "./provider/provider";
@@ -18,6 +19,10 @@ export type {
     Loadable,
     SnapshotSlice,
     BranchesSlice,
+    WorkspaceBootSection,
+    WorkspaceBootSectionState,
+    WorkspaceBootSectionStatus,
+    WorkspaceBootState,
 } from "./provider/types";
 
 /**

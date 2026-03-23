@@ -65,12 +65,17 @@ export function FallbackDetailsPanel() {
                     <Detail
                         label="Rate policy"
                         value={
-                            settings.ratePolicy?.kind === "within_pct"
-                                ? `within_pct (${settings.ratePolicy.pct}%)`
-                                : settings.ratePolicy?.kind ===
-                                    "at_least_pct_lower"
-                                  ? `at_least_pct_lower (${settings.ratePolicy.pct}%)`
-                                  : "lte_primary"
+                            settings.ratePolicy?.kind === "eq_primary"
+                                ? "eq_primary"
+                                : settings.ratePolicy?.kind === "within_pct"
+                                  ? `within_pct (${settings.ratePolicy.pct}%)`
+                                  : settings.ratePolicy?.kind ===
+                                      "at_least_pct_lower"
+                                    ? `at_least_pct_lower (${settings.ratePolicy.pct}%)`
+                                    : settings.ratePolicy?.kind ===
+                                        "lte_primary"
+                                      ? `lte_primary (${settings.ratePolicy.pct}%)`
+                                      : "lte_primary (5%)"
                         }
                     />
                     <Detail

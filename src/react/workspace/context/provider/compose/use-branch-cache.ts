@@ -42,10 +42,6 @@ export interface BranchCacheApi {
             resetSnapshot: () => void;
 
             setCurrentBranchId: (id: string) => void;
-
-            hasInitialSnapshot: boolean;
-
-            loadSnapshotForBranch: (branchId: string) => void;
         }>,
     ) => void;
 }
@@ -66,7 +62,6 @@ const branchPrefixOf = (workspaceId: string): string =>
 type PendingSwitch = Readonly<{
     workspaceId: string;
     nextId: string;
-    hasInitialSnapshot: boolean;
 
     setTemplates: React.Dispatch<
         React.SetStateAction<Loadable<readonly FieldTemplate[]>>
@@ -75,8 +70,6 @@ type PendingSwitch = Readonly<{
         React.SetStateAction<Loadable<readonly BranchParticipant[]>>
     >;
     setSnapshot: React.Dispatch<React.SetStateAction<SnapshotSlice>>;
-
-    loadSnapshotForBranch: (branchId: string) => void;
 }>;
 
 export function useBranchCache(workspaceId: string): BranchCacheApi {
@@ -139,15 +132,7 @@ export function useBranchCache(workspaceId: string): BranchCacheApi {
             const p = pendingRef.current;
             if (!p) return;
 
-            const { hasCachedSnapshot } = applyCached(
-                p.workspaceId,
-                p.nextId,
-                p,
-            );
-
-            if (!hasCachedSnapshot && !p.hasInitialSnapshot) {
-                p.loadSnapshotForBranch(p.nextId);
-            }
+            applyCached(p.workspaceId, p.nextId, p);
 
             pendingRef.current = null;
         });
@@ -189,10 +174,6 @@ export function useBranchCache(workspaceId: string): BranchCacheApi {
                 resetSnapshot: () => void;
 
                 setCurrentBranchId: (id: string) => void;
-
-                hasInitialSnapshot: boolean;
-
-                loadSnapshotForBranch: (branchId: string) => void;
             }>,
         ): void => {
             const hookWsId: string = wsIdRef.current;
@@ -247,21 +228,14 @@ export function useBranchCache(workspaceId: string): BranchCacheApi {
                 pendingRef.current = {
                     workspaceId: wsId,
                     nextId: args.nextId,
-                    hasInitialSnapshot: args.hasInitialSnapshot,
                     setTemplates: args.setTemplates,
                     setParticipants: args.setParticipants,
                     setSnapshot: args.setSnapshot,
-                    loadSnapshotForBranch: args.loadSnapshotForBranch,
                 };
                 return;
             }
 
-            // Normal behavior once ready (or when already has cached snapshot).
-            if (!hasCachedSnapshot && !args.hasInitialSnapshot) {
-                args.loadSnapshotForBranch(args.nextId);
-            } else {
-                pendingRef.current = null;
-            }
+            pendingRef.current = null;
         },
         [cache],
     );

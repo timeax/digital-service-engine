@@ -20,6 +20,7 @@ export type ValidationCode =
     | "user_input_field_has_service_option"
     // rates & pricing roles
     | "rate_mismatch_across_base"
+    | "rate_coherence_violation"
     | "utility_without_base"
     // constraints
     | "unsupported_constraint"
@@ -139,17 +140,15 @@ export type ValidatorOptions = {
 };
 
 export type RatePolicy =
-    | { kind: "lte_primary" }
+    | { kind: "eq_primary" }
+    | { kind: "lte_primary"; pct: number }
     | { kind: "within_pct"; pct: number }
-    | {
-          kind: "at_least_pct_lower";
-          pct: number;
-      };
+    | { kind: "at_least_pct_lower"; pct: number };
 
 export type FallbackSettings = {
     /** Require fallbacks to satisfy tag constraints (dripfeed/refill/cancel) when a tag context is known. Default: true */
     requireConstraintFit?: boolean;
-    /** Rate rule policy. Default: { kind: 'lte_primary' } i.e. candidate.rate <= primary.rate */
+    /** Rate rule policy. Default: { kind: 'lte_primary', pct: 5 }. */
     ratePolicy?: RatePolicy;
     /** When multiple candidates remain, choose first (priority) or cheapest. Default: 'priority' */
     selectionStrategy?: "priority" | "cheapest";

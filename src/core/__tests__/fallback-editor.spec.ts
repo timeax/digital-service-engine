@@ -20,12 +20,13 @@ const svc = (id: number, rate: number, flags?: ServiceFlags) => ({
 
 const serviceMap: DgpServiceMap = {
     "100": svc(100, 10, { dripfeed: { enabled: false, description: "" } }),
-    "101": svc(101, 8, { dripfeed: { enabled: false, description: "" } }),
+    "101": svc(101, 9.8, { dripfeed: { enabled: false, description: "" } }),
     "102": svc(102, 12, { dripfeed: { enabled: false, description: "" } }),
-    "103": svc(103, 9, { dripfeed: { enabled: true, description: "" } }),
-    "104": svc(104, 7, { dripfeed: { enabled: false, description: "" } }),
+    "103": svc(103, 9.6, { dripfeed: { enabled: true, description: "" } }),
+    "104": svc(104, 9.7, { dripfeed: { enabled: false, description: "" } }),
     "105": svc(105, 11, { dripfeed: { enabled: false, description: "" } }),
     "106": svc(106, 9, { dripfeed: { enabled: false, description: "" } }),
+    "107": svc(107, 8.8, { dripfeed: { enabled: false, description: "" } }),
 };
 
 function baseProps(): ServiceProps {
@@ -93,7 +94,7 @@ function baseProps(): ServiceProps {
             nodes: {
                 T: [101, 102, 103],
                 optA: [104],
-                optM: [103, 102],
+                optM: [107, 102],
             },
             global: {
                 100: [104, 102],
@@ -172,7 +173,7 @@ describe("fallback-editor", () => {
             services: serviceMap,
             settings: {
                 requireConstraintFit: true,
-                ratePolicy: { kind: "lte_primary" },
+                ratePolicy: { kind: "lte_primary", pct: 5 },
             },
         });
 
@@ -241,7 +242,7 @@ describe("fallback-editor", () => {
             services: serviceMap,
             settings: {
                 requireConstraintFit: true,
-                ratePolicy: { kind: "lte_primary" },
+                ratePolicy: { kind: "lte_primary", pct: 5 },
             },
         });
 
@@ -262,7 +263,7 @@ describe("fallback-editor", () => {
             services: serviceMap,
             settings: {
                 requireConstraintFit: true,
-                ratePolicy: { kind: "lte_primary" },
+                ratePolicy: { kind: "lte_primary", pct: 5 },
             },
         });
 
@@ -331,7 +332,7 @@ describe("fallback-editor", () => {
             services: serviceMap,
             settings: {
                 requireConstraintFit: true,
-                ratePolicy: { kind: "lte_primary" },
+                ratePolicy: { kind: "lte_primary", pct: 5 },
                 selectionStrategy: "priority",
             },
         });

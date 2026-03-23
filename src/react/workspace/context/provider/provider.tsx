@@ -22,9 +22,9 @@ import { useServicesSlice } from "./slices/use-services-slice";
 import { useSnapshotsSlice } from "./slices/use-snapshots-slice";
 import { useCommentsSlice } from "./slices/use-comments-slice";
 import { useBranchCache } from "./compose/use-branch-cache";
-import { useWorkspaceRefresh } from "./compose/use-workspace-refresh";
 import { useLivePolling } from "./compose/use-live-polling";
 import { usePoliciesSlice } from "@/react/workspace/context/provider/slices/use-policies-slice";
+import { useWorkspaceBoot } from "./compose/use-workspace-boot";
 
 /* ---------------- provider (thin composition root) ---------------- */
 
@@ -128,40 +128,50 @@ export function WorkspaceProvider(
         workspaceId,
         actorId: actor.id,
         getCurrentBranchId,
-        initialPolicies: initial?.policies ?? null, // if you add it to initial
+        initialPolicies: initial?.policies ?? null,
         runtime,
     });
 
-    const refresh = useWorkspaceRefresh({
+    const bootCtl = useWorkspaceBoot({
+        workspaceId,
+        actorId: actor.id,
+        preferredBranchId: initial?.currentBranchId ?? initial?.mainId,
+        hasInitialData: Boolean(
+            initial?.authors ||
+                initial?.permissions ||
+                initial?.branches ||
+                initial?.templates ||
+                initial?.participants ||
+                initial?.services ||
+                initial?.snapshot ||
+                initial?.policies ||
+                initial?.comments,
+        ),
         runtime,
+        getBranchesState: () => branchesSlice.branches.data,
+        getCurrentBranchId,
+        setCurrentBranchId: branchesSlice.setCurrentBranchId,
         refreshAuthors: authorsSlice.refreshAuthors,
         refreshPermissions: permissionsSlice.refreshPermissions,
         refreshBranches: branchesSlice.refreshBranches,
-        refreshServices: servicesSlice.refreshServices,
-        refreshPolicies: policiesSlice.refreshPolicies,
-        refreshComments: comments.refreshThreads,
-        getCurrentBranchId,
-        refreshTemplates: async (p?: Partial<{ branchId: string }>) => {
-            await templatesSlice.refreshTemplates(
-                p?.branchId
-                    ? ({ branchId: p.branchId } as Partial<
-                          Pick<TemplatesListParams, "branchId">
-                      >)
-                    : undefined,
-            );
+        refreshServices: servicesSlice.refreshServices as () => Promise<any>,
+        refreshParticipants: (branchId: string) =>
+            branchesSlice.refreshParticipants({ branchId }),
+        refreshTemplates: (branchId: string) =>
+            templatesSlice.refreshTemplates({ branchId }),
+        refreshSnapshotPointers: (branchId: string) =>
+            snapshotsSlice.refreshSnapshotPointersForBranch(branchId) as any,
+        loadSnapshotBody: async (branchId: string) => {
+            const res = await snapshotsSlice.loadSnapshotForBranch(branchId);
+            if (!res.ok) {
+                return res;
+            }
+            return { ok: true, value: undefined };
         },
-        refreshParticipants: async (p?: Partial<{ branchId: string }>) => {
-            await branchesSlice.refreshParticipants(
-                p?.branchId
-                    ? ({ branchId: p.branchId } as Partial<{
-                          branchId: string;
-                      }>)
-                    : undefined,
-            );
-        },
-        refreshSnapshotPointersForBranch:
-            snapshotsSlice.refreshSnapshotPointersForBranch,
-        refreshSnapshotPointers: snapshotsSlice.refreshSnapshotPointers,
+        refreshPolicies: (branchId: string) =>
+            policiesSlice.refreshPolicies({ branchId }),
+        refreshComments: (branchId: string) =>
+            comments.refreshThreads({ branchId }),
     });
 
     const hasAnyData: boolean = Boolean(
@@ -172,7 +182,7 @@ export function WorkspaceProvider(
                 templatesSlice.templates.data.length) ||
             (branchesSlice.participants.data &&
                 branchesSlice.participants.data.length) ||
-            snapshotsSlice.snapshot.data?.props,
+            snapshotsSlice.snapshot.data,
     );
 
     const liveCtl = useLivePolling({
@@ -181,14 +191,62 @@ export function WorkspaceProvider(
         actor,
         hasAnyData,
         getCurrentBranchId: () => branchesSlice.branches.currentId,
-        refreshAll: refresh.refreshAll,
-        refreshBranchContext: refresh.refreshBranchContext,
-        refreshSnapshotPointers: refresh.refreshSnapshotPointers,
+        refreshAll: bootCtl.refreshAll,
+        refreshBranchContext: bootCtl.refreshBranchContext,
+        refreshSnapshotPointers: bootCtl.refreshSnapshotPointers,
         adapters: liveAdapters,
         debounceMs: liveDebounceMs,
     });
 
     /* ---------------- branch ops ---------------- */
+
+    const setCurrentBranch = React.useCallback(
+        (id: string): void => {
+            const prevId: string | undefined = branchesSlice.branches.currentId;
+
+            branchCache.switchBranch({
+                workspaceId,
+                nextId: id,
+                prevId,
+                templates: templatesSlice.templates,
+                participants: branchesSlice.participants,
+                snapshot: snapshotsSlice.snapshot,
+                setTemplates: templatesSlice.__setTemplatesState,
+                setParticipants: branchesSlice.__setParticipantsState,
+                setSnapshot: snapshotsSlice.__setSnapshotState,
+                resetTemplates: templatesSlice.resetTemplatesForBranch,
+                resetParticipants: () => {
+                    branchesSlice.__setParticipantsState((state) => ({
+                        ...state,
+                        data: null,
+                        error: undefined,
+                    }));
+                },
+                resetSnapshot: snapshotsSlice.resetSnapshotForBranch,
+                setCurrentBranchId: branchesSlice.setCurrentBranchId,
+            });
+
+            void bootCtl.refreshBranchContext({
+                branchId: id,
+                includeWorkspaceData: false,
+            });
+        },
+        [
+            branchesSlice.branches.currentId,
+            branchesSlice.participants,
+            branchesSlice.setCurrentBranchId,
+            branchesSlice.__setParticipantsState,
+            branchCache,
+            bootCtl,
+            snapshotsSlice.__setSnapshotState,
+            snapshotsSlice.resetSnapshotForBranch,
+            snapshotsSlice.snapshot,
+            templatesSlice.__setTemplatesState,
+            templatesSlice.resetTemplatesForBranch,
+            templatesSlice.templates,
+            workspaceId,
+        ],
+    );
 
     const createBranch = React.useCallback<WorkspaceAPI["createBranch"]>(
         async (name: string, opts?: Readonly<{ fromId?: string }>) => {
@@ -199,16 +257,18 @@ export function WorkspaceProvider(
             }
             return res;
         },
-        [backend.branches, workspaceId, branchesSlice /* setCurrentBranch */],
+        [backend.branches, branchesSlice, setCurrentBranch, workspaceId],
     );
 
     const setMain = React.useCallback<WorkspaceAPI["setMain"]>(
         async (branchId: string) => {
             const res = await backend.branches.setMain(workspaceId, branchId);
-            if (res.ok) await branchesSlice.refreshBranches();
+            if (res.ok) {
+                await branchesSlice.refreshBranches();
+            }
             return res;
         },
-        [backend.branches, workspaceId, branchesSlice],
+        [backend.branches, branchesSlice, workspaceId],
     );
 
     const mergeBranch = React.useCallback<WorkspaceAPI["mergeBranch"]>(
@@ -218,95 +278,48 @@ export function WorkspaceProvider(
                 sourceId,
                 targetId,
             );
+
             if (res.ok) {
                 await runtime.runTasks(
                     [
-                        () => branchesSlice.refreshBranches(),
-                        () => refresh.refreshBranchContext(),
+                        async () => {
+                            await branchesSlice.refreshBranches();
+                        },
+                        async () => {
+                            await bootCtl.refreshBranchContext();
+                        },
                     ],
                     true,
                 );
             }
+
             return res;
         },
-        [backend.branches, workspaceId, runtime, branchesSlice, refresh],
+        [backend.branches, bootCtl, branchesSlice, runtime, workspaceId],
     );
 
     const deleteBranch = React.useCallback<WorkspaceAPI["deleteBranch"]>(
         async (branchId: string) => {
             const res = await backend.branches.delete(workspaceId, branchId);
             if (res.ok) {
-                await branchesSlice.refreshBranches();
+                const refreshed = await branchesSlice.refreshBranches();
 
-                if (branchesSlice.branches.currentId === branchId) {
-                    const fallback: string | undefined =
-                        branchesSlice.branches.data.find(
-                            (b) => b.id !== branchId,
-                        )?.id;
+                if (
+                    refreshed.ok &&
+                    branchesSlice.branches.currentId === branchId
+                ) {
+                    const fallback = refreshed.value.find(
+                        (branch) => branch.id !== branchId,
+                    )?.id;
 
-                    if (fallback) setCurrentBranch(fallback);
+                    if (fallback) {
+                        setCurrentBranch(fallback);
+                    }
                 }
             }
             return res;
         },
-        [backend.branches, workspaceId, branchesSlice /* setCurrentBranch */],
-    );
-
-    /* ---------------- branch switching (cache-first) ---------------- */
-
-    const hasInitialSnapshot: boolean = Boolean(initial?.snapshot);
-
-    const setCurrentBranch = React.useCallback(
-        (id: string): void => {
-            const prevId: string | undefined = branchesSlice.branches.currentId;
-
-            branchCache.switchBranch({
-                workspaceId: workspaceId,
-                nextId: id,
-                prevId,
-
-                templates: templatesSlice.templates,
-                participants: branchesSlice.participants,
-                snapshot: snapshotsSlice.snapshot,
-
-                setTemplates: templatesSlice.__setTemplatesState,
-                setParticipants: branchesSlice.__setParticipantsState,
-                setSnapshot: snapshotsSlice.__setSnapshotState,
-
-                resetTemplates: templatesSlice.resetTemplatesForBranch,
-                resetParticipants: () => {
-                    branchesSlice.__setParticipantsState((s) => ({
-                        ...s,
-                        data: null,
-                        error: undefined,
-                    }));
-                },
-                resetSnapshot: snapshotsSlice.resetSnapshotForBranch,
-
-                setCurrentBranchId: branchesSlice.setCurrentBranchId,
-
-                hasInitialSnapshot,
-
-                loadSnapshotForBranch: (branchId: string) => {
-                    void snapshotsSlice.loadSnapshotForBranch(branchId);
-                },
-            });
-        },
-        [
-            branchesSlice.branches.currentId,
-            branchesSlice.participants,
-            branchesSlice.setCurrentBranchId,
-            branchesSlice.__setParticipantsState,
-            templatesSlice.templates,
-            templatesSlice.__setTemplatesState,
-            templatesSlice.resetTemplatesForBranch,
-            snapshotsSlice.snapshot,
-            snapshotsSlice.__setSnapshotState,
-            snapshotsSlice.resetSnapshotForBranch,
-            snapshotsSlice.loadSnapshotForBranch,
-            branchCache,
-            hasInitialSnapshot,
-        ],
+        [backend.branches, branchesSlice, setCurrentBranch, workspaceId],
     );
 
     /* ---------------- cache invalidation ---------------- */
@@ -315,38 +328,47 @@ export function WorkspaceProvider(
         (keys) => {
             const setAll: boolean = !keys || keys.length === 0;
 
-            if (setAll || keys?.includes("authors"))
+            if (setAll || keys?.includes("authors")) {
                 authorsSlice.invalidateAuthors();
-            if (setAll || keys?.includes("permissions"))
+            }
+            if (setAll || keys?.includes("permissions")) {
                 permissionsSlice.invalidatePermissions();
-            if (setAll || keys?.includes("branches"))
+            }
+            if (setAll || keys?.includes("branches")) {
                 branchesSlice.invalidateBranches();
-            if (setAll || keys?.includes("services"))
+            }
+            if (setAll || keys?.includes("services")) {
                 servicesSlice.invalidateServices();
+            }
 
-            if (setAll || keys?.includes("templates"))
+            if (setAll || keys?.includes("templates")) {
                 templatesSlice.invalidateTemplates();
-            if (setAll || keys?.includes("participants"))
+            }
+            if (setAll || keys?.includes("participants")) {
                 branchesSlice.invalidateParticipants();
+            }
 
             if (
                 setAll ||
                 keys?.includes("templates") ||
-                keys?.includes("participants")
+                keys?.includes("participants") ||
+                keys?.includes("snapshot")
             ) {
                 branchCache.clear();
             }
-            if (setAll || keys?.includes("policies"))
-                policiesSlice.invalidatePolicies();
 
+            if (setAll || keys?.includes("policies")) {
+                policiesSlice.invalidatePolicies();
+            }
         },
         [
             authorsSlice,
-            permissionsSlice,
+            branchCache,
             branchesSlice,
+            permissionsSlice,
+            policiesSlice,
             servicesSlice,
             templatesSlice,
-            branchCache,
         ],
     );
 
@@ -356,6 +378,7 @@ export function WorkspaceProvider(
         () => ({
             info: backend.info,
             actor,
+            boot: bootCtl.boot,
 
             authors: authorsSlice.authors,
             permissions: permissionsSlice.permissions,
@@ -366,30 +389,39 @@ export function WorkspaceProvider(
             services: servicesSlice.services,
 
             refresh: {
-                all: refresh.refreshAll,
-
-                authors: authorsSlice.refreshAuthors,
-                permissions: permissionsSlice.refreshPermissions,
-                branches: branchesSlice.refreshBranches,
-                services: servicesSlice.refreshServices,
-
-                branchContext: refresh.refreshBranchContext,
-
+                all: bootCtl.refreshAll,
+                authors: async () => {
+                    await authorsSlice.refreshAuthors();
+                },
+                permissions: async () => {
+                    await permissionsSlice.refreshPermissions();
+                },
+                branches: async () => {
+                    await branchesSlice.refreshBranches();
+                },
+                services: async () => {
+                    await servicesSlice.refreshServices();
+                },
+                branchContext: bootCtl.refreshBranchContext,
                 templates: async (
                     params?: Partial<
                         Pick<TemplatesListParams, "branchId" | "since">
                     >,
-                ) => templatesSlice.refreshTemplates(params),
-
+                ) => {
+                    await templatesSlice.refreshTemplates(params);
+                },
                 participants: async (
                     params?: Partial<{
                         branchId: string;
                         since?: number | string;
                     }>,
-                ) => branchesSlice.refreshParticipants(params),
-
-                snapshotPointers: refresh.refreshSnapshotPointers,
-                policies: () => policiesSlice.refreshPolicies(),
+                ) => {
+                    await branchesSlice.refreshParticipants(params);
+                },
+                snapshotPointers: bootCtl.refreshSnapshotPointers,
+                policies: async () => {
+                    await policiesSlice.refreshPolicies();
+                },
             },
 
             setCurrentBranch,
@@ -428,7 +460,9 @@ export function WorkspaceProvider(
 
                 set: snapshotsSlice.setSnapshotData,
                 load: snapshotsSlice.loadSnapshot,
-                refresh: snapshotsSlice.refreshSnapshotPointers,
+                refresh: async () => {
+                    await snapshotsSlice.refreshSnapshotPointers();
+                },
 
                 autosave: snapshotsSlice.autosave,
                 save: snapshotsSlice.save,
@@ -449,56 +483,45 @@ export function WorkspaceProvider(
             policies: policiesSlice,
         }),
         [
-            backend.info,
             actor,
-
             authorsSlice.authors,
             authorsSlice.refreshAuthors,
-
-            permissionsSlice.permissions,
-            permissionsSlice.refreshPermissions,
-
+            backend.info,
+            bootCtl,
             branchesSlice.branches,
             branchesSlice.participants,
             branchesSlice.refreshBranches,
             branchesSlice.refreshParticipants,
-
-            templatesSlice.templates,
-            templatesSlice.refreshTemplates,
-            templatesSlice.createTemplate,
-            templatesSlice.updateTemplate,
-            templatesSlice.cloneTemplate,
-            templatesSlice.publishTemplate,
-            templatesSlice.unpublishTemplate,
-            templatesSlice.deleteTemplate,
-
-            servicesSlice.services,
-            servicesSlice.refreshServices,
-
-            refresh.refreshAll,
-            refresh.refreshBranchContext,
-            refresh.refreshSnapshotPointers,
-
-            setCurrentBranch,
-
+            comments,
             createBranch,
-            setMain,
-            mergeBranch,
             deleteBranch,
-
             invalidate,
-
             liveCtl.connected,
             liveCtl.lastEventAt,
-
-            snapshotsSlice.snapshot,
-            snapshotsSlice.setSnapshotData,
-            snapshotsSlice.loadSnapshot,
-            snapshotsSlice.refreshSnapshotPointers,
+            mergeBranch,
+            permissionsSlice.permissions,
+            permissionsSlice.refreshPermissions,
+            policiesSlice,
+            servicesSlice.refreshServices,
+            servicesSlice.services,
+            setCurrentBranch,
+            setMain,
             snapshotsSlice.autosave,
-            snapshotsSlice.save,
-            snapshotsSlice.publish,
             snapshotsSlice.discardDraft,
+            snapshotsSlice.loadSnapshot,
+            snapshotsSlice.publish,
+            snapshotsSlice.refreshSnapshotPointers,
+            snapshotsSlice.save,
+            snapshotsSlice.setSnapshotData,
+            snapshotsSlice.snapshot,
+            templatesSlice.createTemplate,
+            templatesSlice.deleteTemplate,
+            templatesSlice.publishTemplate,
+            templatesSlice.refreshTemplates,
+            templatesSlice.templates,
+            templatesSlice.cloneTemplate,
+            templatesSlice.unpublishTemplate,
+            templatesSlice.updateTemplate,
         ],
     );
 

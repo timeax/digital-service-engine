@@ -4,6 +4,7 @@ import * as React from "react";
 
 import type {
     BackendError,
+    BackendResult,
     BackendScope,
     Result,
     WorkspaceBackend,
@@ -21,7 +22,7 @@ export interface CommentsSliceApi {
 
     readonly refreshThreads: (
         params?: Readonly<{ branchId?: string }>,
-    ) => Promise<void>;
+    ) => Promise<BackendResult<readonly CommentThread[]>>;
 
     readonly createThread: (
         input: Readonly<{
@@ -145,9 +146,20 @@ export function useCommentsSlice(
     );
 
     const refreshThreads = React.useCallback(
-        async (p?: Readonly<{ branchId?: string }>): Promise<void> => {
+        async (
+            p?: Readonly<{ branchId?: string }>,
+        ): Promise<BackendResult<readonly CommentThread[]>> => {
             const scope: BackendScope | null = resolveScope(p?.branchId);
-            if (!scope) return;
+            if (!scope) {
+                return {
+                    ok: false,
+                    error: {
+                        code: "missing_scope",
+                        message:
+                            "Workspace comments require workspaceId, actorId, and branchId.",
+                    },
+                };
+            }
 
             setThreads((s) => ({ ...s, loading: true }));
             const res = await backend.listThreads(scope);
@@ -158,8 +170,10 @@ export function useCommentsSlice(
                     loading: false,
                     updatedAt: now(),
                 });
+                return res as BackendResult<readonly CommentThread[]>;
             } else {
                 setLoadableError(setThreads, res.error);
+                return res as BackendResult<readonly CommentThread[]>;
             }
         },
         [backend, resolveScope],

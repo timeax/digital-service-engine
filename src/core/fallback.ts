@@ -7,6 +7,11 @@ import type {
 } from "@/schema";
 import type { DgpServiceCapability, DgpServiceMap } from "@/schema/provider";
 import type { FallbackSettings } from "@/schema/validation";
+import {
+    getServiceCapability,
+    normalizeRatePolicy,
+    passesRatePolicy,
+} from "@/utils/util";
 
 export type FailedFallbackContext = {
     scope: "node" | "global";
@@ -26,7 +31,7 @@ export type FailedFallbackContext = {
 
 const DEFAULT_SETTINGS: Required<FallbackSettings> = {
     requireConstraintFit: true,
-    ratePolicy: { kind: "lte_primary" },
+    ratePolicy: { kind: "lte_primary", pct: 5 },
     selectionStrategy: "priority",
     mode: "strict",
 };
@@ -216,41 +221,14 @@ function passesRate(
         return false;
     if (typeof primaryRate !== "number" || !Number.isFinite(primaryRate))
         return false;
-    switch (policy.kind) {
-        case "lte_primary":
-            return candRate <= primaryRate;
-        case "within_pct":
-            return candRate <= primaryRate * (1 + policy.pct / 100);
-        case "at_least_pct_lower":
-            return candRate <= primaryRate * (1 - policy.pct / 100);
-    }
+    return passesRatePolicy(normalizeRatePolicy(policy), primaryRate, candRate);
 }
 
 function getCap(
     map: DgpServiceMap,
     id: ServiceIdRef,
 ): DgpServiceCapability | undefined {
-    // Keep the old behavior, but avoid NaN poisoning lookups.
-    const direct: DgpServiceCapability | undefined = (map as any)[id];
-    if (direct) return direct;
-
-    const strKey: string = String(id);
-    const byStr: DgpServiceCapability | undefined = (map as any)[strKey];
-    if (byStr) return byStr;
-
-    const n: number =
-        typeof id === "number"
-            ? id
-            : typeof id === "string"
-              ? Number(id)
-              : Number.NaN;
-
-    if (Number.isFinite(n)) {
-        const byNum: DgpServiceCapability | undefined = (map as any)[n];
-        if (byNum) return byNum;
-    }
-
-    return undefined;
+    return getServiceCapability(map, id);
 }
 
 function isCapFlagEnabled(cap: DgpServiceCapability, flagId: string): boolean {

@@ -3,6 +3,7 @@ import type {
     Actor,
     Author,
     BackendError,
+    BackendResult,
     Branch,
     BranchParticipant,
     Commit,
@@ -42,6 +43,50 @@ export type SnapshotState = "clean" | "dirty" | "uncommitted" | "saving";
 export type RunOk = { ok: true };
 export type RunErr = { ok: false; errors: BackendError[] };
 export type RunResult = RunOk | RunErr;
+
+export type WorkspaceBootSection =
+    | "authors"
+    | "permissions"
+    | "branches"
+    | "services"
+    | "participants"
+    | "templates"
+    | "snapshotPointers"
+    | "snapshotBody"
+    | "policies"
+    | "comments";
+
+export type WorkspaceBootSectionStatus = "idle" | "loading" | "success" | "error";
+
+export interface WorkspaceBootSectionState {
+    readonly status: WorkspaceBootSectionStatus;
+    readonly error?: BackendError;
+    readonly updatedAt?: number;
+}
+
+export interface WorkspaceBootState {
+    readonly sections: Readonly<
+        Record<WorkspaceBootSection, WorkspaceBootSectionState>
+    >;
+    readonly isBooting: boolean;
+    readonly isReady: boolean;
+    readonly hasErrors: boolean;
+    readonly hasPartialFailure: boolean;
+    readonly lastError?: BackendError;
+    readonly errorsBySection: Readonly<
+        Partial<Record<WorkspaceBootSection, BackendError>>
+    >;
+    readonly isSeededView: boolean;
+    readonly isLiveConfirmed: boolean;
+    readonly completedSections: number;
+    readonly succeededSections: number;
+    readonly failedSections: number;
+    readonly totalSections: number;
+    retryAll(opts?: { strict?: boolean }): Promise<RunResult>;
+    retrySection(
+        section: WorkspaceBootSection,
+    ): Promise<BackendResult<void>>;
+}
 
 export interface WorkspaceProviderProps {
     readonly backend: WorkspaceBackend;
@@ -118,6 +163,7 @@ export interface BranchCacheEntry {
 export interface WorkspaceAPI {
     readonly info: WorkspaceInfo;
     readonly actor: Actor;
+    readonly boot: WorkspaceBootState;
 
     readonly authors: Loadable<readonly Author[]>;
     readonly permissions: Loadable<PermissionsMap>;

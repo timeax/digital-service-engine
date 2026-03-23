@@ -2,6 +2,7 @@
 import * as React from "react";
 import type {
     BackendError,
+    BackendResult,
     FieldTemplate,
     TemplateCreateInput,
     TemplateUpdatePatch,
@@ -16,7 +17,7 @@ export interface TemplatesSliceApi {
 
     readonly refreshTemplates: (
         params?: Partial<Pick<TemplatesListParams, "branchId" | "since">>,
-    ) => Promise<void>;
+    ) => Promise<BackendResult<readonly FieldTemplate[]>>;
 
     readonly createTemplate: WorkspaceAPI["createTemplate"];
     readonly updateTemplate: WorkspaceAPI["updateTemplate"];
@@ -75,10 +76,18 @@ export function useTemplatesSlice(
     const refreshTemplates = React.useCallback(
         async (
             params?: Partial<Pick<TemplatesListParams, "branchId" | "since">>,
-        ): Promise<void> => {
+        ): Promise<BackendResult<readonly FieldTemplate[]>> => {
             const branchId: string | undefined =
                 params?.branchId ?? getCurrentBranchId();
-            if (!branchId) return;
+            if (!branchId) {
+                return {
+                    ok: false,
+                    error: {
+                        code: "no_branch",
+                        message: "No current branch to load templates for.",
+                    },
+                };
+            }
 
             setTemplates((s) => ({ ...s, loading: true }));
 
@@ -94,8 +103,10 @@ export function useTemplatesSlice(
                     loading: false,
                     updatedAt: runtime.now(),
                 });
+                return res;
             } else {
                 setLoadableError(setTemplates, res.error);
+                return res;
             }
         },
         [

@@ -3,6 +3,7 @@ import * as React from "react";
 import type {
     Actor,
     BackendError,
+    BackendResult,
     PermissionsMap,
     WorkspaceBackend,
 } from "../../backend";
@@ -11,7 +12,7 @@ import type { BackendRuntime } from "../runtime/use-backend-runtime";
 
 export interface PermissionsSliceApi {
     readonly permissions: Loadable<PermissionsMap>;
-    readonly refreshPermissions: () => Promise<void>;
+    readonly refreshPermissions: () => Promise<BackendResult<PermissionsMap>>;
     readonly invalidatePermissions: () => void;
 }
 
@@ -43,7 +44,9 @@ export function usePermissionsSlice(
         updatedAt: initialPermissions ? runtime.now() : undefined,
     });
 
-    const refreshPermissions = React.useCallback(async (): Promise<void> => {
+    const refreshPermissions = React.useCallback(async (): Promise<
+        BackendResult<PermissionsMap>
+    > => {
         setPermissions((s) => ({ ...s, loading: true }));
         const res = await backend.permissions.refresh(workspaceId, actor);
 
@@ -53,8 +56,10 @@ export function usePermissionsSlice(
                 loading: false,
                 updatedAt: runtime.now(),
             });
+            return res;
         } else {
             setLoadableError(setPermissions, res.error);
+            return res;
         }
     }, [backend.permissions, workspaceId, actor, runtime]);
 

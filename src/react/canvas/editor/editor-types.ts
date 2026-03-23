@@ -66,6 +66,6 @@ export type EditorModuleContext = {
     getNode: (id: string) => EditorNodeLookup;
     uniqueId: (base: string) => string;
     uniqueOptionId: (fieldId: string, base: string) => string;
-    genId: (prefix: "t" | "f" | "o") => string;
+    genId: (prefix: "t" | "f" | "o" | {}) => string;
     setLastPolicyDiagnostics: (value: PolicyDiagnostic[] | undefined) => void;
 };

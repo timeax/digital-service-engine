@@ -78,7 +78,7 @@
           "type": "string"
         },
         "service_id": {
-          "type": "number"
+          "$ref": "#/definitions/ServiceIdRef"
         },
         "includes": {
           "type": "array",
@@ -141,6 +141,15 @@
       "required": [
         "id",
         "label"
+      ]
+    },
+    "ServiceIdRef": {
+      "$ref": "#/definitions/IdType"
+    },
+    "IdType": {
+      "type": [
+        "string",
+        "number"
       ]
     },
     "Field": {
@@ -310,7 +319,7 @@
               "const": true
             },
             "service_id": {
-              "type": "number"
+              "$ref": "#/definitions/ServiceIdRef"
             },
             "id": {
               "type": "string"
@@ -478,7 +487,7 @@
           ]
         },
         "service_id": {
-          "type": "number"
+          "$ref": "#/definitions/ServiceIdRef"
         },
         "pricing_role": {
           "$ref": "#/definitions/PricingRole"
@@ -629,12 +638,6 @@
           "description": "Primary→fallback list used when no node-scoped entry is present"
         }
       }
-    },
-    "ServiceIdRef": {
-      "type": [
-        "number",
-        "string"
-      ]
     },
     "ServicePropsNotice": {
       "type": "object",

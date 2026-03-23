@@ -1,6 +1,6 @@
 // src/core/validate/steps/global-utility-guard.ts
 import type { ValidationCtx } from "../shared";
-import { isFiniteNumber } from "../shared";
+import { isServiceIdRef } from "../shared";
 
 export function validateGlobalUtilityGuard(v: ValidationCtx): void {
     if (!v.options.globalUtilityGuard) return;
@@ -10,7 +10,7 @@ export function validateGlobalUtilityGuard(v: ValidationCtx): void {
 
     for (const f of v.fields) {
         for (const o of f.options ?? []) {
-            if (!isFiniteNumber(o.service_id)) continue;
+            if (!isServiceIdRef(o.service_id)) continue;
 
             const role: string = o.pricing_role ?? f.pricing_role ?? "base";
             if (role === "base") hasBase = true;

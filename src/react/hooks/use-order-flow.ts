@@ -194,7 +194,7 @@ export function useOrderFlow(): UseOrderFlowReturn {
                         constraints: {},
                         nodeContexts: {},
                         policy: {
-                            ratePolicy: { kind: "lte_primary" },
+                            ratePolicy: { kind: "lte_primary", pct: 5 },
                             requireConstraintFit: true,
                         },
                     },

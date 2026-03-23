@@ -220,7 +220,7 @@ describe("validate()", () => {
         ).toBe(true);
     });
 
-    it("rate mismatch across BASE options (multi-select) uses DgpServiceMap", () => {
+    it("rate mismatch across BASE options (multi-select) respects bounded lte_primary", () => {
         const props: ServiceProps = {
             filters: [{ id: "root", label: "Root" }],
             fields: [
@@ -273,9 +273,78 @@ describe("validate()", () => {
             out.some(
                 (e) =>
                     e.code === "rate_mismatch_across_base" &&
-                    e.nodeId === "f_multi",
+                    e.nodeId === "f_multi" &&
+                    e.details?.primaryRate === 20,
             ),
         ).toBe(true);
+    });
+
+    it("fails multi-select shallow validation when a candidate is too far below the highest service rate", () => {
+        const props: ServiceProps = {
+            filters: [{ id: "root", label: "Root" }],
+            fields: [
+                {
+                    id: "f_spread",
+                    label: "Spread",
+                    type: "multiselect",
+                    options: [
+                        { id: "o40a", label: "40a", service_id: 40, pricing_role: "base" },
+                        { id: "o40b", label: "40b", service_id: 41, pricing_role: "base" },
+                        { id: "o100", label: "100", service_id: 100, pricing_role: "base" },
+                    ],
+                },
+            ],
+        };
+        const serviceMap: DgpServiceMap = {
+            40: { id: 40, rate: 40 },
+            41: { id: 41, rate: 40 },
+            100: { id: 100, rate: 100 },
+        };
+
+        const out = validate(normalise(props), {
+            serviceMap,
+            fallbackSettings: { ratePolicy: { kind: "lte_primary", pct: 5 } },
+        });
+
+        const err = out.find(
+            (e) =>
+                e.code === "rate_mismatch_across_base" && e.nodeId === "f_spread",
+        );
+        expect(err).toBeTruthy();
+        expect(err?.details?.offenderOptionIds).toEqual(["o40a", "o40b"]);
+    });
+
+    it("allows multi-select shallow validation when base options stay within bounded lte_primary", () => {
+        const props: ServiceProps = {
+            filters: [{ id: "root", label: "Root" }],
+            fields: [
+                {
+                    id: "f_near",
+                    label: "Near",
+                    type: "multiselect",
+                    options: [
+                        { id: "o95", label: "95", service_id: "svc-95", pricing_role: "base" },
+                        { id: "o100", label: "100", service_id: "svc-100", pricing_role: "base" },
+                    ],
+                },
+            ],
+        };
+        const serviceMap: DgpServiceMap = {
+            "svc-95": { id: "svc-95", rate: 95 },
+            "svc-100": { id: "svc-100", rate: 100 },
+        };
+
+        const out = validate(normalise(props), {
+            serviceMap,
+            fallbackSettings: { ratePolicy: { kind: "lte_primary", pct: 5 } },
+        });
+
+        expect(
+            out.some(
+                (e) =>
+                    e.code === "rate_mismatch_across_base" && e.nodeId === "f_near",
+            ),
+        ).toBe(false);
     });
 
     it("utility_without_base (per visible group): utility visible under root but no base → error on root", () => {
@@ -394,6 +463,60 @@ describe("validate()", () => {
             out.some(
                 (e) =>
                     e.code === "rate_mismatch_across_base" && e.nodeId === "fX",
+            ),
+        ).toBe(true);
+    });
+
+    it("accepts UUID-like service ids in validation and coherence checks", () => {
+        const premiumId = "svc-premium-550e8400-e29b-41d4-a716-446655440000";
+        const basicId = "svc-basic-550e8400-e29b-41d4-a716-446655440001";
+        const props: ServiceProps = {
+            filters: [{ id: "root", label: "Root" }],
+            fields: [
+                {
+                    id: "f_premium",
+                    label: "Premium",
+                    type: "select",
+                    bind_id: "root",
+                    options: [
+                        {
+                            id: "o_premium",
+                            label: "Premium",
+                            service_id: premiumId,
+                            pricing_role: "base",
+                        },
+                    ],
+                },
+                {
+                    id: "f_basic",
+                    label: "Basic",
+                    type: "select",
+                    bind_id: "root",
+                    options: [
+                        {
+                            id: "o_basic",
+                            label: "Basic",
+                            service_id: basicId,
+                            pricing_role: "base",
+                        },
+                    ],
+                },
+            ],
+        };
+        const serviceMap: DgpServiceMap = {
+            [premiumId]: { id: premiumId, rate: 100 },
+            [basicId]: { id: basicId, rate: 80 },
+        };
+
+        const out = validate(normalise(props), {
+            serviceMap,
+            fallbackSettings: { ratePolicy: { kind: "lte_primary", pct: 5 } },
+        });
+
+        expect(
+            out.some(
+                (e) =>
+                    e.code === "rate_coherence_violation" && e.nodeId === "o_basic",
             ),
         ).toBe(true);
     });

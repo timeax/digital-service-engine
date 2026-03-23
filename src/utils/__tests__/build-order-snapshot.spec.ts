@@ -4,7 +4,7 @@ import {buildOrderSnapshot} from '../build-order-snapshot';
 import type {BuildOrderSelection} from '../build-order-snapshot';
 
 import type {Builder} from '../../core';
-import type {ServiceProps, Field, FieldOption, Tag} from '../../schema';
+import type {ServiceIdRef, ServiceProps, Field, FieldOption, Tag} from '../../schema';
 import type {DgpServiceMap} from '../../schema/provider';
 
 /* ───────────────── helpers ───────────────── */
@@ -17,7 +17,7 @@ function makeBuilderVisibleFields(visible: string[]): Builder {
     return b;
 }
 
-function tag(id: string, label: string, service_id?: number): Tag {
+function tag(id: string, label: string, service_id?: ServiceIdRef): Tag {
     return {
         id,
         label,
@@ -39,7 +39,7 @@ function field(
     } as Field;
 }
 
-function opt(id: string, label: string, service_id?: number, pricing_role: 'base' | 'utility' = 'base'): FieldOption {
+function opt(id: string, label: string, service_id?: ServiceIdRef, pricing_role: 'base' | 'utility' = 'base'): FieldOption {
     const o: FieldOption = {id, label, ...(service_id !== undefined ? {service_id} : {}), pricing_role};
     return o;
 }
@@ -191,6 +191,38 @@ describe('buildOrderSnapshot — service composition', () => {
         expect(snap.serviceMap).toEqual({'o:B1': [11]});
         expect(Object.keys(snap.serviceMap)).not.toContain('o:U1');
         expect(Object.keys(snap.serviceMap)).not.toContain('t:root');
+    });
+
+    it('preserves string service ids and the full fallback rate policy in snapshot context', () => {
+        const tags = [tag('t:root', 'Root', 'svc:root')];
+        const fA = field('fA', 't:root', [opt('o:A1', 'A1', 'svc:child')]);
+        const props = baseProps(tags, [fA]);
+        const builder = makeBuilderVisibleFields(['fA']);
+        const services: DgpServiceMap = {
+            'svc:root': {id: 'svc:root', rate: 100, min: 1, max: 10},
+            'svc:child': {id: 'svc:child', rate: 95, min: 1, max: 10},
+        } as DgpServiceMap;
+
+        const snap = buildOrderSnapshot(
+            props,
+            builder,
+            {
+                activeTagId: 't:root',
+                formValuesByFieldId: {},
+                optionSelectionsByFieldId: {fA: ['o:A1']},
+            },
+            services,
+            {
+                mode: 'prod',
+                fallback: {
+                    ratePolicy: {kind: 'eq_primary'},
+                },
+            },
+        );
+
+        expect(snap.services).toEqual(['svc:child']);
+        expect(snap.serviceMap).toEqual({'o:A1': ['svc:child']});
+        expect(snap.meta?.context?.policy.ratePolicy).toEqual({kind: 'eq_primary'});
     });
 
     it('carries utility percentBase and label for percent utilities', () => {

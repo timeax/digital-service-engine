@@ -13,6 +13,7 @@ import type {
     DgpServiceCapability,
     Field,
     FieldOption,
+    ServiceIdRef,
     ServiceProps,
     Tag,
 } from "@/schema";
@@ -22,7 +23,12 @@ import { isMultiField } from "./index";
 import type { PruneResult } from "./prune-fallbacks";
 import { pruneInvalidNodeFallbacks } from "./prune-fallbacks";
 import type { FallbackSettings } from "@/schema/validation";
-import { constraintFitOk, rateOk } from "./util";
+import {
+    constraintFitOk,
+    getServiceCapability,
+    normalizeRatePolicy,
+    rateOk,
+} from "./util";
 
 /* ───────────────────────── Public types ───────────────────────── */
 
@@ -69,7 +75,7 @@ export function buildOrderSnapshot(
     // Default fallback policy (strict in prod; diagnostics in dev)
     const fbSettings: FallbackSettings = {
         requireConstraintFit: true,
-        ratePolicy: { kind: "lte_primary" },
+        ratePolicy: { kind: "lte_primary", pct: 5 },
         selectionStrategy: "priority",
         mode: mode === "dev" ? "dev" : "strict",
         ...(settings.fallback ?? {}),
@@ -977,67 +983,23 @@ function buildDevWarnings(
 /* ───────────────── Mapping: internal settings → SnapshotContext.policy ───────────────── */
 
 function toSnapshotPolicy(settings: FallbackSettings): {
-    ratePolicy: { kind: "lte_primary" | "none"; thresholdPct?: number };
+    ratePolicy:
+        | { kind: "eq_primary" }
+        | { kind: "lte_primary"; pct: number }
+        | { kind: "within_pct"; pct: number }
+        | { kind: "at_least_pct_lower"; pct: number };
     requireConstraintFit: boolean;
 } {
     const requireConstraintFit = settings.requireConstraintFit ?? true;
-    const rp = settings.ratePolicy ?? { kind: "lte_primary" as const };
-
-    // Map our richer rate policies to the wire-level policy your server expects
-    switch (rp.kind) {
-        case "lte_primary":
-            return {
-                ratePolicy: { kind: "lte_primary" },
-                requireConstraintFit,
-            };
-        case "within_pct":
-            return {
-                ratePolicy: {
-                    kind: "lte_primary",
-                    thresholdPct: Math.max(0, rp.pct ?? 0),
-                },
-                requireConstraintFit,
-            };
-        case "at_least_pct_lower":
-            // No direct encoding at wire-level; fall back to strict lte (server can still enforce stronger rule)
-            return {
-                ratePolicy: { kind: "lte_primary" },
-                requireConstraintFit,
-            };
-        default:
-            return {
-                ratePolicy: { kind: "lte_primary" },
-                requireConstraintFit,
-            };
-    }
+    const rp = normalizeRatePolicy(settings.ratePolicy);
+    return { ratePolicy: rp, requireConstraintFit };
 }
-
-type ServiceIdRef = string | number;
 
 function getCap(
     map: DgpServiceMap,
     id: ServiceIdRef,
 ): DgpServiceCapability | undefined {
-    const direct: DgpServiceCapability | undefined = (map as any)[id];
-    if (direct) return direct;
-
-    const strKey = String(id);
-    const byStr: DgpServiceCapability | undefined = (map as any)[strKey];
-    if (byStr) return byStr;
-
-    const n =
-        typeof id === "number"
-            ? id
-            : typeof id === "string"
-              ? Number(id)
-              : Number.NaN;
-
-    if (Number.isFinite(n)) {
-        const byNum: DgpServiceCapability | undefined = (map as any)[n];
-        if (byNum) return byNum;
-    }
-
-    return undefined;
+    return getServiceCapability(map, id);
 }
 
 function resolveMinMax(

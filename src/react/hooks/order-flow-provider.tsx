@@ -204,7 +204,7 @@ function makeDefaultFallback(
 ): FallbackSettings {
     return {
         requireConstraintFit: true,
-        ratePolicy: { kind: "lte_primary" },
+        ratePolicy: { kind: "lte_primary", pct: 5 },
         selectionStrategy: "priority",
         mode: mode === "dev" ? "dev" : "strict",
         ...(patch ?? {}),

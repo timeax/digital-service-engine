@@ -5,11 +5,17 @@ import type {
     DgpServiceMap,
     DynamicRule,
     FallbackSettings,
+    ServiceIdRef,
 } from "@/schema";
-import { constraintFitOk, rateOk, toFiniteNumber } from "@/utils/util";
+import {
+    constraintFitOk,
+    getServiceCapability,
+    rateOk,
+    toFiniteNumber,
+} from "@/utils/util";
 
 export type ServiceCheck = {
-    id: number | string;
+    id: ServiceIdRef;
     ok: boolean;
     fitsConstraints: boolean;
     passesRate: boolean;
@@ -27,11 +33,11 @@ export type ServiceCheck = {
 };
 
 export type FilterServicesForVisibleGroupInput = {
-    candidates: Array<number | string>;
+    candidates: ServiceIdRef[];
     context: {
         tagId: string;
         selectedButtons?: string[];
-        usedServiceIds: Array<number | string>;
+        usedServiceIds: ServiceIdRef[];
         effectiveConstraints?: Partial<
             Record<"refill" | "cancel" | "dripfeed", boolean>
         >;
@@ -61,7 +67,7 @@ export function filterServicesForVisibleGroup(
 
     const fb: FallbackSettings = {
         requireConstraintFit: true,
-        ratePolicy: { kind: "lte_primary" },
+        ratePolicy: { kind: "lte_primary", pct: 5 },
         selectionStrategy: "priority",
         mode: "strict",
         ...(context.fallback ?? {}),
@@ -82,7 +88,7 @@ export function filterServicesForVisibleGroup(
     for (const id of input.candidates) {
         if (usedSet.has(String(id))) continue;
 
-        const cap = svcMap[Number(id)];
+        const cap = getServiceCapability(svcMap, id);
         if (!cap) {
             checks.push({
                 id,
@@ -144,7 +150,7 @@ export function filterServicesForVisibleGroup(
 
 function evaluatePoliciesRaw(
     raw: unknown,
-    serviceIds: Array<number | string>,
+    serviceIds: ServiceIdRef[],
     svcMap: DgpServiceMap,
     tagId: string,
     visibleServiceIds?: Set<string>,
@@ -165,7 +171,7 @@ function evaluatePoliciesRaw(
 
 function evaluateServicePolicies(
     rules: DynamicRule[] | undefined,
-    svcIds: (string | number)[],
+    svcIds: ServiceIdRef[],
     svcMap: DgpServiceMap,
     tagId: string,
     visibleServiceIds?: Set<string>,
@@ -183,11 +189,11 @@ function evaluateServicePolicies(
     for (const r of relevant) {
         const scoped = scopeServiceIdsForRule(svcIds, r, visibleServiceIds);
         const ids = scoped.filter((id) =>
-            matchesRuleFilter(svcMap[Number(id)], r, tagId),
+            matchesRuleFilter(getServiceCapability(svcMap, id), r, tagId),
         );
         const projection = r.projection || "service.id";
         const values = ids.map((id) =>
-            policyProjectValue(svcMap[Number(id)], projection),
+            policyProjectValue(getServiceCapability(svcMap, id), projection),
         );
 
         let ok = true;
@@ -241,7 +247,7 @@ function scopeServiceIdsForRule(
     serviceIds: (string | number)[],
     rule: DynamicRule,
     visibleServiceIds?: Set<string>,
-): (string | number)[] {
+): ServiceIdRef[] {
     if (rule.scope !== "visible_group" || !visibleServiceIds) return serviceIds;
     return serviceIds.filter((id) => visibleServiceIds.has(String(id)));
 }
