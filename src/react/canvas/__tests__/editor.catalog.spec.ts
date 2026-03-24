@@ -89,10 +89,74 @@ describe("Editor catalog API", () => {
         };
 
         editor.setCatalog(catalog);
+        const data = {
+            layout: {
+                canvas: {
+                    graph: {
+                        edges: [
+                            {
+                                from: "t:root",
+                                kind: "bind",
+                                to: "f:seed",
+                            },
+                        ],
+                        nodes: [
+                            {
+                                id: "t:root",
+                                kind: "tag",
+                                label: "Root",
+                            },
+                            {
+                                bind_type: "bound",
+                                id: "f:seed",
+                                kind: "field",
+                                label: "Seed",
+                            },
+                        ],
+                    },
+                    highlighted: new Set(),
+                    positions: {},
+                    selection: new Set(),
+                    version: 1,
+                    viewport: {
+                        x: 0,
+                        y: 0,
+                        zoom: 1,
+                    },
+                },
+            },
+            props: {
+                fields: [
+                    {
+                        bind_id: "t:root",
+                        id: "f:seed",
+                        label: "Seed",
+                        pricing_role: "base",
+                        required: false,
+                        type: "text",
+                    },
+                ],
+                filters: [
+                    {
+                        constraints: undefined,
+                        constraints_origin: undefined,
+                        constraints_overrides: undefined,
+                        id: "t:root",
+                        label: "Root",
+                    },
+                ],
+                order_for_tags: undefined,
+                schema_version: "1.0",
+            },
+        };
         expect(editor.getCatalog()).toEqual(catalog);
         expect(onCatalogChange).toHaveBeenNthCalledWith(1, {
             catalog,
             reason: "catalog:set",
+            snapshot: {
+                catalog,
+                ...data
+            },
         });
 
         editor.clearCatalog();
@@ -100,6 +164,10 @@ describe("Editor catalog API", () => {
         expect(onCatalogChange).toHaveBeenNthCalledWith(2, {
             catalog: undefined,
             reason: "catalog:clear",
+            snapshot: {
+                catalog: undefined,
+                ...data,
+            },
         });
         expect(onEditorChange).not.toHaveBeenCalled();
     });
