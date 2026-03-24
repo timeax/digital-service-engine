@@ -585,6 +585,7 @@ export class Editor {
             "catalog:change" as any,
             {
                 catalog: cloneDeep(this.catalog),
+                snapshot: this.makeSnapshot(reason),
                 reason,
             } as any,
         );

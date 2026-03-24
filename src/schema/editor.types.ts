@@ -4,7 +4,12 @@ import { ServiceCatalogState } from "@/schema/catalog";
 
 export type EditorEvents = {
     "editor:command": { name: string; payload?: any };
-    "editor:change": { props: ServiceProps; reason: string; command?: string, snapshot: EditorSnapshot };
+    "editor:change": {
+        props: ServiceProps;
+        reason: string;
+        command?: string;
+        snapshot: EditorSnapshot;
+    };
     "editor:undo": { stackSize: number; index: number };
     "editor:redo": { stackSize: number; index: number };
     "editor:error": { message: string; code?: string; meta?: any };
@@ -12,6 +17,7 @@ export type EditorEvents = {
     "catalog:change": {
         catalog?: ServiceCatalogState;
         reason: string;
+        snapshot: EditorSnapshot;
     };
     "catalog:active-change": {
         activeNodeId?: string;
