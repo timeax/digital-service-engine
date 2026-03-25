@@ -3,8 +3,10 @@ import React, {
     type ReactNode,
     useContext,
     useEffect,
+    useLayoutEffect,
     useMemo,
     useRef,
+    useState,
 } from "react";
 import { CanvasAPI } from "@/react";
 import { Builder, BuilderOptions, createBuilder } from "@/core";
@@ -62,20 +64,6 @@ function CanvasProviderWorkspaceRuntime({
     const initialProps = snapshotData?.props as ServiceProps | undefined;
 
     const hasMountedOnceRef = useRef(false);
-
-    // useEffect(() => {
-    //     console.log(
-    //         "service-builder effect from the CanvasProvider",
-    //         JSON.stringify({
-    //             currentBranchId: ws.branches.currentId,
-    //             snapshotState: ws.snapshot.state,
-    //             hasData: !!ws.snapshot.data,
-    //             snapshotKeys: ws.snapshot.data
-    //                 ? Object.keys(ws.snapshot.data)
-    //                 : [],
-    //         }),
-    //     );
-    // }, [ws.branches.currentId, ws.snapshot]);
 
     const canMountCanvas =
         ws.boot.isBooting === false &&
@@ -156,9 +144,13 @@ function CanvasProviderOwned({
         builderOpts,
     );
 
-    useHydrateEditorSnapshot(api, initialSnapshot);
+    const hydrationReady = useHydrateEditorSnapshot(api, initialSnapshot);
 
-    return <Ctx.Provider value={api}>{children}</Ctx.Provider>;
+    return (
+        <Ctx.Provider value={api}>
+            {hydrationReady ? children : null}
+        </Ctx.Provider>
+    );
 }
 
 export function useCanvasAPI(): CanvasAPI {
@@ -204,18 +196,29 @@ export function useCanvasFromExisting(api: CanvasAPI): CanvasAPI {
     return api;
 }
 
-function useHydrateEditorSnapshot(api: CanvasAPI, snapshot?: EditorSnapshot) {
-    const hydratedRef = useRef<string | null>(null);
+const NO_SNAPSHOT_HYDRATION_KEY = "__no_snapshot__";
 
-    useEffect(() => {
-        if (!snapshot?.props) return;
+function useHydrateEditorSnapshot(
+    api: CanvasAPI,
+    snapshot?: EditorSnapshot,
+): boolean {
+    const targetHydrationKey = useMemo(() => {
+        if (!snapshot?.props) return NO_SNAPSHOT_HYDRATION_KEY;
+        return getSnapshotHydrationKey(snapshot);
+    }, [snapshot]);
+    const [hydratedKey, setHydratedKey] = useState<string>(
+        NO_SNAPSHOT_HYDRATION_KEY,
+    );
 
-        const hydrationKey = getSnapshotHydrationKey(snapshot);
-        if (hydratedRef.current === hydrationKey) return;
-        hydratedRef.current = hydrationKey;
+    useLayoutEffect(() => {
+        if (hydratedKey === targetHydrationKey) return;
+        if (snapshot?.props) {
+            hydrateEditorFromSnapshot(api, snapshot);
+        }
+        setHydratedKey(targetHydrationKey);
+    }, [api, hydratedKey, snapshot, targetHydrationKey]);
 
-        hydrateEditorFromSnapshot(api, snapshot);
-    }, [api, snapshot]);
+    return hydratedKey === targetHydrationKey;
 }
 
 function getSnapshotHydrationKey(snapshot: EditorSnapshot): string {
@@ -280,40 +283,92 @@ function hydrateCatalog(api: CanvasAPI, snapshot: EditorSnapshot) {
 
 function hydrateCanvasLayout(api: CanvasAPI, canvas?: CanvasState) {
     if (!canvas) return;
+    const current = api.snapshot();
 
-    if (canvas.positions) {
+    if (canvas.positions && hasPositionDelta(canvas.positions, current.positions)) {
         api.setPositions(canvas.positions);
     }
 
-    if (canvas.viewport) {
+    if (canvas.viewport && !sameViewport(canvas.viewport, current.viewport)) {
         api.setViewport(canvas.viewport);
     }
 
+    const currentSelection = api.getSelection().map(String);
     if (canvas.selection) {
         const ids = Array.isArray(canvas.selection)
             ? canvas.selection
             : Array.from(canvas.selection);
 
         if (ids.length > 0) {
-            api.select(ids);
-        } else {
+            if (!sameIdSet(ids.map(String), currentSelection)) {
+                api.select(ids.map(String));
+            }
+        } else if (currentSelection.length > 0) {
             api.clearSelection();
         }
-    } else {
+    } else if (currentSelection.length > 0) {
         api.clearSelection();
     }
 
-    if ((canvas as any).highlighted) {
-        const ids = Array.isArray((canvas as any).highlighted)
-            ? (canvas as any).highlighted
-            : Array.from((canvas as any).highlighted);
-
-        api.setHighlighted(ids);
+    if ("highlighted" in (canvas as any)) {
+        const highlighted = (canvas as any).highlighted;
+        const ids = highlighted
+            ? Array.isArray(highlighted)
+                ? highlighted
+                : Array.from(highlighted)
+            : [];
+        const currentIds = Array.from(current.highlighted ?? []).map(String);
+        const nextIds = ids.map(String);
+        if (!sameIdSet(nextIds, currentIds)) {
+            api.setHighlighted(nextIds);
+        }
     }
 
     if ("hoverId" in canvas) {
-        api.setHover((canvas as any).hoverId);
+        const nextHoverId = (canvas as any).hoverId;
+        if ((current as any).hoverId !== nextHoverId) {
+            api.setHover(nextHoverId);
+        }
     }
+}
+
+function hasPositionDelta(
+    next: Record<string, { x: number; y: number }>,
+    current: Record<string, { x: number; y: number }>,
+): boolean {
+    for (const id of Object.keys(next)) {
+        const nextPos = next[id];
+        const currentPos = current[id];
+        if (
+            !currentPos ||
+            currentPos.x !== nextPos.x ||
+            currentPos.y !== nextPos.y
+        ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function sameViewport(
+    a?: { x?: number; y?: number; zoom?: number },
+    b?: { x?: number; y?: number; zoom?: number },
+): boolean {
+    if (!a && !b) return true;
+    if (!a || !b) return false;
+    return a.x === b.x && a.y === b.y && a.zoom === b.zoom;
+}
+
+function sameIdSet(
+    a: readonly string[],
+    b: readonly string[],
+): boolean {
+    if (a.length !== b.length) return false;
+    const set = new Set(a);
+    for (const id of b) {
+        if (!set.has(id)) return false;
+    }
+    return true;
 }
 
 function WorkspaceBootScreen({

@@ -6,8 +6,10 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 
 import {
+    CanvasProvider,
     WorkspaceProvider,
     createMemoryWorkspaceBackend,
+    useCanvasAPI,
     useWorkspace,
     type Actor,
     type BackendError,
@@ -15,6 +17,7 @@ import {
     type ServiceSnapshot,
     type WorkspaceAPI,
 } from "@/react/workspace";
+import { CanvasAPI } from "@/react";
 
 (
     globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -206,6 +209,126 @@ describe("WorkspaceProvider boot", () => {
         expect(workspace.boot.isReady).toBe(true);
         expect(workspace.boot.isLiveConfirmed).toBe(true);
         expect(workspace.boot.isSeededView).toBe(false);
+    });
+
+    it("does not run duplicate bootstrap refreshes when live mode is off", async () => {
+        const actor = makeActor();
+        const backend = makeBootBackend("ws-live-off-single-refresh", actor);
+        const authorsRefreshSpy = vi.spyOn(backend.authors, "refresh");
+        const snapshotLoadSpy = vi.spyOn(backend.snapshots, "load");
+
+        let api: WorkspaceAPI | undefined;
+
+        function Capture(): null {
+            api = useWorkspace();
+            return null;
+        }
+
+        await act(async () => {
+            root?.render(
+                <WorkspaceProvider
+                    backend={backend}
+                    actor={actor}
+                    autoAutosave={false}
+                    live={{ mode: "off" }}
+                >
+                    <Capture />
+                </WorkspaceProvider>,
+            );
+            await flushMicrotasks();
+        });
+
+        await waitFor(() => Boolean(api) && api!.boot.isBooting === false);
+
+        expect(authorsRefreshSpy).toHaveBeenCalledTimes(1);
+        expect(snapshotLoadSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("hydrates canvas before CanvasProvider children mount and skips no-op layout writes", async () => {
+        const actor = makeActor();
+        const selectedId = "f:selected";
+        const snapshot: ServiceSnapshot = {
+            schema_version: "1",
+            data: {
+                props: {
+                    id: "hydration-seed",
+                    label: "hydration-seed",
+                    filters: [],
+                    fields: [
+                        {
+                            id: selectedId,
+                            label: "Selected",
+                            type: "text",
+                        } as any,
+                    ],
+                },
+                layout: {
+                    canvas: {
+                        positions: {},
+                        viewport: { x: 0, y: 0, zoom: 1 },
+                        selection: [selectedId],
+                        highlighted: [],
+                        hoverId: undefined,
+                    },
+                },
+            } as ServiceSnapshot["data"],
+        };
+        const backend = createMemoryWorkspaceBackend({
+            workspaceId: "ws-canvas-hydration-gate",
+            actorId: actor.id,
+            seed: {
+                authors: [{ id: actor.id, name: actor.name ?? "Tester" }],
+                branches: [makeBranch("main", true)],
+                snapshots: {
+                    main: {
+                        snapshot,
+                    },
+                },
+                policies: { rules: [] },
+            },
+        });
+        const selectSpy = vi.spyOn(CanvasAPI.prototype, "select");
+        const setPositionsSpy = vi.spyOn(CanvasAPI.prototype, "setPositions");
+        const setViewportSpy = vi.spyOn(CanvasAPI.prototype, "setViewport");
+        const clearSelectionSpy = vi.spyOn(CanvasAPI.prototype, "clearSelection");
+        const setHighlightedSpy = vi.spyOn(CanvasAPI.prototype, "setHighlighted");
+        const setHoverSpy = vi.spyOn(CanvasAPI.prototype, "setHover");
+
+        let firstRenderSelection: string[] | null = null;
+
+        function CaptureCanvas(): null {
+            const api = useCanvasAPI();
+            if (firstRenderSelection === null) {
+                firstRenderSelection = api.getSelection().map(String);
+            }
+            return null;
+        }
+
+        await act(async () => {
+            root?.render(
+                <WorkspaceProvider
+                    backend={backend}
+                    actor={actor}
+                    autoAutosave={false}
+                    live={{ mode: "off" }}
+                >
+                    <CanvasProvider>
+                        <CaptureCanvas />
+                    </CanvasProvider>
+                </WorkspaceProvider>,
+            );
+            await flushMicrotasks();
+        });
+
+        await waitFor(() => firstRenderSelection !== null);
+
+        expect(firstRenderSelection).toEqual([selectedId]);
+        expect(selectSpy).toHaveBeenCalledTimes(1);
+        expect(setPositionsSpy).not.toHaveBeenCalled();
+        expect(setViewportSpy).not.toHaveBeenCalled();
+        expect(clearSelectionSpy).not.toHaveBeenCalled();
+        expect(setHighlightedSpy).not.toHaveBeenCalled();
+        expect(setHoverSpy).not.toHaveBeenCalled();
     });
 
     it("tracks per-section errors and keeps comments non-blocking", async () => {

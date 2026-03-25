@@ -65,7 +65,6 @@ export function useLivePolling(params: UseLivePollingParams): LiveControl {
         live,
         workspaceId,
         actor,
-        hasAnyData,
         getCurrentBranchId,
         refreshAll,
         refreshBranchContext,
@@ -191,14 +190,6 @@ export function useLivePolling(params: UseLivePollingParams): LiveControl {
 
         if (live.mode === "off") {
             setStatus({ connected: false });
-
-            // parity with old behavior: if nothing loaded yet, do an initial refresh
-            if (!hasAnyData) {
-                void (async () => {
-                    await refreshAll({ strict: false });
-                })();
-            }
-
             return;
         }
 
@@ -239,7 +230,6 @@ export function useLivePolling(params: UseLivePollingParams): LiveControl {
     }, [
         disconnect,
         live.mode,
-        hasAnyData,
         refreshAll,
         resolveAdapter,
         ctx,
