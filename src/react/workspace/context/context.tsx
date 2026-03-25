@@ -223,18 +223,11 @@ function useHydrateEditorSnapshot(
 
 function getSnapshotHydrationKey(snapshot: EditorSnapshot): string {
     const meta = snapshot.meta as Record<string, unknown> | undefined;
-
-    const preferred =
-        meta?.snapshot_id ??
-        meta?.snapshotId ??
-        meta?.version_id ??
-        meta?.versionId ??
-        meta?.branch_id ??
-        meta?.branchId;
-
-    if (preferred != null) {
-        return String(preferred);
-    }
+    const metaKey = [
+        meta?.snapshot_id ?? meta?.snapshotId ?? "",
+        meta?.version_id ?? meta?.versionId ?? "",
+        meta?.branch_id ?? meta?.branchId ?? "",
+    ].join("|");
 
     const layout = snapshot.layout?.canvas;
     const positionKeys = layout?.positions
@@ -246,16 +239,10 @@ function getSnapshotHydrationKey(snapshot: EditorSnapshot): string {
     const selection = layout?.selection
         ? Array.from(layout.selection).sort().join("|")
         : "";
-    const catalogKey = snapshot.catalog
-        ? JSON.stringify({
-              opened: (snapshot.catalog as any).opened ?? null,
-              mode: (snapshot.catalog as any).mode ?? null,
-              tab: (snapshot.catalog as any).tab ?? null,
-              query: (snapshot.catalog as any).query ?? null,
-          })
-        : "";
+    const catalogKey = serializeForHydration(snapshot.catalog);
 
     return [
+        metaKey,
         String((snapshot.props?.fields ?? []).length),
         String((snapshot.props?.filters ?? []).length),
         positionKeys,
@@ -263,6 +250,35 @@ function getSnapshotHydrationKey(snapshot: EditorSnapshot): string {
         selection,
         catalogKey,
     ].join("::");
+}
+
+function serializeForHydration(value: unknown): string {
+    if (value == null) return "";
+
+    try {
+        return JSON.stringify(sortForHydration(value));
+    } catch {
+        return "__unserializable__";
+    }
+}
+
+function sortForHydration(value: unknown): unknown {
+    if (Array.isArray(value)) {
+        return value.map((entry) => sortForHydration(entry));
+    }
+
+    if (value && typeof value === "object") {
+        const entries = Object.entries(value as Record<string, unknown>).sort(
+            ([a], [b]) => a.localeCompare(b),
+        );
+        const next: Record<string, unknown> = {};
+        for (const [key, entry] of entries) {
+            next[key] = sortForHydration(entry);
+        }
+        return next;
+    }
+
+    return value;
 }
 
 function hydrateEditorFromSnapshot(api: CanvasAPI, snapshot: EditorSnapshot) {
@@ -285,7 +301,10 @@ function hydrateCanvasLayout(api: CanvasAPI, canvas?: CanvasState) {
     if (!canvas) return;
     const current = api.snapshot();
 
-    if (canvas.positions && hasPositionDelta(canvas.positions, current.positions)) {
+    if (
+        canvas.positions &&
+        hasPositionDelta(canvas.positions, current.positions)
+    ) {
         api.setPositions(canvas.positions);
     }
 
@@ -359,10 +378,7 @@ function sameViewport(
     return a.x === b.x && a.y === b.y && a.zoom === b.zoom;
 }
 
-function sameIdSet(
-    a: readonly string[],
-    b: readonly string[],
-): boolean {
+function sameIdSet(a: readonly string[], b: readonly string[]): boolean {
     if (a.length !== b.length) return false;
     const set = new Set(a);
     for (const id of b) {
