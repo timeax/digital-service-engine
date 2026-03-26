@@ -18,7 +18,6 @@ import {
     type WorkspaceAPI,
 } from "@/react/workspace";
 import { CanvasAPI } from "@/react";
-import type { EditorSnapshot, ServiceCatalogState } from "@/schema";
 
 (
     globalThis as unknown as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -67,28 +66,6 @@ function makeSnapshot(label: string): ServiceSnapshot {
                 fields: [],
             },
         } as ServiceSnapshot["data"],
-    };
-}
-
-function createCatalogState(
-    id: string,
-    viewMode: ServiceCatalogState["viewMode"] = "grouped",
-): ServiceCatalogState {
-    return {
-        version: 1,
-        nodes: [
-            {
-                id: `catalog-${id}`,
-                kind: "group",
-                label: `Catalog ${id}`,
-                serviceIds: [id],
-            },
-        ],
-        activeNodeId: `catalog-${id}`,
-        expandedIds: [`catalog-${id}`],
-        pinnedNodeIds: [`catalog-${id}`],
-        selectedServiceId: id,
-        viewMode,
     };
 }
 
@@ -354,27 +331,24 @@ describe("WorkspaceProvider boot", () => {
         expect(setHoverSpy).not.toHaveBeenCalled();
     });
 
-    it("rehydrates catalog when only catalog content changes and snapshot meta id stays the same", async () => {
+    it("keeps CanvasProvider children mounted across ordinary snapshot rerenders", async () => {
         const actor = makeActor();
-        const catalogA = createCatalogState("service-a", "grouped");
-        const catalogB = createCatalogState("service-b", "assigned");
         const snapshot: ServiceSnapshot = {
             schema_version: "1",
             data: {
                 props: {
-                    id: "catalog-hydration-seed",
-                    label: "catalog-hydration-seed",
+                    id: "mount-stability-seed",
+                    label: "mount-stability-seed",
                     filters: [],
                     fields: [],
                 },
-                catalog: catalogA,
                 meta: {
-                    snapshot_id: "snapshot-static-id",
+                    snapshot_id: "snapshot-mount-stability",
                 },
             } as ServiceSnapshot["data"],
         };
         const backend = createMemoryWorkspaceBackend({
-            workspaceId: "ws-catalog-rehydrate",
+            workspaceId: "ws-canvas-mount-stability",
             actorId: actor.id,
             seed: {
                 authors: [{ id: actor.id, name: actor.name ?? "Tester" }],
@@ -389,11 +363,18 @@ describe("WorkspaceProvider boot", () => {
         });
 
         let workspaceApi: WorkspaceAPI | undefined;
-        let canvasApi: CanvasAPI | undefined;
+        let mountCount = 0;
+        let unmountCount = 0;
 
-        function CaptureApis(): null {
+        function Probe(): null {
             workspaceApi = useWorkspace();
-            canvasApi = useCanvasAPI();
+            useCanvasAPI();
+            React.useEffect(() => {
+                mountCount += 1;
+                return () => {
+                    unmountCount += 1;
+                };
+            }, []);
             return null;
         }
 
@@ -406,25 +387,103 @@ describe("WorkspaceProvider boot", () => {
                     live={{ mode: "off" }}
                 >
                     <CanvasProvider>
-                        <CaptureApis />
+                        <Probe />
                     </CanvasProvider>
                 </WorkspaceProvider>,
             );
             await flushMicrotasks();
         });
 
-        await waitFor(
-            () =>
-                Boolean(workspaceApi) &&
-                workspaceApi!.boot.isBooting === false &&
-                Boolean(canvasApi),
-        );
-        expect(canvasApi!.editor.getCatalog()).toEqual(catalogA);
+        await waitFor(() => Boolean(workspaceApi) && workspaceApi!.boot.isBooting === false);
+        expect(mountCount).toBe(1);
+        expect(unmountCount).toBe(0);
 
         await act(async () => {
             workspaceApi!.snapshot.set((current) => ({
                 ...current!,
-                catalog: catalogB,
+                catalog: {
+                    version: 1,
+                    nodes: [],
+                    activeNodeId: undefined,
+                    selectedServiceId: "service-a",
+                } as any,
+            }));
+            await flushMicrotasks();
+        });
+
+        expect(mountCount).toBe(1);
+        expect(unmountCount).toBe(0);
+    });
+
+    it("does not retrigger hydration on local snapshot updates without identity change", async () => {
+        const actor = makeActor();
+        const snapshot: ServiceSnapshot = {
+            schema_version: "1",
+            data: {
+                props: {
+                    id: "identity-stable-seed",
+                    label: "identity-stable-seed",
+                    filters: [],
+                    fields: [],
+                },
+                meta: {
+                    snapshot_id: "snapshot-static-id",
+                },
+            } as ServiceSnapshot["data"],
+        };
+        const backend = createMemoryWorkspaceBackend({
+            workspaceId: "ws-hydration-no-retrigger",
+            actorId: actor.id,
+            seed: {
+                authors: [{ id: actor.id, name: actor.name ?? "Tester" }],
+                branches: [makeBranch("main", true)],
+                snapshots: {
+                    main: {
+                        snapshot,
+                    },
+                },
+                policies: { rules: [] },
+            },
+        });
+        const refreshGraphSpy = vi.spyOn(CanvasAPI.prototype, "refreshGraph");
+
+        let workspaceApi: WorkspaceAPI | undefined;
+
+        function Capture(): null {
+            workspaceApi = useWorkspace();
+            useCanvasAPI();
+            return null;
+        }
+
+        await act(async () => {
+            root?.render(
+                <WorkspaceProvider
+                    backend={backend}
+                    actor={actor}
+                    autoAutosave={false}
+                    live={{ mode: "off" }}
+                >
+                    <CanvasProvider>
+                        <Capture />
+                    </CanvasProvider>
+                </WorkspaceProvider>,
+            );
+            await flushMicrotasks();
+        });
+
+        await waitFor(() => Boolean(workspaceApi) && workspaceApi!.boot.isBooting === false);
+        const baselineRefreshCalls = refreshGraphSpy.mock.calls.length;
+        expect(baselineRefreshCalls).toBeGreaterThan(0);
+
+        await act(async () => {
+            workspaceApi!.snapshot.set((current) => ({
+                ...current!,
+                catalog: {
+                    version: 1,
+                    nodes: [],
+                    activeNodeId: undefined,
+                    selectedServiceId: "service-b",
+                } as any,
                 meta: {
                     ...((current?.meta ?? {}) as Record<string, unknown>),
                     snapshot_id: "snapshot-static-id",
@@ -433,32 +492,27 @@ describe("WorkspaceProvider boot", () => {
             await flushMicrotasks();
         });
 
-        await waitFor(
-            () => canvasApi!.editor.getCatalog()?.selectedServiceId === "service-b",
-        );
-        expect(canvasApi!.editor.getCatalog()).toEqual(catalogB);
+        expect(refreshGraphSpy.mock.calls.length).toBe(baselineRefreshCalls);
     });
 
-    it("clears hydrated catalog when snapshot catalog is removed", async () => {
+    it("rehydrates on snapshot identity change without remounting CanvasProvider children", async () => {
         const actor = makeActor();
-        const catalog = createCatalogState("service-a", "grouped");
         const snapshot: ServiceSnapshot = {
             schema_version: "1",
             data: {
                 props: {
-                    id: "catalog-clear-seed",
-                    label: "catalog-clear-seed",
+                    id: "identity-change-seed",
+                    label: "identity-change-seed",
                     filters: [],
                     fields: [],
                 },
-                catalog,
                 meta: {
-                    snapshot_id: "snapshot-static-id",
+                    snapshot_id: "snapshot-v1",
                 },
             } as ServiceSnapshot["data"],
         };
         const backend = createMemoryWorkspaceBackend({
-            workspaceId: "ws-catalog-clear",
+            workspaceId: "ws-hydration-identity-change",
             actorId: actor.id,
             seed: {
                 authors: [{ id: actor.id, name: actor.name ?? "Tester" }],
@@ -471,13 +525,21 @@ describe("WorkspaceProvider boot", () => {
                 policies: { rules: [] },
             },
         });
+        const refreshGraphSpy = vi.spyOn(CanvasAPI.prototype, "refreshGraph");
 
         let workspaceApi: WorkspaceAPI | undefined;
-        let canvasApi: CanvasAPI | undefined;
+        let mountCount = 0;
+        let unmountCount = 0;
 
-        function CaptureApis(): null {
+        function Probe(): null {
             workspaceApi = useWorkspace();
-            canvasApi = useCanvasAPI();
+            useCanvasAPI();
+            React.useEffect(() => {
+                mountCount += 1;
+                return () => {
+                    unmountCount += 1;
+                };
+            }, []);
             return null;
         }
 
@@ -490,32 +552,32 @@ describe("WorkspaceProvider boot", () => {
                     live={{ mode: "off" }}
                 >
                     <CanvasProvider>
-                        <CaptureApis />
+                        <Probe />
                     </CanvasProvider>
                 </WorkspaceProvider>,
             );
             await flushMicrotasks();
         });
 
-        await waitFor(
-            () =>
-                Boolean(workspaceApi) &&
-                workspaceApi!.boot.isBooting === false &&
-                Boolean(canvasApi),
-        );
-        expect(canvasApi!.editor.getCatalog()).toEqual(catalog);
+        await waitFor(() => Boolean(workspaceApi) && workspaceApi!.boot.isBooting === false);
+        const baselineRefreshCalls = refreshGraphSpy.mock.calls.length;
+        expect(mountCount).toBe(1);
+        expect(unmountCount).toBe(0);
 
         await act(async () => {
-            workspaceApi!.snapshot.set((current) => {
-                const next = { ...current! } as Record<string, unknown>;
-                delete next.catalog;
-                return next as EditorSnapshot;
-            });
+            workspaceApi!.snapshot.set((current) => ({
+                ...current!,
+                meta: {
+                    ...((current?.meta ?? {}) as Record<string, unknown>),
+                    snapshot_id: "snapshot-v2",
+                },
+            }));
             await flushMicrotasks();
         });
 
-        await waitFor(() => canvasApi!.editor.getCatalog() === undefined);
-        expect(canvasApi!.editor.getCatalog()).toBeUndefined();
+        expect(refreshGraphSpy.mock.calls.length).toBeGreaterThan(baselineRefreshCalls);
+        expect(mountCount).toBe(1);
+        expect(unmountCount).toBe(0);
     });
 
     it("tracks per-section errors and keeps comments non-blocking", async () => {

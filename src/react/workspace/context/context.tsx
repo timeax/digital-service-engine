@@ -202,83 +202,58 @@ function useHydrateEditorSnapshot(
     api: CanvasAPI,
     snapshot?: EditorSnapshot,
 ): boolean {
-    const targetHydrationKey = useMemo(() => {
-        if (!snapshot?.props) return NO_SNAPSHOT_HYDRATION_KEY;
-        return getSnapshotHydrationKey(snapshot);
-    }, [snapshot]);
-    const [hydratedKey, setHydratedKey] = useState<string>(
-        NO_SNAPSHOT_HYDRATION_KEY,
+    const fallbackIdentityRef = useRef(
+        `snapshot:fallback:${Math.random().toString(36).slice(2)}`,
     );
+    const hydratedIdentityRef = useRef<string>(NO_SNAPSHOT_HYDRATION_KEY);
+    const [hydrationReady, setHydrationReady] = useState(false);
+    const targetHydrationIdentity = useMemo(() => {
+        if (!snapshot?.props) return NO_SNAPSHOT_HYDRATION_KEY;
+        return getSnapshotHydrationIdentity(snapshot, fallbackIdentityRef.current);
+    }, [snapshot]);
 
     useLayoutEffect(() => {
-        if (hydratedKey === targetHydrationKey) return;
         if (snapshot?.props) {
-            hydrateEditorFromSnapshot(api, snapshot);
+            const shouldHydrate =
+                hydratedIdentityRef.current !== targetHydrationIdentity;
+            if (shouldHydrate) {
+                hydrateEditorFromSnapshot(api, snapshot);
+                hydratedIdentityRef.current = targetHydrationIdentity;
+            }
         }
-        setHydratedKey(targetHydrationKey);
-    }, [api, hydratedKey, snapshot, targetHydrationKey]);
 
-    return hydratedKey === targetHydrationKey;
+        if (!hydrationReady) {
+            // Gate children only until the first hydration pass completes.
+            // Do not flip this back to false on later snapshot updates.
+            setHydrationReady(true);
+        }
+    }, [api, hydrationReady, snapshot, targetHydrationIdentity]);
+
+    return hydrationReady;
 }
 
-function getSnapshotHydrationKey(snapshot: EditorSnapshot): string {
+function getSnapshotHydrationIdentity(
+    snapshot: EditorSnapshot,
+    fallbackIdentity: string,
+): string {
     const meta = snapshot.meta as Record<string, unknown> | undefined;
-    const metaKey = [
-        meta?.snapshot_id ?? meta?.snapshotId ?? "",
-        meta?.version_id ?? meta?.versionId ?? "",
-        meta?.branch_id ?? meta?.branchId ?? "",
-    ].join("|");
+    const snapshotId = meta?.snapshot_id ?? meta?.snapshotId;
+    const versionId = meta?.version_id ?? meta?.versionId;
+    const branchId = meta?.branch_id ?? meta?.branchId;
 
-    const layout = snapshot.layout?.canvas;
-    const positionKeys = layout?.positions
-        ? Object.keys(layout.positions).sort().join("|")
-        : "";
-    const viewport = layout?.viewport
-        ? `${layout.viewport.x}:${layout.viewport.y}:${layout.viewport.zoom}`
-        : "";
-    const selection = layout?.selection
-        ? Array.from(layout.selection).sort().join("|")
-        : "";
-    const catalogKey = serializeForHydration(snapshot.catalog);
-
-    return [
-        metaKey,
-        String((snapshot.props?.fields ?? []).length),
-        String((snapshot.props?.filters ?? []).length),
-        positionKeys,
-        viewport,
-        selection,
-        catalogKey,
-    ].join("::");
-}
-
-function serializeForHydration(value: unknown): string {
-    if (value == null) return "";
-
-    try {
-        return JSON.stringify(sortForHydration(value));
-    } catch {
-        return "__unserializable__";
-    }
-}
-
-function sortForHydration(value: unknown): unknown {
-    if (Array.isArray(value)) {
-        return value.map((entry) => sortForHydration(entry));
+    if (
+        snapshotId != null ||
+        versionId != null ||
+        branchId != null
+    ) {
+        return [
+            String(snapshotId ?? ""),
+            String(versionId ?? ""),
+            String(branchId ?? ""),
+        ].join("|");
     }
 
-    if (value && typeof value === "object") {
-        const entries = Object.entries(value as Record<string, unknown>).sort(
-            ([a], [b]) => a.localeCompare(b),
-        );
-        const next: Record<string, unknown> = {};
-        for (const [key, entry] of entries) {
-            next[key] = sortForHydration(entry);
-        }
-        return next;
-    }
-
-    return value;
+    return fallbackIdentity;
 }
 
 function hydrateEditorFromSnapshot(api: CanvasAPI, snapshot: EditorSnapshot) {
