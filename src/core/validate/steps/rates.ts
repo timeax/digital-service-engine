@@ -9,9 +9,7 @@ import {
 } from "@/utils/util";
 
 export function validateRates(v: ValidationCtx): void {
-    const ratePolicy = normalizeRatePolicy(
-        v.options.fallbackSettings?.ratePolicy,
-    );
+    const ratePolicy = normalizeRatePolicy(v.options.ratePolicy);
 
     for (const f of v.fields) {
         if (!isMultiField(f)) continue;

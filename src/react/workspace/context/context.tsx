@@ -12,7 +12,12 @@ import { CanvasAPI } from "@/react";
 import { Builder, BuilderOptions, createBuilder } from "@/core";
 import type { CanvasOptions, CanvasState } from "@/schema/canvas-types";
 import type { CanvasBackendOptions } from "../../canvas/backend";
-import type { EditorSnapshot, ServiceProps } from "@/schema";
+import type {
+    EditorSnapshot,
+    FallbackSettings,
+    RatePolicy,
+    ServiceProps,
+} from "@/schema";
 import { useWorkspaceMaybe } from ".";
 
 const Ctx = createContext<CanvasAPI | null>(null);
@@ -26,6 +31,8 @@ type CanvasProviderWorkspaceProps = {
     children: ReactNode;
     builderOpts?: BuilderOptions;
     canvasOpts?: CanvasOptions & CanvasBackendOptions;
+    ratePolicy?: RatePolicy;
+    fallbackSettings?: FallbackSettings;
     attachToWorkspace?: boolean;
 };
 
@@ -47,6 +54,8 @@ function CanvasProviderWorkspaceRuntime({
     children,
     builderOpts,
     canvasOpts,
+    ratePolicy,
+    fallbackSettings,
     attachToWorkspace = true,
 }: CanvasProviderWorkspaceProps) {
     const ws = useWorkspaceMaybe();
@@ -78,14 +87,27 @@ function CanvasProviderWorkspaceRuntime({
             svc != null &&
             typeof svc === "object" &&
             !Array.isArray(svc as unknown[]);
+        const policies = ws.policies.policies.data;
 
-        return hasMap
-            ? {
-                  ...(builderOpts ?? {}),
-                  serviceMap: svc as BuilderOptions["serviceMap"],
-              }
-            : builderOpts;
-    }, [builderOpts, ws.services.data]);
+        return {
+            ...(builderOpts ?? {}),
+            ...(hasMap
+                ? {
+                      serviceMap: svc as BuilderOptions["serviceMap"],
+                  }
+                : {}),
+            policies: (policies as BuilderOptions["policies"]) ?? undefined,
+            ratePolicy: ratePolicy ?? builderOpts?.ratePolicy,
+            fallbackSettings:
+                fallbackSettings ?? builderOpts?.fallbackSettings,
+        };
+    }, [
+        builderOpts,
+        fallbackSettings,
+        ratePolicy,
+        ws.policies.policies.data,
+        ws.services.data,
+    ]);
 
     if (canMountCanvas) {
         hasMountedOnceRef.current = true;
@@ -613,8 +635,9 @@ export function useCanvasOwned(
     } else if (window.SITE?.env !== "production") {
         if (builderOptsRef.current !== builderOpts) {
             console.warn(
-                "[useCanvasOwned] builderOpts changed after init; new values are ignored. " +
-                    "If you need to recreate the builder, remount the hook (e.g. change a React key).",
+                "[useCanvasOwned] builderOpts changed after init. " +
+                    "Reactive keys (serviceMap/policies/ratePolicy/fallbackSettings/selectedOptionKeys) are applied via setOptions(); " +
+                    "other keys may still require remounting to fully reinitialize.",
             );
             builderOptsRef.current = builderOpts;
         }
@@ -628,6 +651,25 @@ export function useCanvasOwned(
             loadedOnceRef.current = true;
         }
     }, [initialProps]);
+
+    useEffect(() => {
+        if (!builderOpts) return;
+
+        builder.setOptions({
+            serviceMap: builderOpts.serviceMap,
+            policies: builderOpts.policies,
+            ratePolicy: builderOpts.ratePolicy,
+            fallbackSettings: builderOpts.fallbackSettings,
+            selectedOptionKeys: builderOpts.selectedOptionKeys,
+        });
+    }, [
+        builder,
+        builderOpts?.fallbackSettings,
+        builderOpts?.policies,
+        builderOpts?.ratePolicy,
+        builderOpts?.selectedOptionKeys,
+        builderOpts?.serviceMap,
+    ]);
 
     const lastCanvasOptsRef = useRef<typeof canvasOpts>();
 

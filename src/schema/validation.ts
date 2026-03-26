@@ -135,7 +135,12 @@ export type ValidatorOptions = {
     allowUnsafe?: boolean;
     selectedOptionKeys?: string[];
     globalUtilityGuard?: boolean;
-    policies?: DynamicRule[]; // ← dynamic rules from super admin
+    policies?: DynamicRule[]; // dynamic rules from super admin
+    /**
+     * Global/base rate policy used by validation and service filtering.
+     * This is intentionally separate from fallbackSettings.ratePolicy.
+     */
+    ratePolicy?: RatePolicy;
     fallbackSettings?: FallbackSettings;
 };
 
@@ -155,3 +160,4 @@ export type FallbackSettings = {
     /** Validation mode: 'strict' → node-scoped violations reported as ValidationError; 'dev' → only collect diagnostics. Default: 'strict' */
     mode?: "strict" | "dev";
 };
+

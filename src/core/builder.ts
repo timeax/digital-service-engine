@@ -1,6 +1,7 @@
 // src/core/builder.ts
 import {normalise} from "./normalise";
 import {validate} from "./validate";
+import { mergeValidatorOptions } from "@/core/governance";
 
 import type {
     DgpServiceMap,
@@ -58,6 +59,7 @@ export interface Builder {
 
     /** Service map for validation/rules */
     getServiceMap(): DgpServiceMap;
+    getOptions(): BuilderOptions;
 
     getConstraints(): {
         id: string;
@@ -399,10 +401,10 @@ class BuilderImpl implements Builder {
     }
 
     errors(): ValidationError[] {
-        return validate(this.props, this.options);
+        return validate(this.props, mergeValidatorOptions({}, this.options));
     }
 
-    getOptions() {
+    getOptions(): BuilderOptions {
         return cloneDeep(this.options);
     }
 

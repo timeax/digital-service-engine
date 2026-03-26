@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { createBuilder } from "@/core";
-import type { ServiceProps } from "@/schema";
+import { createBuilder, validate } from "@/core";
+import type { DynamicRule, ServiceProps } from "@/schema";
 import type { DgpServiceMap } from "@/schema/provider";
 
 describe("Builder", () => {
@@ -310,5 +310,84 @@ describe("Builder", () => {
         });
         const codes = b.errors().map((e) => e.code);
         expect(codes).toContain("rate_mismatch_across_base");
+    });
+
+    it("uses builder-level policies by default and allows per-call override", () => {
+        const serviceMap: DgpServiceMap = {
+            1: { id: 1, name: "S1", rate: 10, min: 1, max: 100, key: "same" as any },
+            2: { id: 2, name: "S2", rate: 11, min: 1, max: 100, key: "same" as any },
+        };
+        const policies: DynamicRule[] = [
+            {
+                id: "global-unique-key",
+                scope: "global",
+                subject: "services",
+                projection: "service.key",
+                op: "unique",
+            },
+        ];
+
+        const b = createBuilder({ serviceMap, policies });
+        b.load({
+            filters: [{ id: "root", label: "Root" }],
+            fields: [
+                {
+                    id: "f",
+                    label: "F",
+                    type: "select",
+                    options: [
+                        { id: "o1", label: "O1", service_id: 1, pricing_role: "base" },
+                        { id: "o2", label: "O2", service_id: 2, pricing_role: "base" },
+                    ],
+                },
+            ],
+        } as ServiceProps);
+
+        expect(b.errors().some((e) => e.code === "policy_violation")).toBe(true);
+
+        const overridden = validate(b.getProps(), {
+            ...b.getOptions(),
+            policies: [],
+        });
+        expect(overridden.some((e) => e.code === "policy_violation")).toBe(false);
+    });
+
+    it("keeps global ratePolicy separate from fallbackSettings.ratePolicy", () => {
+        const b = createBuilder({
+            serviceMap: {
+                1: { id: 1, rate: 10, name: "" },
+                2: { id: 2, rate: 20, name: "" },
+            } satisfies DgpServiceMap,
+            ratePolicy: { kind: "eq_primary" },
+            fallbackSettings: {
+                ratePolicy: { kind: "within_pct", pct: 60 },
+            },
+        });
+
+        b.load({
+            filters: [{ id: "root", label: "Root" }],
+            fields: [
+                {
+                    id: "multi",
+                    label: "Multi",
+                    type: "multiselect",
+                    options: [
+                        { id: "a", label: "A", service_id: 1, pricing_role: "base" },
+                        { id: "b", label: "B", service_id: 2, pricing_role: "base" },
+                    ],
+                },
+            ],
+        });
+
+        const defaultCodes = b.errors().map((e) => e.code);
+        expect(defaultCodes).toContain("rate_mismatch_across_base");
+
+        const overridden = validate(b.getProps(), {
+            ...b.getOptions(),
+            ratePolicy: { kind: "within_pct", pct: 60 },
+        });
+        expect(overridden.map((e) => e.code)).not.toContain(
+            "rate_mismatch_across_base",
+        );
     });
 });

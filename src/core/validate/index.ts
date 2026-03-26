@@ -24,6 +24,11 @@ import type { ValidationCtx } from "./shared";
 import { buildNodeMap } from "@/core/node-map";
 import { createBuilder } from "@/core/builder";
 import { validateRateCoherenceDeep } from "@/core/rate-coherence";
+import {
+    mergeValidatorOptions,
+    resolveFallbackSettings,
+    resolveGlobalRatePolicy,
+} from "@/core/governance";
 
 /**
  * We read simulation options from ctx without changing the public ValidatorOptions type.
@@ -87,10 +92,14 @@ export function validate(
     props: ServiceProps,
     ctx: ValidatorOptions = {},
 ): ValidationError[] {
+    const options = mergeValidatorOptions({}, ctx);
+    const fallbackSettings = resolveFallbackSettings(options);
+    const ratePolicy = resolveGlobalRatePolicy(options);
+
     const errors: ValidationError[] = [];
-    const serviceMap: DgpServiceMap = ctx.serviceMap ?? {};
+    const serviceMap: DgpServiceMap = options.serviceMap ?? {};
     const selectedKeys: Set<string> = new Set<string>(
-        ctx.selectedOptionKeys ?? [],
+        options.selectedOptionKeys ?? [],
     );
 
     const tags: Tag[] = Array.isArray(props.filters) ? props.filters : [];
@@ -104,8 +113,12 @@ export function validate(
 
     const v: ValidationCtx = {
         props,
-        nodeMap: ctx.nodeMap ?? buildNodeMap(props),
-        options: ctx,
+        nodeMap: options.nodeMap ?? buildNodeMap(props),
+        options: {
+            ...options,
+            ratePolicy,
+            fallbackSettings,
+        },
         errors,
         serviceMap,
         selectedKeys,
@@ -129,7 +142,7 @@ export function validate(
     // 4) visibility helpers + visibility rules (optionally simulated)
     v.fieldsVisibleUnder = createFieldsVisibleUnder(v);
 
-    const visSim = readVisibilitySimOpts(ctx);
+    const visSim = readVisibilitySimOpts(options);
     validateVisibility(v, visSim);
 
     // --------- Dynamic policies (super-admin) --------------------------
@@ -160,7 +173,7 @@ export function validate(
                 builder,
                 services: serviceMap,
                 tagId: tag.id,
-                ratePolicy: ctx.fallbackSettings?.ratePolicy,
+                ratePolicy: ratePolicy,
                 invalidFieldIds: v.invalidRateFieldIds,
             });
 

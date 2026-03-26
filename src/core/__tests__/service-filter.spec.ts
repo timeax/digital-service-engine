@@ -418,4 +418,72 @@ describe("core.filterServicesForVisibleGroup", () => {
         expect(result.checks[0].ok).toBe(true);
         expect(result.checks[0].policyErrors).toBeUndefined();
     });
+
+    it("uses builder-owned policies/ratePolicy by default when call options are absent", () => {
+        const b = createBuilder({
+            serviceMap,
+            policies: [
+                {
+                    id: "no_mix_platform",
+                    scope: "visible_group",
+                    subject: "services",
+                    op: "no_mix",
+                    projection: "service.platform_id",
+                    severity: "error",
+                },
+            ],
+            ratePolicy: { kind: "eq_primary" },
+        });
+        b.load(baseProps());
+
+        const result = filterServicesForVisibleGroup(
+            {
+                candidates: [101, 201],
+                context: {
+                    tagId: "root",
+                    usedServiceIds: [100],
+                },
+            },
+            { builder: b },
+        );
+
+        const byId = new Map(result.checks.map((c) => [String(c.id), c]));
+        expect(byId.get("101")?.passesRate).toBe(false);
+        expect(byId.get("201")?.passesPolicies).toBe(false);
+    });
+
+    it("per-call policies/ratePolicy overrides win over builder defaults", () => {
+        const b = createBuilder({
+            serviceMap,
+            policies: [
+                {
+                    id: "no_mix_platform",
+                    scope: "visible_group",
+                    subject: "services",
+                    op: "no_mix",
+                    projection: "service.platform_id",
+                    severity: "error",
+                },
+            ],
+            ratePolicy: { kind: "eq_primary" },
+        });
+        b.load(baseProps());
+
+        const result = filterServicesForVisibleGroup(
+            {
+                candidates: [101, 201],
+                context: {
+                    tagId: "root",
+                    usedServiceIds: [100],
+                    policies: [],
+                    ratePolicy: { kind: "within_pct", pct: 30 },
+                },
+            },
+            { builder: b },
+        );
+
+        const byId = new Map(result.checks.map((c) => [String(c.id), c]));
+        expect(byId.get("101")?.passesRate).toBe(true);
+        expect(byId.get("201")?.passesPolicies).toBe(true);
+    });
 });

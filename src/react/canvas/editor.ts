@@ -12,6 +12,7 @@ import type {
     FallbackSettings,
     Field,
     FieldValidationRule,
+    RatePolicy,
     ServiceIdRef,
     ServiceCatalogState,
     ServiceProps,
@@ -705,6 +706,9 @@ export class Editor {
                 Record<"refill" | "cancel" | "dripfeed", boolean>
             >;
             policies?: unknown;
+            ratePolicy?: RatePolicy;
+            fallbackSettings?: FallbackSettings;
+            /** Backward-compatible alias */
             fallback?: FallbackSettings;
         },
     ): ServiceCheck[] {

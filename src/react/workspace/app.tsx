@@ -4,6 +4,7 @@ import * as React from "react";
 import { WorkspaceProvider } from "./context";
 import type { WorkspaceProviderProps } from "./context";
 import type { Actor, WorkspaceBackend } from "./context/backend";
+import type { FallbackSettings, RatePolicy } from "@/schema";
 
 import type { ToolsConfig } from "./components";
 import { CanvasProvider } from "./context/context";
@@ -35,6 +36,10 @@ export interface WorkspaceProps {
 
     /** Auto-run autosave when dirty (default true) */
     readonly autoAutosave?: WorkspaceProviderProps["autoAutosave"];
+    /** Global/base rate policy (separate from fallbackSettings.ratePolicy). */
+    readonly ratePolicy?: RatePolicy;
+    /** Fallback flow settings. */
+    readonly fallbackSettings?: FallbackSettings;
 
     readonly tools?: ToolsConfig;
     readonly children: (tools?: ToolsConfig) => React.ReactNode;
@@ -55,6 +60,8 @@ export function Workspace(props: WorkspaceProps): React.JSX.Element {
         liveDebounceMs,
         autosaveMs,
         autoAutosave,
+        ratePolicy,
+        fallbackSettings,
         tools,
         children,
     } = props;
@@ -71,7 +78,12 @@ export function Workspace(props: WorkspaceProps): React.JSX.Element {
             autosaveMs={autosaveMs}
             autoAutosave={autoAutosave}
         >
-            <CanvasProvider>{children(tools)}</CanvasProvider>
+            <CanvasProvider
+                ratePolicy={ratePolicy}
+                fallbackSettings={fallbackSettings}
+            >
+                {children(tools)}
+            </CanvasProvider>
         </WorkspaceProvider>
     );
 }

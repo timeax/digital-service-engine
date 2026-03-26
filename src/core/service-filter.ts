@@ -5,14 +5,17 @@ import type {
     DgpServiceMap,
     DynamicRule,
     FallbackSettings,
+    RatePolicy,
     ServiceIdRef,
 } from "@/schema";
 import {
     constraintFitOk,
     getServiceCapability,
+    normalizeRatePolicy,
     rateOk,
     toFiniteNumber,
 } from "@/utils/util";
+import { DEFAULT_FALLBACK_SETTINGS } from "@/core/governance";
 
 export type ServiceCheck = {
     id: ServiceIdRef;
@@ -42,6 +45,9 @@ export type FilterServicesForVisibleGroupInput = {
             Record<"refill" | "cancel" | "dripfeed", boolean>
         >;
         policies?: unknown;
+        ratePolicy?: RatePolicy;
+        fallbackSettings?: FallbackSettings;
+        /** Backward-compatible alias for fallbackSettings */
         fallback?: FallbackSettings;
         strictSafety?: boolean;
         enforcePolicies?: boolean;
@@ -60,18 +66,27 @@ export function filterServicesForVisibleGroup(
     },
 ): FilterServicesForVisibleGroupResult {
     const svcMap: DgpServiceMap = deps.builder.getServiceMap?.() ?? {};
+    const builderOptions = deps.builder.getOptions?.();
     const { context } = input;
 
     const usedSet = new Set(context.usedServiceIds.map(String));
     const primary = context.usedServiceIds[0];
+    const explicitFallbackSettings =
+        context.fallbackSettings ?? context.fallback;
+    const resolvedRatePolicy = normalizeRatePolicy(
+        context.ratePolicy ??
+            explicitFallbackSettings?.ratePolicy ??
+            builderOptions?.ratePolicy,
+    );
+    const fallbackSettingsSource =
+        explicitFallbackSettings ?? builderOptions?.fallbackSettings;
 
     const fb: FallbackSettings = {
-        requireConstraintFit: true,
-        ratePolicy: { kind: "lte_primary", pct: 5 },
-        selectionStrategy: "priority",
-        mode: "strict",
-        ...(context.fallback ?? {}),
+        ...DEFAULT_FALLBACK_SETTINGS,
+        ...(fallbackSettingsSource ?? {}),
+        ratePolicy: resolvedRatePolicy,
     };
+    const policySource = context.policies ?? builderOptions?.policies ?? [];
 
     const visibleServiceIds =
         context.selectedButtons === undefined
@@ -111,7 +126,7 @@ export function filterServicesForVisibleGroup(
             primary == null ? true : rateOk(svcMap, id, primary, fb);
 
         const polRes = evaluatePoliciesRaw(
-            context.policies ?? [],
+            policySource,
             [...context.usedServiceIds, id],
             svcMap,
             context.tagId,

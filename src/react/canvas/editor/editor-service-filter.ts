@@ -2,7 +2,7 @@ import {
     filterServicesForVisibleGroup as filterServicesForVisibleGroupCore,
     type FilterServicesForVisibleGroupInput,
 } from "@/core";
-import type { FallbackSettings } from "@/schema";
+import type { FallbackSettings, RatePolicy } from "@/schema";
 import type { EditorModuleContext, ServiceCheck } from "./editor-types";
 
 export function filterServicesForVisibleGroup(
@@ -14,6 +14,9 @@ export function filterServicesForVisibleGroup(
         usedServiceIds: Array<number | string>;
         effectiveConstraints?: Partial<Record<"refill" | "cancel" | "dripfeed", boolean>>;
         policies?: unknown;
+        ratePolicy?: RatePolicy;
+        fallbackSettings?: FallbackSettings;
+        /** Backward-compatible alias */
         fallback?: FallbackSettings;
     },
 ): ServiceCheck[] {
@@ -25,6 +28,8 @@ export function filterServicesForVisibleGroup(
             usedServiceIds: input.usedServiceIds,
             effectiveConstraints: input.effectiveConstraints,
             policies: input.policies,
+            ratePolicy: input.ratePolicy,
+            fallbackSettings: input.fallbackSettings,
             fallback: input.fallback,
         },
     };

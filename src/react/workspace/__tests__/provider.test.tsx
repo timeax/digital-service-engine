@@ -905,4 +905,161 @@ describe("WorkspaceProvider boot", () => {
         expect(api!.snapshot.schemaVersion).toBeUndefined();
         expect(api!.snapshot.state).toBe("clean");
     });
+
+    it("forwards workspace policies and workspace-level rate/fallback config into builder options", async () => {
+        const actor = makeActor();
+        const backend = createMemoryWorkspaceBackend({
+            workspaceId: "ws-builder-governance-forwarding",
+            actorId: actor.id,
+            seed: {
+                authors: [{ id: actor.id, name: actor.name ?? "Tester" }],
+                branches: [makeBranch("main", true)],
+                snapshots: {
+                    main: {
+                        snapshot: makeSnapshot("governance-forwarding"),
+                    },
+                },
+                policiesByBranch: {
+                    main: [
+                        {
+                            id: "no_mix_platform",
+                            scope: "visible_group",
+                            subject: "services",
+                            op: "no_mix",
+                            projection: "service.platform_id",
+                            severity: "error",
+                        },
+                    ],
+                },
+            },
+        });
+
+        let capturedOptions: any;
+
+        function CaptureCanvas(): null {
+            const api = useCanvasAPI();
+            capturedOptions = api.builder.getOptions();
+            return null;
+        }
+
+        await act(async () => {
+            root?.render(
+                <WorkspaceProvider
+                    backend={backend}
+                    actor={actor}
+                    autoAutosave={false}
+                    live={{ mode: "off" }}
+                >
+                    <CanvasProvider
+                        ratePolicy={{ kind: "eq_primary" }}
+                        fallbackSettings={{
+                            mode: "dev",
+                            selectionStrategy: "cheapest",
+                        }}
+                    >
+                        <CaptureCanvas />
+                    </CanvasProvider>
+                </WorkspaceProvider>,
+            );
+            await flushMicrotasks();
+        });
+
+        await waitFor(() => Boolean(capturedOptions));
+
+        expect(capturedOptions.ratePolicy).toEqual({ kind: "eq_primary" });
+        expect(capturedOptions.fallbackSettings).toEqual({
+            mode: "dev",
+            selectionStrategy: "cheapest",
+        });
+        expect(Array.isArray(capturedOptions.policies)).toBe(true);
+        expect(capturedOptions.policies.length).toBeGreaterThan(0);
+        expect(capturedOptions.policies[0].id).toBe("no_mix_platform");
+    });
+
+    it("reactively updates builder rate/fallback options from workspace props without remounting canvas children", async () => {
+        const actor = makeActor();
+        const backend = makeBootBackend("ws-builder-governance-reactive", actor);
+        const policiesLoadSpy = vi.spyOn(backend.policies, "load");
+
+        let setRatePolicy:
+            | ((value: { kind: "eq_primary" } | { kind: "within_pct"; pct: number }) => void)
+            | undefined;
+        let setFallbackMode: ((value: "strict" | "dev") => void) | undefined;
+        let latestOptions: any;
+        let capturedApi: CanvasAPI | undefined;
+        let mountCount = 0;
+        let unmountCount = 0;
+
+        function RuntimeHarness(): React.JSX.Element {
+            const [ratePolicy, updateRatePolicy] = React.useState<
+                { kind: "eq_primary" } | { kind: "within_pct"; pct: number }
+            >({ kind: "eq_primary" });
+            const [fallbackMode, updateFallbackMode] = React.useState<
+                "strict" | "dev"
+            >("strict");
+
+            setRatePolicy = updateRatePolicy;
+            setFallbackMode = updateFallbackMode;
+
+            return (
+                <WorkspaceProvider
+                    backend={backend}
+                    actor={actor}
+                    autoAutosave={false}
+                    live={{ mode: "off" }}
+                >
+                    <CanvasProvider
+                        ratePolicy={ratePolicy}
+                        fallbackSettings={{ mode: fallbackMode }}
+                    >
+                        <CaptureBuilderOptions />
+                    </CanvasProvider>
+                </WorkspaceProvider>
+            );
+        }
+
+        function CaptureBuilderOptions(): null {
+            const api = useCanvasAPI();
+            capturedApi = api;
+            React.useEffect(() => {
+                mountCount += 1;
+                return () => {
+                    unmountCount += 1;
+                };
+            }, []);
+            latestOptions = api.builder.getOptions();
+            return null;
+        }
+
+        await act(async () => {
+            root?.render(<RuntimeHarness />);
+            await flushMicrotasks();
+        });
+
+        await waitFor(() => Boolean(latestOptions));
+        expect(latestOptions.ratePolicy).toEqual({ kind: "eq_primary" });
+        expect(latestOptions.fallbackSettings?.mode).toBe("strict");
+        const baselinePolicyLoads = policiesLoadSpy.mock.calls.length;
+        expect(mountCount).toBe(1);
+        expect(unmountCount).toBe(0);
+
+        await act(async () => {
+            setRatePolicy?.({ kind: "within_pct", pct: 25 });
+            setFallbackMode?.("dev");
+            await flushMicrotasks();
+        });
+
+        await waitFor(
+            () =>
+                capturedApi?.builder.getOptions().ratePolicy?.kind ===
+                    "within_pct" &&
+                capturedApi?.builder.getOptions().fallbackSettings?.mode ===
+                    "dev",
+        );
+
+        latestOptions = capturedApi?.builder.getOptions();
+        expect(mountCount).toBe(1);
+        expect(unmountCount).toBe(0);
+        expect(policiesLoadSpy.mock.calls.length).toBe(baselinePolicyLoads);
+    });
 });
