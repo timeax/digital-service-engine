@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from "react";
+import { InputField } from "@timeax/form-palette";
+import { Search } from "lucide-react";
 import { useFallbackEditor, usePrimaryServiceList } from "./useFallbackEditor";
 
 export function FallbackServiceSidebar() {
@@ -34,12 +36,20 @@ export function FallbackServiceSidebar() {
             </div>
 
             <div className="flex min-h-0 flex-1 flex-col p-4">
-                <input
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Search primary service..."
-                    className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-                />
+                <div className="rounded-xl border border-zinc-200 bg-zinc-50/80 p-2 dark:border-zinc-800 dark:bg-zinc-950/80">
+                    <InputField
+                        variant="text"
+                        value={query}
+                        onChange={({ value }) => setQuery(String(value ?? ""))}
+                        placeholder="Search primary service..."
+                        leadingControl={
+                            <Search className="h-4 w-4 text-zinc-400" />
+                        }
+                        joinControls
+                        extendBoxToControls
+                        fullWidth
+                    />
+                </div>
 
                 <div className="mt-3 flex-1 space-y-2 overflow-y-auto">
                     {filtered.map((service) => {
@@ -55,8 +65,8 @@ export function FallbackServiceSidebar() {
                                 className={[
                                     "w-full rounded-2xl border p-3 text-left transition",
                                     active
-                                        ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
-                                        : "border-zinc-200 bg-zinc-50 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700",
+                                        ? "border-blue-500 bg-blue-50 dark:border-blue-500/70 dark:bg-blue-950/30"
+                                        : "border-zinc-200 bg-zinc-50 hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700 dark:hover:bg-zinc-900",
                                 ].join(" ")}
                             >
                                 <div className="flex items-start justify-between gap-3">

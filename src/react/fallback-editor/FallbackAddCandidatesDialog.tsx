@@ -1,4 +1,6 @@
 import React from "react";
+import { InputField } from "@timeax/form-palette";
+import { Search } from "lucide-react";
 import type { FallbackScopeRef, ServiceIdRef } from "@/schema";
 import { useEligibleServiceList, useFallbackEditor } from "./useFallbackEditor";
 import { VirtualServiceList } from "./VirtualServiceList";
@@ -96,7 +98,7 @@ export function FallbackAddCandidatesDialog({
     if (!open || !context) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
             <div className="flex max-h-[85vh] w-full max-w-3xl flex-col rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900">
                 <div className="border-b border-zinc-200 p-4 dark:border-zinc-800">
                     <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
@@ -109,24 +111,29 @@ export function FallbackAddCandidatesDialog({
                 </div>
 
                 <div className="flex flex-col gap-3 p-4">
-                    <input
+                    <InputField
+                        variant="text"
                         value={query}
-                        onChange={(e) => setQuery(e.target.value)}
+                        onChange={({ value }) => setQuery(String(value ?? ""))}
                         placeholder="Search eligible services..."
-                        className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
+                        leadingControl={
+                            <Search className="h-4 w-4 text-zinc-400" />
+                        }
+                        joinControls
+                        extendBoxToControls
+                        fullWidth
                     />
 
-                    <label className="inline-flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                        <input
-                            type="checkbox"
-                            checked={filterEligibleOnly}
-                            onChange={(e) =>
-                                setFilterEligibleOnly(e.target.checked)
-                            }
-                            className="h-4 w-4 rounded border-zinc-300"
-                        />
-                        Filter eligible only
-                    </label>
+                    <InputField
+                        variant="toggle"
+                        value={filterEligibleOnly}
+                        onChange={({ value }) =>
+                            setFilterEligibleOnly(Boolean(value))
+                        }
+                        label="Filter eligible only"
+                        onText="On"
+                        offText="Off"
+                    />
 
                     <VirtualServiceList
                         items={items}
@@ -145,7 +152,7 @@ export function FallbackAddCandidatesDialog({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                            className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-800"
                         >
                             Cancel
                         </button>
@@ -153,7 +160,7 @@ export function FallbackAddCandidatesDialog({
                             type="button"
                             onClick={handleAdd}
                             disabled={selected.size === 0 || submitting}
-                            className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             {submitting ? "Adding..." : "Add selected"}
                         </button>

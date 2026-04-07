@@ -1,4 +1,5 @@
 import React from "react";
+import { InputField } from "@timeax/form-palette";
 import type { FallbackSettings, RatePolicy } from "@/schema/validation";
 import { useFallbackEditorContext } from "./FallbackEditorProvider";
 
@@ -48,7 +49,7 @@ export function FallbackSettingsPanel() {
     };
 
     return (
-        <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 overflow-y-auto">
+        <section className="overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
             <div className="mb-4 flex items-start justify-between gap-3">
                 <div>
                     <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
@@ -80,36 +81,18 @@ export function FallbackSettingsPanel() {
                     title="Require constraint fit"
                     hint="Reject or warn when a candidate does not match effective tag constraints."
                 >
-                    <button
-                        type="button"
-                        onClick={() =>
+                    <InputField
+                        variant="toggle"
+                        value={Boolean(draft.requireConstraintFit)}
+                        onChange={({ value }) =>
                             setDraft((prev) => ({
                                 ...prev,
-                                requireConstraintFit:
-                                    !prev?.requireConstraintFit,
+                                requireConstraintFit: Boolean(value),
                             }))
                         }
-                        className={[
-                            "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-sm",
-                            draft.requireConstraintFit
-                                ? "border-green-300 bg-green-50 text-green-700 dark:border-green-900/50 dark:bg-green-950/30 dark:text-green-300"
-                                : "border-zinc-300 bg-white text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300",
-                        ].join(" ")}
-                    >
-                        <span>
-                            {draft.requireConstraintFit
-                                ? "Enabled"
-                                : "Disabled"}
-                        </span>
-                        <span
-                            className={[
-                                "h-2.5 w-2.5 rounded-full",
-                                draft.requireConstraintFit
-                                    ? "bg-green-500"
-                                    : "bg-zinc-400",
-                            ].join(" ")}
-                        />
-                    </button>
+                        onText="Enabled"
+                        offText="Disabled"
+                    />
                 </SettingRow>
 
                 <SettingRow
@@ -117,11 +100,11 @@ export function FallbackSettingsPanel() {
                     hint="Controls how fallback service rates are compared against the primary service."
                 >
                     <div className="flex flex-col gap-2 md:items-end">
-                        <select
+                        <InputField
+                            variant="select"
                             value={ratePolicy.kind}
-                            onChange={(e) => {
-                                const kind = e.target
-                                    .value as RatePolicy["kind"];
+                            onChange={({ value }) => {
+                                const kind = value as RatePolicy["kind"];
 
                                 if (kind === "eq_primary") {
                                     setRatePolicy({ kind: "eq_primary" });
@@ -154,30 +137,43 @@ export function FallbackSettingsPanel() {
                                     pct: currentPct,
                                 });
                             }}
-                            className="w-56 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-                        >
-                            <option value="eq_primary">eq_primary</option>
-                            <option value="lte_primary">lte_primary</option>
-                            <option value="within_pct">within_pct</option>
-                            <option value="at_least_pct_lower">
-                                at_least_pct_lower
-                            </option>
-                        </select>
+                            options={[
+                                { value: "eq_primary", label: "eq_primary" },
+                                {
+                                    value: "lte_primary",
+                                    label: "lte_primary",
+                                },
+                                { value: "within_pct", label: "within_pct" },
+                                {
+                                    value: "at_least_pct_lower",
+                                    label: "at_least_pct_lower",
+                                },
+                            ]}
+                            clearable={false}
+                        />
 
                         {ratePolicy.kind !== "eq_primary" && (
                             <div className="flex items-center gap-2">
-                                <input
-                                    type="number"
-                                    min={0}
-                                    step="0.01"
-                                    value={ratePolicy.pct}
-                                    onChange={(e) => {
-                                        const pct = Number(e.target.value || 0);
+                                <div className="w-32">
+                                    <InputField
+                                        variant="number"
+                                        value={ratePolicy.pct}
+                                        onChange={({ value }) => {
+                                            const pct =
+                                                typeof value === "number"
+                                                    ? value
+                                                    : Number(value ?? 0);
 
-                                        setRatePolicy({ ...ratePolicy, pct });
-                                    }}
-                                    className="w-32 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-                                />
+                                            setRatePolicy({
+                                                ...ratePolicy,
+                                                pct,
+                                            });
+                                        }}
+                                        min={0}
+                                        step={0.01}
+                                        fullWidth
+                                    />
+                                </div>
                                 <span className="text-sm text-zinc-500 dark:text-zinc-400">
                                     %
                                 </span>
@@ -190,40 +186,44 @@ export function FallbackSettingsPanel() {
                     title="Selection strategy"
                     hint="How valid fallback candidates are ordered in previews."
                 >
-                    <select
+                    <InputField
+                        variant="select"
                         value={draft.selectionStrategy ?? "priority"}
-                        onChange={(e) =>
+                        onChange={({ value }) =>
                             setDraft((prev) => ({
                                 ...prev,
-                                selectionStrategy: e.target.value as
+                                selectionStrategy: value as
                                     | "priority"
                                     | "cheapest",
                             }))
                         }
-                        className="w-48 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-                    >
-                        <option value="priority">priority</option>
-                        <option value="cheapest">cheapest</option>
-                    </select>
+                        options={[
+                            { value: "priority", label: "priority" },
+                            { value: "cheapest", label: "cheapest" },
+                        ]}
+                        clearable={false}
+                    />
                 </SettingRow>
 
                 <SettingRow
                     title="Mode"
                     hint="Use strict for enforced filtering, dev for advisory feedback."
                 >
-                    <select
+                    <InputField
+                        variant="select"
                         value={draft.mode ?? "strict"}
-                        onChange={(e) =>
+                        onChange={({ value }) =>
                             setDraft((prev) => ({
                                 ...prev,
-                                mode: e.target.value as "strict" | "dev",
+                                mode: value as "strict" | "dev",
                             }))
                         }
-                        className="w-48 rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
-                    >
-                        <option value="strict">strict</option>
-                        <option value="dev">dev</option>
-                    </select>
+                        options={[
+                            { value: "strict", label: "strict" },
+                            { value: "dev", label: "dev" },
+                        ]}
+                        clearable={false}
+                    />
                 </SettingRow>
             </div>
 

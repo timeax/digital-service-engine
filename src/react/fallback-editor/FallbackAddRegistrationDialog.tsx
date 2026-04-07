@@ -1,4 +1,5 @@
 import React from "react";
+import { InputField } from "@timeax/form-palette";
 import type { FallbackScopeRef, ServiceIdRef, ServiceProps } from "@/schema";
 import {
     useActiveFallbackRegistrations,
@@ -76,7 +77,6 @@ export function FallbackAddRegistrationDialog({
                 });
             }
 
-            // keep active tag near the top if present
             const activeTagId = snapshot.selection?.tag;
 
             out.sort((a, b) => {
@@ -227,7 +227,7 @@ export function FallbackAddRegistrationDialog({
     const nodeScopeDisabled = nodeTargets.length === 0;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
             <div className="w-full max-w-lg rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900">
                 <div className="border-b border-zinc-200 p-4 dark:border-zinc-800">
                     <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
@@ -245,57 +245,38 @@ export function FallbackAddRegistrationDialog({
                             Scope
                         </div>
 
-                        <div className="grid gap-2">
-                            {!hasGlobal && (
-                                <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">
-                                    <input
-                                        type="radio"
-                                        name="scope"
-                                        checked={scope === "global"}
-                                        onChange={() => setScope("global")}
-                                        className="mt-1 h-4 w-4"
-                                    />
-                                    <div>
-                                        <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                                            Global
-                                        </div>
-                                        <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                            Use one global registration for this
-                                            primary service.
-                                        </div>
-                                    </div>
-                                </label>
-                            )}
+                        <InputField
+                            variant="radio"
+                            value={scope}
+                            onChange={({ value }) =>
+                                setScope(value as "global" | "node")
+                            }
+                            options={[
+                                ...(!hasGlobal
+                                    ? [
+                                          {
+                                              value: "global",
+                                              label: "Global",
+                                          },
+                                      ]
+                                    : []),
+                                {
+                                    value: "node",
+                                    label: nodeScopeDisabled
+                                        ? "Node (Unavailable)"
+                                        : "Node",
+                                },
+                            ]}
+                        />
 
-                            <label
-                                className={[
-                                    "flex items-start gap-3 rounded-xl border p-3",
-                                    nodeScopeDisabled
-                                        ? "cursor-not-allowed border-zinc-200 opacity-60 dark:border-zinc-800"
-                                        : "cursor-pointer border-zinc-200 dark:border-zinc-800",
-                                ].join(" ")}
-                            >
-                                <input
-                                    type="radio"
-                                    name="scope"
-                                    checked={scope === "node"}
-                                    onChange={() => setScope("node")}
-                                    disabled={nodeScopeDisabled}
-                                    className="mt-1 h-4 w-4"
-                                />
-                                <div>
-                                    <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                                        Node
-                                    </div>
-                                    <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                                        {mode === "snapshot"
-                                            ? "Pick a node currently active in the order snapshot for this primary service."
-                                            : mode === "props"
-                                              ? "Pick a tag, field, or option from ServiceProps that maps to this primary service."
-                                              : "Node-scoped registration is unavailable without OrderSnapshot or ServiceProps."}
-                                    </div>
-                                </div>
-                            </label>
+                        <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                            {scope === "global"
+                                ? "Use one global registration for this primary service."
+                                : mode === "snapshot"
+                                  ? "Pick a node currently active in the order snapshot for this primary service."
+                                  : mode === "props"
+                                    ? "Pick a tag, field, or option from ServiceProps that maps to this primary service."
+                                    : "Node-scoped registration is unavailable without OrderSnapshot or ServiceProps."}
                         </div>
                     </div>
 
@@ -304,19 +285,21 @@ export function FallbackAddRegistrationDialog({
                             <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
                                 Node id
                             </div>
-                            <select
-                                value={nodeId}
-                                onChange={(e) => setNodeId(e.target.value)}
-                                className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-                            >
-                                <option value="">Select node…</option>
-                                {nodeTargets.map((node) => (
-                                    <option key={node.id} value={node.id}>
-                                        [{node.kind}] {node.label} · #
-                                        {String(node.serviceId)}
-                                    </option>
-                                ))}
-                            </select>
+                            <InputField
+                                variant="select"
+                                value={nodeId || undefined}
+                                onChange={({ value }) =>
+                                    setNodeId(String(value ?? ""))
+                                }
+                                options={nodeTargets.map((node) => ({
+                                    value: node.id,
+                                    label: `[${node.kind}] ${node.label} · #${String(node.serviceId)}`,
+                                }))}
+                                placeholder="Select node..."
+                                searchable
+                                clearable={false}
+                                fullWidth
+                            />
 
                             {nodeScopeDisabled ? (
                                 <div className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -335,7 +318,7 @@ export function FallbackAddRegistrationDialog({
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                        className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-800"
                     >
                         Cancel
                     </button>
@@ -346,7 +329,7 @@ export function FallbackAddRegistrationDialog({
                             activeServiceId === undefined ||
                             (scope === "node" && !nodeId)
                         }
-                        className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+                        className="rounded-xl bg-blue-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         Continue
                     </button>

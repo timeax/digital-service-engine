@@ -1,4 +1,5 @@
 import React from "react";
+import { Check } from "lucide-react";
 import type { ServiceIdRef } from "@/schema";
 
 type Item = {
@@ -64,7 +65,7 @@ export function VirtualServiceList({
                             key={key}
                             type="button"
                             onClick={() => onToggle(item.id)}
-                            className="absolute left-0 right-0 flex items-center justify-between border-b border-zinc-100 bg-white px-3 text-left hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+                            className="absolute left-0 right-0 flex items-center justify-between border-b border-zinc-100 bg-white px-3 text-left transition hover:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:bg-zinc-800"
                             style={{
                                 top: index * rowHeight,
                                 height: rowHeight,
@@ -83,12 +84,16 @@ export function VirtualServiceList({
                                 </div>
                             </div>
 
-                            <input
-                                type="checkbox"
-                                checked={checked}
-                                readOnly
-                                className="h-4 w-4 rounded border-zinc-300"
-                            />
+                            <span
+                                className={[
+                                    "inline-flex h-4 w-4 items-center justify-center rounded border transition",
+                                    checked
+                                        ? "border-blue-600 bg-blue-600 text-white dark:border-blue-500 dark:bg-blue-500"
+                                        : "border-zinc-300 bg-white text-transparent dark:border-zinc-700 dark:bg-zinc-800",
+                                ].join(" ")}
+                            >
+                                <Check className="h-3 w-3" />
+                            </span>
                         </button>
                     );
                 })}
