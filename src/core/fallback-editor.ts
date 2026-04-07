@@ -1,11 +1,17 @@
 // src/core/fallback-editor.ts
 
-import { collectFailedFallbacks, getEligibleFallbacks, getFallbackRegistrationInfo } from "@/core";
+import {
+    collectFailedFallbacks,
+    getAssignedServiceIds,
+    getEligibleFallbacks,
+    getFallbackRegistrationInfo,
+} from "@/core";
 
 import type {
     FallbackCandidateCheck,
     FallbackCheckReason,
     FallbackCheckResult,
+    FallbackEligibleSource,
     FallbackEditorOptions,
     FallbackEditorState,
     FallbackMutationOptions,
@@ -18,6 +24,7 @@ import type {
     ServiceProps,
     Tag
 } from "@/schema";
+import { isSameServiceCapabilityRef } from "@/utils/util";
 
 /**
  * Keep the editor contract exactly as discussed:
@@ -78,6 +85,7 @@ export interface FallbackEditor {
             exclude?: ServiceIdRef[];
             unique?: boolean;
             limit?: number;
+            source?: FallbackEligibleSource;
         },
     ): ServiceIdRef[];
 }
@@ -100,6 +108,7 @@ export function createFallbackEditor(
     let current = cloneFallbacks(options.fallbacks);
 
     const props = options.props;
+    const snapshot = options.snapshot;
     const services = options.services ?? {};
     const settings = options.settings ?? {};
 
@@ -214,7 +223,13 @@ export function createFallbackEditor(
             for (const candidate of normalized) {
                 const reasons: FallbackCheckReason[] = [];
 
-                if (String(candidate) === String(context.primary)) {
+                if (
+                    isSameServiceCapabilityRef(
+                        services,
+                        candidate,
+                        context.primary,
+                    )
+                ) {
                     reasons.push("self_reference");
                 }
 
@@ -359,9 +374,24 @@ export function createFallbackEditor(
             exclude?: ServiceIdRef[];
             unique?: boolean;
             limit?: number;
+            source?: FallbackEligibleSource;
         },
     ): ServiceIdRef[] {
         if (!props) return [];
+
+        const source = opt?.source ?? "all_services";
+        const exclude = normalizeCandidateList(
+            [
+                ...(opt?.exclude ?? []),
+                ...(source === "all_services"
+                    ? [
+                          ...getAssignedServiceIds({ props, snapshot }),
+                          ...getScope(context),
+                      ]
+                    : []),
+            ],
+            true,
+        );
 
         if (context.scope === "global") {
             return getEligibleFallbacks({
@@ -370,9 +400,10 @@ export function createFallbackEditor(
                 fallbacks: current,
                 settings,
                 props,
-                exclude: opt?.exclude,
+                exclude,
                 unique: opt?.unique,
                 limit: opt?.limit,
+                source,
             });
         }
 
@@ -382,14 +413,19 @@ export function createFallbackEditor(
         return getEligibleFallbacks({
             primary: info.primary,
             nodeId: context.nodeId,
-            tagId: info.tagContexts[0],
+            tagId: resolveNodeTagContext({
+                nodeId: context.nodeId,
+                snapshot,
+                fallbackTagContexts: info.tagContexts,
+            }),
             services,
             fallbacks: current,
             settings,
             props,
-            exclude: opt?.exclude,
+            exclude,
             unique: opt?.unique,
             limit: opt?.limit,
+            source,
         });
     }
 
@@ -536,6 +572,22 @@ function findOptionOwner(
 function bindIdsToArray(v: string | string[] | undefined): string[] {
     if (Array.isArray(v)) return v.filter(Boolean);
     return v ? [v] : [];
+}
+
+function resolveNodeTagContext(params: {
+    nodeId: string;
+    snapshot?: FallbackEditorOptions["snapshot"];
+    fallbackTagContexts: string[];
+}): string | undefined {
+    const nodeContexts = params.snapshot?.meta?.context?.nodeContexts;
+    if (nodeContexts && Object.prototype.hasOwnProperty.call(nodeContexts, params.nodeId)) {
+        const tagId = nodeContexts[params.nodeId];
+        return typeof tagId === "string" && tagId.trim().length > 0
+            ? tagId
+            : undefined;
+    }
+
+    return params.fallbackTagContexts[0];
 }
 
 function mapDiagReason(reason: unknown): FallbackCheckReason {

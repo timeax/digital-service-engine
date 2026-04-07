@@ -23,7 +23,7 @@ export function FallbackServiceSidebar() {
     }, [query, services]);
 
     return (
-        <aside className="flex min-h-0 flex-col rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <aside className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
             <div className="border-b border-zinc-200 p-4 dark:border-zinc-800">
                 <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                     Primary services
@@ -41,7 +41,7 @@ export function FallbackServiceSidebar() {
                     className="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
                 />
 
-                <div className="mt-3 flex-1 space-y-2 overflow-auto">
+                <div className="mt-3 flex-1 space-y-2 overflow-y-auto">
                     {filtered.map((service) => {
                         const active =
                             String(service.id) === String(activeServiceId);

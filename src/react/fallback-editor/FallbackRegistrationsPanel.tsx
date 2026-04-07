@@ -8,9 +8,9 @@ import {
     useActiveFallbackRegistrations,
     useEligibleServiceList,
     useFallbackEditor,
-} from "./useFallbackEditor";
-import { FallbackAddCandidatesDialog } from "./FallbackAddCandidatesDialog";
-import { FallbackAddRegistrationDialog } from "./FallbackAddRegistrationDialog";
+} from "@/react";
+import { FallbackAddCandidatesDialog } from "@/react";
+import { FallbackAddRegistrationDialog } from "@/react";
 
 export function FallbackRegistrationsPanel() {
     const { activeServiceId, remove, clear, check } = useFallbackEditor();
@@ -56,7 +56,7 @@ export function FallbackRegistrationsPanel() {
 
     if (activeServiceId === undefined || activeServiceId === null) {
         return (
-            <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 ">
                 <div className="rounded-2xl border border-dashed border-zinc-300 p-6 text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
                     Select a primary service to start editing.
                 </div>
@@ -66,7 +66,7 @@ export function FallbackRegistrationsPanel() {
 
     return (
         <>
-            <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 overflow-y-auto">
                 <div className="mb-4 flex items-start justify-between gap-3">
                     <div>
                         <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">

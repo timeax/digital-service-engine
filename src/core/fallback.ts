@@ -1,24 +1,31 @@
-// src/core/utils/fallback.ts
 import type {
-    ServiceProps,
+    Field,
+    FieldOption,
+    FallbackEligibleSource,
+    NodeIdRef,
+    OrderSnapshot,
     ServiceFallback,
     ServiceIdRef,
-    NodeIdRef,
+    ServiceProps,
 } from "@/schema";
 import type { DgpServiceCapability, DgpServiceMap } from "@/schema/provider";
 import type { FallbackSettings } from "@/schema/validation";
 import {
     getServiceCapability,
+    getServiceCapabilityAliases,
+    getServiceCapabilityCanonicalRef,
+    isSameServiceCapabilityRef,
+    isValidServiceIdRef,
     normalizeRatePolicy,
     passesRatePolicy,
 } from "@/utils/util";
 
 export type FailedFallbackContext = {
     scope: "node" | "global";
-    nodeId?: string; // when scope='node'
+    nodeId?: string;
     primary: ServiceIdRef;
     candidate: ServiceIdRef;
-    tagContext?: string; // tag.id when evaluating constraints
+    tagContext?: string;
     reason:
         | "unknown_service"
         | "no_primary"
@@ -38,8 +45,8 @@ const DEFAULT_SETTINGS: Required<FallbackSettings> = {
 
 export function resolveServiceFallback(params: {
     primary: ServiceIdRef;
-    nodeId?: NodeIdRef; // prefer node-scoped first if provided
-    tagId?: string; // constraints context (if known)
+    nodeId?: NodeIdRef;
+    tagId?: string;
     services: DgpServiceMap;
     fallbacks?: ServiceFallback;
     settings?: FallbackSettings;
@@ -47,31 +54,46 @@ export function resolveServiceFallback(params: {
 }): ServiceIdRef | null {
     const s = { ...DEFAULT_SETTINGS, ...(params.settings ?? {}) };
     const { primary, nodeId, tagId, services } = params;
-    const fb = params.fallbacks ?? {};
-    const tried: ServiceIdRef[] = [];
-
-    const lists: ServiceIdRef[][] = [];
-    if (nodeId && fb.nodes?.[nodeId]) lists.push(fb.nodes[nodeId]);
-    if (fb.global?.[primary]) lists.push(fb.global[primary]);
-
+    const fallbackLists = listRegisteredFallbackCandidates(
+        params.fallbacks ?? {},
+        primary,
+        nodeId,
+        services,
+    );
+    const tried = new Set<string>();
     const primaryRate = rateOf(services, primary);
 
-    for (const list of lists) {
-        for (const cand of list) {
-            if (tried.includes(cand)) continue;
-            tried.push(cand);
+    for (const list of fallbackLists) {
+        for (const candidate of list) {
+            const candidateIdentity = getComparableServiceRefKey(
+                services,
+                candidate,
+            );
+            if (tried.has(candidateIdentity)) continue;
+            tried.add(candidateIdentity);
 
-            const candCap = services[Number(cand)] ?? services[cand as any];
-            if (!candCap) continue;
-
-            if (!passesRate(s.ratePolicy, primaryRate, candCap.rate)) continue;
-            if (s.requireConstraintFit && tagId) {
-                const ok = satisfiesTagConstraints(tagId, params, candCap);
-                if (!ok) continue;
+            const capability = getCap(services, candidate);
+            if (!capability) continue;
+            if (isSameServiceCapabilityRef(services, candidate, primary)) {
+                continue;
             }
-            return cand;
+
+            if (!passesRate(s.ratePolicy, primaryRate, capability.rate)) {
+                continue;
+            }
+            if (s.requireConstraintFit && tagId) {
+                const fitsConstraints = satisfiesTagConstraints(
+                    tagId,
+                    params,
+                    capability,
+                );
+                if (!fitsConstraints) continue;
+            }
+
+            return candidate;
         }
     }
+
     return null;
 }
 
@@ -83,9 +105,8 @@ export function collectFailedFallbacks(
     const s = { ...DEFAULT_SETTINGS, ...(settings ?? {}) };
     const out: FailedFallbackContext[] = [];
     const fb = props.fallbacks ?? {};
-    const primaryRate = (p: ServiceIdRef) => rateOf(services, p);
+    const primaryRate = (primary: ServiceIdRef) => rateOf(services, primary);
 
-    // Node-scoped (tags or options)
     for (const [nodeId, list] of Object.entries(fb.nodes ?? {})) {
         const { primary, tagContexts } = primaryForNode(props, nodeId);
         if (!primary) {
@@ -98,130 +119,131 @@ export function collectFailedFallbacks(
             });
             continue;
         }
-        for (const cand of list) {
-            const cap = getCap(services, cand);
-            if (!cap) {
+
+        for (const candidate of list) {
+            const capability = getCap(services, candidate);
+            if (!capability) {
                 out.push({
                     scope: "node",
                     nodeId,
                     primary,
-                    candidate: cand,
+                    candidate,
                     reason: "unknown_service",
                 });
                 continue;
             }
-            if (String(cand) === String(primary)) {
+            if (isSameServiceCapabilityRef(services, candidate, primary)) {
                 out.push({
                     scope: "node",
                     nodeId,
                     primary,
-                    candidate: cand,
+                    candidate,
                     reason: "cycle",
                 });
                 continue;
             }
-            if (!passesRate(s.ratePolicy, primaryRate(primary), cap.rate)) {
+            if (!passesRate(s.ratePolicy, primaryRate(primary), capability.rate)) {
                 out.push({
                     scope: "node",
                     nodeId,
                     primary,
-                    candidate: cand,
+                    candidate,
                     reason: "rate_violation",
                 });
                 continue;
             }
-            // Tag contexts
             if (tagContexts.length === 0) {
                 out.push({
                     scope: "node",
                     nodeId,
                     primary,
-                    candidate: cand,
+                    candidate,
                     reason: "no_tag_context",
                 });
                 continue;
             }
-            let anyPass = false;
-            let anyFail = false;
+
             for (const tagId of tagContexts) {
-                const ok = s.requireConstraintFit
-                    ? satisfiesTagConstraints(tagId, { services, props }, cap)
+                const fitsConstraints = s.requireConstraintFit
+                    ? satisfiesTagConstraints(
+                          tagId,
+                          { services, props },
+                          capability,
+                      )
                     : true;
-                if (ok) anyPass = true;
-                else {
-                    anyFail = true;
-                    out.push({
-                        scope: "node",
-                        nodeId,
-                        primary,
-                        candidate: cand,
-                        tagContext: tagId,
-                        reason: "constraint_mismatch",
-                    });
-                }
+                if (fitsConstraints) continue;
+
+                out.push({
+                    scope: "node",
+                    nodeId,
+                    primary,
+                    candidate,
+                    tagContext: tagId,
+                    reason: "constraint_mismatch",
+                });
             }
-            // If none passed, we already added per-context mismatches above
-            void anyPass;
-            void anyFail;
         }
     }
 
-    // Global (soft; no tag context)
     for (const [primary, list] of Object.entries(fb.global ?? {})) {
-        for (const cand of list) {
-            const cap = getCap(services, cand);
-            if (!cap) {
+        for (const candidate of list) {
+            const capability = getCap(services, candidate);
+            if (!capability) {
                 out.push({
                     scope: "global",
                     primary,
-                    candidate: cand,
+                    candidate,
                     reason: "unknown_service",
                 });
                 continue;
             }
-            if (String(cand) === String(primary)) {
+            if (isSameServiceCapabilityRef(services, candidate, primary)) {
                 out.push({
                     scope: "global",
                     primary,
-                    candidate: cand,
+                    candidate,
                     reason: "cycle",
                 });
                 continue;
             }
-            if (!passesRate(s.ratePolicy, primaryRate(primary), cap.rate)) {
+            if (!passesRate(s.ratePolicy, primaryRate(primary), capability.rate)) {
                 out.push({
                     scope: "global",
                     primary,
-                    candidate: cand,
+                    candidate,
                     reason: "rate_violation",
                 });
             }
         }
     }
+
     return out;
 }
-
-/* ───────────────────────── helpers ───────────────────────── */
 
 function rateOf(
     map: DgpServiceMap,
     id: ServiceIdRef | undefined,
 ): number | undefined {
     if (id === undefined || id === null) return undefined;
-    const c = getCap(map, id);
-    return c?.rate ?? undefined;
+    return getCap(map, id)?.rate ?? undefined;
 }
 
 function passesRate(
     policy: Required<FallbackSettings>["ratePolicy"],
     primaryRate?: number,
-    candRate?: number,
+    candidateRate?: number,
 ): boolean {
-    if (typeof candRate !== "number" || !Number.isFinite(candRate))
+    if (typeof candidateRate !== "number" || !Number.isFinite(candidateRate)) {
         return false;
-    if (typeof primaryRate !== "number" || !Number.isFinite(primaryRate))
+    }
+    if (typeof primaryRate !== "number" || !Number.isFinite(primaryRate)) {
         return false;
-    return passesRatePolicy(normalizeRatePolicy(policy), primaryRate, candRate);
+    }
+    return passesRatePolicy(
+        normalizeRatePolicy(policy),
+        primaryRate,
+        candidateRate,
+    );
 }
 
 function getCap(
@@ -231,29 +253,26 @@ function getCap(
     return getServiceCapability(map, id);
 }
 
-function isCapFlagEnabled(cap: DgpServiceCapability, flagId: string): boolean {
-    // New structure: flags[flagId].enabled
-    const fromFlags: boolean | undefined = cap.flags?.[flagId]?.enabled;
+function isCapFlagEnabled(capability: DgpServiceCapability, flagId: string): boolean {
+    const fromFlags = capability.flags?.[flagId]?.enabled;
     if (fromFlags === true) return true;
     if (fromFlags === false) return false;
 
-    // Soft-compat during migration: if legacy boolean exists on cap, respect it.
-    const legacy: unknown = (cap as any)[flagId];
+    const legacy = (capability as any)[flagId];
     return legacy === true;
 }
 
 function satisfiesTagConstraints(
     tagId: string,
     ctx: Readonly<{ props: ServiceProps; services: DgpServiceMap }>,
-    cap: DgpServiceCapability,
+    capability: DgpServiceCapability,
 ): boolean {
-    const tag = ctx.props.filters.find((t) => t.id === tagId);
-    const eff: Record<string, unknown> | undefined = tag?.constraints as any; // effective constraints (propagated)
-    if (!eff) return true;
+    const tag = ctx.props.filters.find((item) => item.id === tagId);
+    const effectiveConstraints = tag?.constraints as Record<string, unknown> | undefined;
+    if (!effectiveConstraints) return true;
 
-    // Enforce only keys explicitly set TRUE at the tag; false/undefined => no requirement.
-    for (const [key, value] of Object.entries(eff)) {
-        if (value === true && !isCapFlagEnabled(cap, key)) {
+    for (const [key, value] of Object.entries(effectiveConstraints)) {
+        if (value === true && !isCapFlagEnabled(capability, key)) {
             return false;
         }
     }
@@ -269,20 +288,25 @@ function primaryForNode(
     tagContexts: string[];
     reasonNoPrimary?: string;
 } {
-    // Tag node?
-    const tag = props.filters.find((t) => t.id === nodeId);
+    const tag = props.filters.find((item) => item.id === nodeId);
     if (tag) {
         return { primary: tag.service_id as any, tagContexts: [tag.id] };
     }
-    // Option node: locate its parent field
+
     const field = props.fields.find(
-        (f) =>
-            Array.isArray(f.options) && f.options.some((o) => o.id === nodeId),
+        (item) =>
+            Array.isArray(item.options) &&
+            item.options.some((option) => option.id === nodeId),
     );
-    if (!field) return { tagContexts: [], reasonNoPrimary: "no_parent_field" };
-    const opt = field.options!.find((o) => o.id === nodeId)!;
-    const contexts = bindIdsToArray(field.bind_id);
-    return { primary: opt.service_id as any, tagContexts: contexts };
+    if (!field) {
+        return { tagContexts: [], reasonNoPrimary: "no_parent_field" };
+    }
+
+    const option = field.options!.find((item) => item.id === nodeId)!;
+    return {
+        primary: option.service_id as any,
+        tagContexts: bindIdsToArray(field.bind_id),
+    };
 }
 
 function bindIdsToArray(bind: string | string[] | undefined): string[] {
@@ -290,88 +314,138 @@ function bindIdsToArray(bind: string | string[] | undefined): string[] {
     return Array.isArray(bind) ? bind.slice() : [bind];
 }
 
-/**
- * Return all fallback candidates that are eligible for the given primary,
- * respecting:
- *  - node-scoped list first (if nodeId provided), then global list for `primary`
- *  - rate policy vs. primary
- *  - (optional) tag constraint fit, only when tagId is provided and requireConstraintFit=true
- *  - excludes (including primary automatically)
- *  - selectionStrategy: 'priority' keeps list order, 'cheapest' sorts by rate asc
- *  - unique (dedupe) and optional limit
- */
 export function getEligibleFallbacks(params: {
     primary: ServiceIdRef;
-    nodeId?: NodeIdRef; // prefer node-scoped list first
-    tagId?: string; // constraints context (if known)
+    nodeId?: NodeIdRef;
+    tagId?: string;
     services: DgpServiceMap;
     fallbacks?: ServiceFallback;
     settings?: FallbackSettings;
     props: ServiceProps;
-    exclude?: Array<ServiceIdRef>; // additional ids to ignore
-    unique?: boolean; // default true
-    limit?: number; // optional cap
+    exclude?: Array<ServiceIdRef>;
+    unique?: boolean;
+    limit?: number;
+    source?: FallbackEligibleSource;
 }): ServiceIdRef[] {
     const s = { ...DEFAULT_SETTINGS, ...(params.settings ?? {}) };
     const { primary, nodeId, tagId, services } = params;
-    const fb = params.fallbacks ?? {};
-    const excludes = new Set<string>((params.exclude ?? []).map(String));
-    excludes.add(String(primary)); // never return the primary itself
-    const unique = params.unique ?? true;
+    const excludes = new Set<string>();
+    for (const ref of params.exclude ?? []) {
+        addComparableServiceRef(excludes, services, ref);
+    }
+    addComparableServiceRef(excludes, services, primary);
 
-    // Gather source lists: node → global
-    const lists: ServiceIdRef[][] = [];
-    if (nodeId && fb.nodes?.[nodeId]) lists.push(fb.nodes[nodeId]);
-    if (fb.global?.[primary]) lists.push(fb.global[primary]);
+    const source = params.source ?? "registered";
+    const candidateLists =
+        source === "all_services"
+            ? [listServicePoolCandidates(services)]
+            : listRegisteredFallbackCandidates(
+                  params.fallbacks ?? {},
+                  primary,
+                  nodeId,
+                  services,
+              );
 
-    if (!lists.length) return [];
+    if (!candidateLists.length) return [];
 
     const primaryRate = rateOf(services, primary);
     const seen = new Set<string>();
     const eligible: ServiceIdRef[] = [];
 
-    for (const list of lists) {
-        for (const cand of list) {
-            const key = String(cand);
-            if (excludes.has(key)) continue;
-            if (unique && seen.has(key)) continue;
-            seen.add(key);
+    for (const list of candidateLists) {
+        for (const candidate of list) {
+            if (hasComparableServiceRef(excludes, services, candidate)) continue;
 
-            const cap = getCap(services, cand);
-            if (!cap) continue;
+            const capability = getCap(services, candidate);
+            if (!capability) continue;
+            const candidateId = getServiceCapabilityCanonicalRef(services, candidate)
+                ?? candidate;
+            const candidateIdentity = getComparableServiceRefKey(
+                services,
+                candidateId,
+            );
+            if ((params.unique ?? true) && seen.has(candidateIdentity)) continue;
+            seen.add(candidateIdentity);
 
-            // Rate policy must pass
-            if (!passesRate(s.ratePolicy, primaryRate, cap.rate)) continue;
-
-            // Tag constraint fit is only enforced if we know tagId and setting requires it
+            if (!passesRate(s.ratePolicy, primaryRate, capability.rate)) {
+                continue;
+            }
             if (s.requireConstraintFit && tagId) {
-                const ok = satisfiesTagConstraints(
+                const fitsConstraints = satisfiesTagConstraints(
                     tagId,
                     { props: params.props, services },
-                    cap,
+                    capability,
                 );
-                if (!ok) continue;
+                if (!fitsConstraints) continue;
             }
 
-            eligible.push(cand);
+            eligible.push(candidateId);
         }
     }
 
-    // Selection strategy
     if (s.selectionStrategy === "cheapest") {
-        eligible.sort((a, b) => {
-            const ra = rateOf(services, a) ?? Infinity;
-            const rb = rateOf(services, b) ?? Infinity;
-            return ra - rb;
+        eligible.sort((left, right) => {
+            const leftRate = rateOf(services, left) ?? Infinity;
+            const rightRate = rateOf(services, right) ?? Infinity;
+            return leftRate - rightRate;
         });
     }
-    // 'priority' keeps original order
 
-    // Optional limit
     if (typeof params.limit === "number" && params.limit >= 0) {
         return eligible.slice(0, params.limit);
     }
+
     return eligible;
+}
+
+export function getAssignedServiceIds(params: {
+    props?: ServiceProps;
+    snapshot?: OrderSnapshot;
+}): ServiceIdRef[] {
+    const seen = new Set<string>();
+    const out: ServiceIdRef[] = [];
+
+    const push = (value: unknown) => {
+        if (!isValidServiceIdRef(value)) return;
+        const key = String(value);
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push(value);
+    };
+
+    const props = params.props;
+    if (props) {
+        for (const tag of props.filters ?? []) {
+            push(tag.service_id);
+        }
+
+        for (const field of props.fields ?? []) {
+            const fieldService = (field as Field & { service_id?: ServiceIdRef })
+                .service_id;
+            if ((field as any).button === true) {
+                push(fieldService);
+            }
+
+            for (const option of field.options ?? []) {
+                if ((option as FieldOption).pricing_role === "utility") continue;
+                push((option as FieldOption).service_id);
+            }
+        }
+    }
+
+    const snapshot = params.snapshot;
+    if (snapshot) {
+        for (const serviceId of snapshot.services ?? []) {
+            push(serviceId);
+        }
+        for (const list of Object.values(snapshot.serviceMap ?? {})) {
+            for (const serviceId of list ?? []) {
+                push(serviceId);
+            }
+        }
+    }
+
+    return out;
 }
 
 export function getFallbackRegistrationInfo(
@@ -383,4 +457,98 @@ export function getFallbackRegistrationInfo(
 } {
     const { primary, tagContexts } = primaryForNode(props, nodeId);
     return { primary, tagContexts };
+}
+
+function listRegisteredFallbackCandidates(
+    fallbacks: ServiceFallback,
+    primary: ServiceIdRef,
+    nodeId?: NodeIdRef,
+    services?: DgpServiceMap,
+): ServiceIdRef[][] {
+    const lists: ServiceIdRef[][] = [];
+    if (nodeId && fallbacks.nodes?.[nodeId]) {
+        lists.push(fallbacks.nodes[nodeId]);
+    }
+
+    for (const [registeredPrimary, list] of Object.entries(fallbacks.global ?? {})) {
+        if (!isMatchingServiceRef(services, registeredPrimary, primary)) continue;
+        lists.push(list);
+    }
+
+    return lists;
+}
+
+function listServicePoolCandidates(services: DgpServiceMap): ServiceIdRef[] {
+    const seen = new Set<string>();
+    const out: ServiceIdRef[] = [];
+
+    for (const [key, capability] of Object.entries(services ?? {})) {
+        const candidate = getServicePoolCandidateId(key, capability);
+        if (!isValidServiceIdRef(candidate)) continue;
+
+        const identity = getComparableServiceRefKey(services, candidate);
+        if (seen.has(identity)) continue;
+        seen.add(identity);
+        out.push(candidate);
+    }
+
+    return out;
+}
+
+function getServicePoolCandidateId(
+    key: string,
+    capability: DgpServiceCapability,
+): ServiceIdRef | undefined {
+    return getServiceCapabilityCanonicalRef({ [key]: capability }, key) ?? key;
+}
+
+function addComparableServiceRef(
+    target: Set<string>,
+    services: DgpServiceMap,
+    value: ServiceIdRef | undefined,
+): void {
+    for (const ref of getComparableServiceRefs(services, value)) {
+        target.add(ref);
+    }
+}
+
+function hasComparableServiceRef(
+    target: Set<string>,
+    services: DgpServiceMap,
+    value: ServiceIdRef | undefined,
+): boolean {
+    return getComparableServiceRefs(services, value).some((ref) => target.has(ref));
+}
+
+function getComparableServiceRefKey(
+    services: DgpServiceMap,
+    value: ServiceIdRef | undefined,
+): string {
+    if (!isValidServiceIdRef(value)) return "";
+
+    const canonical = getServiceCapabilityCanonicalRef(services, value);
+    return String(canonical ?? value);
+}
+
+function getComparableServiceRefs(
+    services: DgpServiceMap,
+    value: ServiceIdRef | undefined,
+): string[] {
+    if (!isValidServiceIdRef(value)) return [];
+
+    const aliases = getServiceCapabilityAliases(services, value);
+    if (!aliases.length) {
+        return [String(value)];
+    }
+
+    return aliases.map((ref) => String(ref));
+}
+
+function isMatchingServiceRef(
+    services: DgpServiceMap | undefined,
+    left: ServiceIdRef,
+    right: ServiceIdRef,
+): boolean {
+    if (!services) return String(left) === String(right);
+    return isSameServiceCapabilityRef(services, left, right);
 }

@@ -11,7 +11,7 @@ export function FallbackDetailsPanel() {
     );
 
     return (
-        <aside className="flex min-h-0 flex-col gap-4">
+        <aside className="flex min-h-0 flex-col gap-4 overflow-y-auto">
             <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
                 <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
                     Primary service info

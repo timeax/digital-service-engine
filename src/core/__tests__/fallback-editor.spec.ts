@@ -324,7 +324,7 @@ describe("fallback-editor", () => {
         expect(next.current.nodes?.T).toBeUndefined();
     });
 
-    it("eligible(node scope) delegates to core fallback eligibility", () => {
+    it("eligible(node scope) discovers from the service pool and excludes current scope duplicates", () => {
         const props = baseProps();
         const editor = createFallbackEditor({
             fallbacks: props.fallbacks,
@@ -339,8 +339,10 @@ describe("fallback-editor", () => {
 
         const eligible = editor.eligible({ scope: "node", nodeId: "T" });
 
-        expect(eligible).toContain(101);
+        expect(eligible).toEqual([104]);
+        expect(eligible).not.toContain(101);
         expect(eligible).not.toContain(102);
+        expect(eligible).not.toContain(103);
     });
 
     it("state() tracks changed status and reset() restores original fallbacks", () => {

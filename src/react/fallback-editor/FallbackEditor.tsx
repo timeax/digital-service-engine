@@ -81,13 +81,13 @@ function FallbackEditorInner({ className }: { className?: string }) {
     return (
         <div
             className={[
-                "min-h-screen bg-zinc-100 p-4 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100",
+                "h-full min-h-0 overflow-hidden bg-zinc-100 p-4 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100",
                 className,
             ]
                 .filter(Boolean)
                 .join(" ")}
         >
-            <div className="mx-auto flex max-w-7xl flex-col gap-4">
+            <div className="flex h-full min-h-0 flex-col gap-4">
                 <FallbackEditorHeader
                     onReset={resetEditor}
                     onValidate={validateFallbacks}
@@ -97,10 +97,10 @@ function FallbackEditorInner({ className }: { className?: string }) {
                     saving={headerSaving}
                 />
 
-                <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)_360px]">
+                <div className="grid min-h-0 flex-1 gap-4 overflow-hidden xl:grid-cols-[300px_minmax(0,1fr)_360px]">
                     <FallbackServiceSidebar />
 
-                    <div className="flex min-h-0 flex-col gap-4">
+                    <div className="flex min-h-0 flex-col gap-4 overflow-y-auto">
                         <section className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
                             <div className="flex flex-wrap items-start justify-between gap-4">
                                 <div>

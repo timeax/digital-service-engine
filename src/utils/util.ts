@@ -5,12 +5,24 @@ import type {
 } from "@/schema";
 import type { FallbackSettings, RatePolicy } from "@/schema/validation";
 
+type ServiceCapabilityEntry = {
+    key: string;
+    capability: DgpServiceCapability;
+};
+
 /**
  * Safely convert unknown to a finite number. Returns NaN if not finite.
  */
 export function toFiniteNumber(v: unknown): number {
     const n = Number(v);
     return Number.isFinite(n) ? n : NaN;
+}
+
+export function isValidServiceIdRef(value: unknown): value is ServiceIdRef {
+    return (
+        (typeof value === "number" && Number.isFinite(value)) ||
+        (typeof value === "string" && value.trim().length > 0)
+    );
 }
 
 /**
@@ -35,24 +47,49 @@ export function getServiceCapability(
     svcMap: DgpServiceMap,
     candidate: ServiceIdRef | undefined,
 ): DgpServiceCapability | undefined {
-    if (candidate === undefined || candidate === null) return undefined;
+    return getServiceCapabilityEntry(svcMap, candidate)?.capability;
+}
 
-    const direct = (svcMap as any)[candidate] as DgpServiceCapability | undefined;
-    if (direct) return direct;
+export function getServiceCapabilityCanonicalRef(
+    svcMap: DgpServiceMap,
+    candidate: ServiceIdRef | undefined,
+): ServiceIdRef | undefined {
+    const entry = getServiceCapabilityEntry(svcMap, candidate);
+    if (!entry) return undefined;
 
-    const byString = (svcMap as any)[String(candidate)] as
-        | DgpServiceCapability
-        | undefined;
-    if (byString) return byString;
+    return getCanonicalServiceRef(entry.key, entry.capability);
+}
 
-    if (typeof candidate === "string") {
-        const maybeNumber = Number(candidate);
-        if (Number.isFinite(maybeNumber)) {
-            return (svcMap as any)[maybeNumber] as DgpServiceCapability | undefined;
-        }
+export function getServiceCapabilityAliases(
+    svcMap: DgpServiceMap,
+    candidate: ServiceIdRef | undefined,
+): ServiceIdRef[] {
+    const entry = getServiceCapabilityEntry(svcMap, candidate);
+    if (!entry) return [];
+
+    return collectServiceRefAliases(entry.key, entry.capability);
+}
+
+export function isSameServiceCapabilityRef(
+    svcMap: DgpServiceMap,
+    left: ServiceIdRef | undefined,
+    right: ServiceIdRef | undefined,
+): boolean {
+    if (!isValidServiceIdRef(left) || !isValidServiceIdRef(right)) return false;
+
+    const leftAliases = new Set(
+        getServiceCapabilityAliases(svcMap, left).map((value) => String(value)),
+    );
+    if (!leftAliases.size) {
+        leftAliases.add(String(left));
     }
 
-    return undefined;
+    const rightAliases = getServiceCapabilityAliases(svcMap, right);
+    if (!rightAliases.length) {
+        return leftAliases.has(String(right));
+    }
+
+    return rightAliases.some((value) => leftAliases.has(String(value)));
 }
 
 export function normalizeRatePolicy(policy: RatePolicy | undefined): RatePolicy {
@@ -105,4 +142,104 @@ export function rateOk(
     if (!Number.isFinite(cRate) || !Number.isFinite(pRate)) return false;
 
     return passesRatePolicy(policy.ratePolicy, pRate, cRate);
+}
+
+function getServiceCapabilityEntry(
+    svcMap: DgpServiceMap,
+    candidate: ServiceIdRef | undefined,
+): ServiceCapabilityEntry | undefined {
+    if (candidate === undefined || candidate === null) return undefined;
+
+    const direct = (svcMap as any)[candidate] as DgpServiceCapability | undefined;
+    if (direct) {
+        return { key: String(candidate), capability: direct };
+    }
+
+    const byString = (svcMap as any)[String(candidate)] as
+        | DgpServiceCapability
+        | undefined;
+    if (byString) {
+        return { key: String(candidate), capability: byString };
+    }
+
+    if (typeof candidate === "string") {
+        const maybeNumber = Number(candidate);
+        if (Number.isFinite(maybeNumber)) {
+            const byNumber = (svcMap as any)[maybeNumber] as
+                | DgpServiceCapability
+                | undefined;
+            if (byNumber) {
+                return { key: String(maybeNumber), capability: byNumber };
+            }
+        }
+    }
+
+    const target = String(candidate);
+    for (const [key, capability] of Object.entries(svcMap ?? {})) {
+        if (
+            collectServiceRefAliases(key, capability).some(
+                (alias) => String(alias) === target,
+            )
+        ) {
+            return { key, capability };
+        }
+    }
+
+    return undefined;
+}
+
+function collectServiceRefAliases(
+    key: string,
+    capability: DgpServiceCapability,
+): ServiceIdRef[] {
+    const out: ServiceIdRef[] = [];
+    const seen = new Set<string>();
+
+    const push = (value: unknown) => {
+        if (!isValidServiceIdRef(value)) return;
+        const normalized = normalizeServiceRef(value);
+        if (!normalized) return;
+        const aliasKey = String(normalized);
+        if (seen.has(aliasKey)) return;
+        seen.add(aliasKey);
+        out.push(normalized);
+    };
+
+    push(getCanonicalServiceRef(key, capability));
+    push((capability as any).service);
+    push((capability as any).key);
+    push(capability.id);
+
+    return out;
+}
+
+function getCanonicalServiceRef(
+    key: string,
+    capability: DgpServiceCapability,
+): ServiceIdRef | undefined {
+    const explicitRefs = [(capability as any).service, (capability as any).key, capability.id];
+
+    for (const ref of explicitRefs) {
+        if (!isValidServiceIdRef(ref)) continue;
+        if (String(ref) === key) {
+            return ref;
+        }
+    }
+
+    return normalizeServiceRef(key);
+}
+
+function normalizeServiceRef(value: unknown): ServiceIdRef | undefined {
+    if (!isValidServiceIdRef(value)) return undefined;
+    if (typeof value === "number") return value;
+
+    const trimmed = value.trim();
+    if (!trimmed) return undefined;
+
+    const asNumber = Number(trimmed);
+    if (Number.isFinite(asNumber) && String(asNumber) === trimmed) {
+        return asNumber;
+    }
+
+    return trimmed;
 }

@@ -28,6 +28,7 @@ export type FallbackEditorServiceRecord = {
 export type FallbackEditorServiceMap = DgpServiceMap;
 
 export type FallbackRegistrationScope = "global" | "node";
+export type FallbackEligibleSource = "all_services" | "registered";
 
 export type FallbackScopeRef =
     | {
@@ -209,6 +210,20 @@ export interface FallbackEditor {
 
     /** Clears one exact scope value */
     clear(context: FallbackScopeRef): FallbackEditorState;
+
+    /**
+     * Returns candidates eligible for the given scope.
+     * Defaults to discovery from the loaded services pool.
+     */
+    eligible(
+        context: FallbackScopeRef,
+        options?: {
+            exclude?: ServiceIdRef[];
+            unique?: boolean;
+            limit?: number;
+            source?: FallbackEligibleSource;
+        },
+    ): ServiceIdRef[];
 }
 
 export declare function createFallbackEditor(
