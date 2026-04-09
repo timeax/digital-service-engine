@@ -41,6 +41,7 @@ export function normalise(
     const excludes_for_buttons = toStringArrayMap(
         (obj as any).excludes_for_buttons,
     );
+    const orderKinds = toStringMap((obj as any).orderKinds);
     const notices = toNoticeArray((obj as any).notices);
 
     // Tags & fields
@@ -59,6 +60,7 @@ export function normalise(
         filters,
         fields,
         order_for_tags: (obj as any).order_for_tags,
+        ...(isNonEmpty(orderKinds) && { orderKinds }),
         ...(isNonEmpty(includes_for_buttons) && { includes_for_buttons }),
         ...(isNonEmpty(excludes_for_buttons) && { excludes_for_buttons }),
         ...(fallbacks &&
@@ -380,6 +382,16 @@ function normaliseBindId(bind: unknown): string | string[] | undefined {
         return arr;
     }
     return undefined;
+}
+
+function toStringMap(src: any): Record<string, string> | undefined {
+    if (!src || typeof src !== "object") return undefined;
+    const out: Record<string, string> = {};
+    for (const [k, v] of Object.entries(src)) {
+        if (!k || typeof v !== "string") continue;
+        out[k] = v;
+    }
+    return Object.keys(out).length ? out : undefined;
 }
 
 function toStringArrayMap(src: any): Record<string, string[]> | undefined {

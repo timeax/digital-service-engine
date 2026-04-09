@@ -1,0 +1,667 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$ref": "#/definitions/OrderSnapshot",
+  "definitions": {
+    "OrderSnapshot": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "const": "1"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "prod",
+            "dev"
+          ]
+        },
+        "builtAt": {
+          "type": "string"
+        },
+        "selection": {
+          "type": "object",
+          "properties": {
+            "tag": {
+              "type": "string"
+            },
+            "buttons": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "fields": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "selectedOptions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "id",
+                  "type"
+                ]
+              }
+            }
+          },
+          "required": [
+            "tag",
+            "buttons",
+            "fields"
+          ]
+        },
+        "inputs": {
+          "type": "object",
+          "properties": {
+            "form": {
+              "type": "object",
+              "additionalProperties": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/Scalar"
+                  },
+                  {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/definitions/Scalar"
+                    }
+                  }
+                ]
+              }
+            },
+            "selections": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "required": [
+            "form",
+            "selections"
+          ]
+        },
+        "quantity": {
+          "type": "number"
+        },
+        "quantitySource": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": [
+                "field",
+                "tag",
+                "option",
+                "default"
+              ]
+            },
+            "id": {
+              "type": "string"
+            },
+            "rule": {
+              "$ref": "#/definitions/QuantityRule"
+            },
+            "defaultedFromHost": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        },
+        "min": {
+          "type": "number"
+        },
+        "max": {
+          "type": "number"
+        },
+        "orderKind": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "orderKindSource": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/OrderKindSource"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "services": {
+          "type": "array",
+          "items": {
+            "type": [
+              "string",
+              "number"
+            ]
+          }
+        },
+        "serviceMap": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": [
+                "string",
+                "number"
+              ]
+            }
+          }
+        },
+        "fallbacks": {
+          "$ref": "#/definitions/ServiceFallbacks"
+        },
+        "utilities": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/UtilityLineItem"
+          }
+        },
+        "warnings": {
+          "type": "object",
+          "properties": {
+            "utility": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "nodeId": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "nodeId",
+                  "reason"
+                ]
+              }
+            },
+            "fallbacks": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/FallbackDiagnostics"
+              }
+            }
+          }
+        },
+        "meta": {
+          "type": "object",
+          "properties": {
+            "schema_version": {
+              "type": "string"
+            },
+            "workspaceId": {
+              "type": "string"
+            },
+            "builder": {
+              "type": "object",
+              "properties": {
+                "commit": {
+                  "type": "string"
+                }
+              }
+            },
+            "context": {
+              "$ref": "#/definitions/SnapshotContext"
+            }
+          }
+        }
+      },
+      "required": [
+        "version",
+        "mode",
+        "builtAt",
+        "selection",
+        "inputs",
+        "quantity",
+        "quantitySource",
+        "min",
+        "max",
+        "services",
+        "serviceMap"
+      ]
+    },
+    "Scalar": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/definitions/ButtonValue"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ButtonValue": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "value": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "service_id": {
+          "$ref": "#/definitions/ServiceIdRef"
+        },
+        "pricing_role": {
+          "type": "string",
+          "enum": [
+            "base",
+            "utility"
+          ]
+        },
+        "meta": {
+          "type": "object",
+          "properties": {
+            "quantityDefault": {
+              "type": "number"
+            },
+            "utility": {
+              "type": "object",
+              "properties": {
+                "rate": {
+                  "type": "number"
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "flat",
+                    "per_quantity",
+                    "per_value",
+                    "percent"
+                  ]
+                },
+                "valueBy": {
+                  "type": "string",
+                  "enum": [
+                    "value",
+                    "length"
+                  ]
+                },
+                "percentBase": {
+                  "type": "string",
+                  "enum": [
+                    "service_total",
+                    "base_service",
+                    "all"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "rate",
+                "mode"
+              ]
+            }
+          }
+        }
+      },
+      "required": [
+        "id",
+        "value"
+      ]
+    },
+    "ServiceIdRef": {
+      "$ref": "#/definitions/IdType"
+    },
+    "IdType": {
+      "type": [
+        "string",
+        "number"
+      ]
+    },
+    "QuantityRule": {
+      "type": "object",
+      "properties": {
+        "valueBy": {
+          "type": "string",
+          "enum": [
+            "value",
+            "length",
+            "eval"
+          ]
+        },
+        "code": {
+          "type": "string"
+        },
+        "multiply": {
+          "type": "number"
+        },
+        "clamp": {
+          "type": "object",
+          "properties": {
+            "min": {
+              "type": "number"
+            },
+            "max": {
+              "type": "number"
+            }
+          }
+        },
+        "fallback": {
+          "type": "number"
+        }
+      },
+      "required": [
+        "valueBy"
+      ]
+    },
+    "OrderKindSource": {
+      "type": "object",
+      "properties": {
+        "nodeId": {
+          "type": "string"
+        },
+        "nodeKind": {
+          "type": "string",
+          "enum": [
+            "tag",
+            "field",
+            "option"
+          ]
+        }
+      },
+      "required": [
+        "nodeId",
+        "nodeKind"
+      ]
+    },
+    "ServiceFallbacks": {
+      "$ref": "#/definitions/ServiceFallback"
+    },
+    "ServiceFallback": {
+      "type": "object",
+      "properties": {
+        "nodes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/ServiceIdRef"
+            }
+          },
+          "description": "Node-scoped fallbacks: prefer these when that node’s primary service fails"
+        },
+        "global": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/definitions/ServiceIdRef"
+            }
+          },
+          "description": "Primary→fallback list used when no node-scoped entry is present"
+        }
+      }
+    },
+    "UtilityLineItem": {
+      "type": "object",
+      "properties": {
+        "nodeId": {
+          "type": "string"
+        },
+        "mode": {
+          "$ref": "#/definitions/UtilityMode"
+        },
+        "rate": {
+          "type": "number"
+        },
+        "percentBase": {
+          "type": "string",
+          "enum": [
+            "service_total",
+            "base_service",
+            "all"
+          ]
+        },
+        "label": {
+          "type": "string"
+        },
+        "inputs": {
+          "type": "object",
+          "properties": {
+            "quantity": {
+              "type": "number"
+            },
+            "value": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Scalar"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Scalar"
+                  }
+                }
+              ]
+            },
+            "valueBy": {
+              "type": "string",
+              "enum": [
+                "value",
+                "length"
+              ]
+            }
+          },
+          "required": [
+            "quantity"
+          ]
+        }
+      },
+      "required": [
+        "nodeId",
+        "mode",
+        "rate",
+        "inputs"
+      ]
+    },
+    "UtilityMode": {
+      "type": "string",
+      "enum": [
+        "flat",
+        "per_quantity",
+        "per_value",
+        "percent"
+      ]
+    },
+    "FallbackDiagnostics": {
+      "type": "object",
+      "properties": {
+        "scope": {
+          "type": "string",
+          "enum": [
+            "node",
+            "global"
+          ]
+        },
+        "nodeId": {
+          "type": "string"
+        },
+        "primary": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "candidate": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "rate_violation",
+              "constraint_mismatch",
+              "unknown_service",
+              "ambiguous_context"
+            ]
+          }
+        }
+      },
+      "required": [
+        "scope",
+        "primary",
+        "candidate",
+        "reasons"
+      ]
+    },
+    "SnapshotContext": {
+      "type": "object",
+      "properties": {
+        "tag": {
+          "type": "string",
+          "description": "The single active tag id for this order"
+        },
+        "constraints": {
+          "type": "object",
+          "properties": {
+            "refill": {
+              "type": "boolean"
+            },
+            "cancel": {
+              "type": "boolean"
+            },
+            "dripfeed": {
+              "type": "boolean"
+            }
+          },
+          "description": "Effective (post-propagation) constraints on that tag"
+        },
+        "nodeContexts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": "Per-node evaluation context:\n- For the active tag node itself: the same tag id.\n- For an option node: parent's field.bind_id must include this tag to be applicable; otherwise null.\n- For a field node (optional to include later): same rule as option, derived from field.bind_id."
+        },
+        "policy": {
+          "type": "object",
+          "properties": {
+            "ratePolicy": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "eq_primary"
+                    }
+                  },
+                  "required": [
+                    "kind"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "lte_primary"
+                    },
+                    "pct": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "pct"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "within_pct"
+                    },
+                    "pct": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "pct"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "const": "at_least_pct_lower"
+                    },
+                    "pct": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "kind",
+                    "pct"
+                  ]
+                }
+              ]
+            },
+            "requireConstraintFit": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "ratePolicy",
+            "requireConstraintFit"
+          ],
+          "description": "Client pruning policy used (so server can mirror/compare)."
+        }
+      },
+      "required": [
+        "tag",
+        "constraints",
+        "nodeContexts",
+        "policy"
+      ]
+    }
+  }
+}

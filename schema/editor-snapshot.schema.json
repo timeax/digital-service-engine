@@ -41,6 +41,12 @@
             }
           }
         },
+        "orderKinds": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
         "filters": {
           "type": "array",
           "items": {

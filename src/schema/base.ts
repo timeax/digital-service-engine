@@ -270,6 +270,7 @@ export type Tag = {
 
 export type ServiceProps = {
     order_for_tags?: Record<string, string[]>;
+    orderKinds?: Record<string, string>;
     filters: Tag[];
     fields: Field[];
     includes_for_buttons?: Record<string, string[]>;

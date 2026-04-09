@@ -381,6 +381,81 @@ describe("validate()", () => {
         expect(err?.details?.utilityOptionIds).toContain("oU");
     });
 
+    it("flags multiple_order_kinds_selected when selected triggers resolve to different order kinds", () => {
+        const props: ServiceProps = {
+            filters: [{ id: "t:root", label: "Root" }],
+            fields: [
+                {
+                    id: "f:instant-order",
+                    label: "Instant Order",
+                    type: "checkbox",
+                    bind_id: "t:root",
+                    name: "instantOrder",
+                    button: true,
+                },
+                {
+                    id: "f:plan",
+                    label: "Plan",
+                    type: "select",
+                    bind_id: "t:root",
+                    name: "plan",
+                    options: [
+                        { id: "o:contract", label: "Contract" },
+                        { id: "o:quote", label: "Quote" },
+                    ],
+                },
+            ],
+            orderKinds: {
+                "f:instant-order": "contract",
+                "o:quote": "quote",
+            },
+        };
+
+        const out = validate(normalise(props), {
+            selectedOptionKeys: ["f:instant-order", "o:quote"],
+        });
+
+        expect(
+            out.some((e) => e.code === "multiple_order_kinds_selected"),
+        ).toBe(true);
+    });
+
+    it("does not flag order kind ambiguity when selected triggers resolve to the same order kind", () => {
+        const props: ServiceProps = {
+            filters: [{ id: "t:root", label: "Root" }],
+            fields: [
+                {
+                    id: "f:instant-order",
+                    label: "Instant Order",
+                    type: "checkbox",
+                    bind_id: "t:root",
+                    name: "instantOrder",
+                    button: true,
+                },
+                {
+                    id: "f:plan",
+                    label: "Plan",
+                    type: "select",
+                    bind_id: "t:root",
+                    name: "plan",
+                    options: [{ id: "o:contract", label: "Contract" }],
+                },
+            ],
+            orderKinds: {
+                "f:instant-order": "contract",
+                "o:contract": "contract",
+            },
+        };
+
+        const out = validate(normalise(props), {
+            selectedOptionKeys: ["f:instant-order", "f:plan::o:contract"],
+        });
+
+        expect(
+            out.some((e) => e.code === "multiple_order_kinds_selected"),
+        ).toBe(false);
+    });
+
     it("constraints: descendant cannot contradict ancestor; tag promises must be supported by service", () => {
         const props: ServiceProps = {
             filters: [

@@ -49,7 +49,8 @@ export type ValidationCode =
     | "field_validation_invalid_op"
     | "field_validation_eval_missing_code"
     | "field_validation_between_missing_bounds"
-    | "field_validation_match_missing_pattern";
+    | "field_validation_match_missing_pattern"
+    | "multiple_order_kinds_selected";
 
 export type ValidationError = {
     code: ValidationCode;

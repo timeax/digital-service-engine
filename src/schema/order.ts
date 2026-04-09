@@ -87,6 +87,11 @@ export type SnapshotContext = {
     };
 };
 
+export type OrderKindSource = {
+    nodeId: string;
+    nodeKind: "tag" | "field" | "option";
+};
+
 // Stable order snapshot contract (client -> server).
 export type OrderSnapshot = {
     version: "1";
@@ -121,6 +126,8 @@ export type OrderSnapshot = {
 
     min: number;
     max: number;
+    orderKind?: string | null;
+    orderKindSource?: OrderKindSource | null;
 
     // ── Selected primaries ──
     services: Array<string | number>; // deduped union of all primaries

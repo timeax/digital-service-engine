@@ -47,9 +47,14 @@ const baseConfig = {
     writeSchema('editor-snapshot.schema.json', schema);
 }
 
+/** 3) OrderSnapshot (runtime order contract) */
+{
+    const gen = createGenerator({...baseConfig, path: 'src/schema/order.ts', type: 'OrderSnapshot'});
+    const schema = gen.createSchema('OrderSnapshot');
+    writeSchema('order-snapshot.schema.json', schema);
+}
 
-// scripts/generate-schemas.mjs (add after editor-snapshot block)
-
+/** 4) AdminPolicies */
 {
     const gen = createGenerator({
         ...baseConfig,

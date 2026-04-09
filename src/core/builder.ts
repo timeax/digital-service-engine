@@ -389,6 +389,7 @@ class BuilderImpl implements Builder {
         const out: ServiceProps = {
             filters: this.props.filters.slice(),
             fields,
+            ...(this.props.orderKinds ? { orderKinds: this.props.orderKinds } : {}),
             ...(includes_for_buttons && { includes_for_buttons }),
             ...(excludes_for_buttons && { excludes_for_buttons }),
             schema_version: this.props.schema_version ?? "1.0",

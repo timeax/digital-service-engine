@@ -10,6 +10,7 @@ import {
 import { validateStructure } from "./steps/structure";
 import { validateIdentity } from "./steps/identity";
 import { validateOptionMaps } from "./steps/option-maps";
+import { validateOrderKinds } from "./steps/order-kinds";
 import { validateServiceVsUserInput } from "./steps/service-vs-input";
 import { validateUtilityMarkers } from "./steps/utility";
 import { validateRates } from "./steps/rates";
@@ -138,6 +139,9 @@ export function validate(
 
     // 3) option maps
     validateOptionMaps(v);
+
+    // 3b) selected-trigger order kind ambiguity
+    validateOrderKinds(v);
 
     // 4) visibility helpers + visibility rules (optionally simulated)
     v.fieldsVisibleUnder = createFieldsVisibleUnder(v);

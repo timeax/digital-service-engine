@@ -31,6 +31,7 @@
         },
         "./json/service-props": "./schema/service-props.schema.json",
         "./json/editor-snapshot": "./schema/editor-snapshot.schema.json",
+        "./json/order-snapshot": "./schema/order-snapshot.schema.json",
         "./json/policies": "./schema/policies.schema.json"
     },
     "types": "./dist/schema/index.d.ts",

@@ -29,6 +29,7 @@ import {
     normalizeRatePolicy,
     rateOk,
 } from "./util";
+import { resolveOrderKind } from "./order-kind";
 
 /* ───────────────────────── Public types ───────────────────────── */
 
@@ -148,6 +149,17 @@ export function buildOrderSnapshot(
     );
 
     const { min, max } = resolveMinMax(servicesList, services);
+    const maybeNodeMap =
+        typeof (builder as Partial<Builder> & { getNodeMap?: () => any })
+            .getNodeMap === "function"
+            ? builder.getNodeMap()
+            : undefined;
+    const resolvedOrderKind = resolveOrderKind({
+        props,
+        activeTagId: tagId,
+        selectedTriggerKeys: selectedButtonKeys,
+        nodeMap: maybeNodeMap,
+    });
 
     // 6) Fallbacks — client-side conservative prune (keeps only relevant-to-selection)
     const prunedFallbacks = pruneFallbacksConservative(
@@ -221,6 +233,8 @@ export function buildOrderSnapshot(
 
         min,
         max: max ?? min,
+        orderKind: resolvedOrderKind.kind,
+        orderKindSource: resolvedOrderKind.source,
 
         quantity,
         quantitySource,

@@ -66,6 +66,11 @@ import {
     setFieldValidation,
 } from "./editor/editor-field-rules";
 import {
+    deleteOrderKind,
+    pruneOrderKind,
+    setOrderKind,
+} from "./editor/editor-order-kinds";
+import {
     connect,
     disconnect,
     exclude,
@@ -385,6 +390,18 @@ export class Editor {
 
     clearFieldValidation(id: string): void {
         return clearFieldValidation(this.moduleCtx(), id);
+    }
+
+    setOrderKind(nodeId: string, kind: string): void {
+        return setOrderKind(this.moduleCtx(), nodeId, kind);
+    }
+
+    deleteOrderKind(nodeId: string): void {
+        return deleteOrderKind(this.moduleCtx(), nodeId);
+    }
+
+    pruneKind(kind: string): number {
+        return pruneOrderKind(this.moduleCtx(), kind);
     }
 
     getCatalog(): ServiceCatalogState | undefined {
