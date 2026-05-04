@@ -186,9 +186,7 @@ export function createNodeIndex(builder: Builder): NodeIndex {
         for (const fieldId of visible) {
             const node = getField(fieldId);
             if (!node) continue;
-            const explicit =
-                includes.has(fieldId) ||
-                isFieldBoundDirectToTag(fieldId, tagId);
+            const explicit = includes.has(fieldId);
             results.push(explicit ? node : { ...node, isInherited: true });
         }
 

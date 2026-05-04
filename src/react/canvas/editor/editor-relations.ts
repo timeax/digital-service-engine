@@ -66,11 +66,14 @@ export function include(
                 const ids = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
                 if (
                     receiver.kind === "tag" ||
-                    (receiver.kind === "field" && isActualButtonField(receiver.data)) ||
+                    (receiver.kind === "field" &&
+                        isActualButtonField(receiver.data)) ||
                     receiver.kind === "option"
                 ) {
                     if (receiver.kind === "tag") {
-                        const t = (p.filters ?? []).find((x) => x.id === receiverId);
+                        const t = (p.filters ?? []).find(
+                            (x) => x.id === receiverId,
+                        );
                         if (t) {
                             const accepted: string[] = [];
                             const next = new Set(t.includes ?? []);
@@ -97,7 +100,10 @@ export function include(
                                 next.add(id);
                                 accepted.push(id);
                             }
-                            if (accepted.length > 0 || (t.includes?.length ?? 0) > 0) {
+                            if (
+                                accepted.length > 0 ||
+                                (t.includes?.length ?? 0) > 0
+                            ) {
                                 t.includes = Array.from(next);
                             }
 
@@ -112,11 +118,17 @@ export function include(
                         }
                     } else {
                         const accepted: string[] = [];
-                        const current = p.includes_for_buttons?.[receiverId] ?? [];
+                        const current =
+                            p.includes_for_buttons?.[receiverId] ?? [];
                         const next = new Set(current);
                         for (const id of ids) {
                             if (
-                                wouldCreateIncludeExcludeCycle(ctx, p, receiverId, id)
+                                wouldCreateIncludeExcludeCycle(
+                                    ctx,
+                                    p,
+                                    receiverId,
+                                    id,
+                                )
                             ) {
                                 ctx.emit("editor:error", {
                                     message: `Cycle detected: ${receiverId} including ${id} would create a cycle.`,
@@ -133,8 +145,10 @@ export function include(
                             accepted.push(id);
                         }
                         if (accepted.length > 0 || current.length > 0) {
-                            if (!p.includes_for_buttons) p.includes_for_buttons = {};
-                            p.includes_for_buttons[receiverId] = Array.from(next);
+                            if (!p.includes_for_buttons)
+                                p.includes_for_buttons = {};
+                            p.includes_for_buttons[receiverId] =
+                                Array.from(next);
                         }
 
                         if (p.excludes_for_buttons?.[receiverId]) {
@@ -142,7 +156,9 @@ export function include(
                                 p.excludes_for_buttons[receiverId].filter(
                                     (x) => !accepted.includes(x),
                                 );
-                            if (p.excludes_for_buttons[receiverId].length === 0) {
+                            if (
+                                p.excludes_for_buttons[receiverId].length === 0
+                            ) {
                                 delete p.excludes_for_buttons[receiverId];
                             }
                         }
@@ -151,7 +167,9 @@ export function include(
                     if (!p.fields) p.fields = [];
                     if (!p.filters) p.filters = [];
                 } else {
-                    throw new Error("Receiver must be a tag, button field, or option");
+                    throw new Error(
+                        "Receiver must be a tag, button field, or option",
+                    );
                 }
             }),
         undo: () => ctx.undo(),
@@ -171,11 +189,14 @@ export function exclude(
                 const ids = Array.isArray(idOrIds) ? idOrIds : [idOrIds];
                 if (
                     receiver.kind === "tag" ||
-                    (receiver.kind === "field" && isActualButtonField(receiver.data)) ||
+                    (receiver.kind === "field" &&
+                        isActualButtonField(receiver.data)) ||
                     receiver.kind === "option"
                 ) {
                     if (receiver.kind === "tag") {
-                        const t = (p.filters ?? []).find((x) => x.id === receiverId);
+                        const t = (p.filters ?? []).find(
+                            (x) => x.id === receiverId,
+                        );
                         if (t) {
                             const accepted: string[] = [];
                             const next = new Set(t.excludes ?? []);
@@ -202,7 +223,10 @@ export function exclude(
                                 next.add(id);
                                 accepted.push(id);
                             }
-                            if (accepted.length > 0 || (t.excludes?.length ?? 0) > 0) {
+                            if (
+                                accepted.length > 0 ||
+                                (t.excludes?.length ?? 0) > 0
+                            ) {
                                 t.excludes = Array.from(next);
                             }
 
@@ -217,11 +241,17 @@ export function exclude(
                         }
                     } else {
                         const accepted: string[] = [];
-                        const current = p.excludes_for_buttons?.[receiverId] ?? [];
+                        const current =
+                            p.excludes_for_buttons?.[receiverId] ?? [];
                         const next = new Set(current);
                         for (const id of ids) {
                             if (
-                                wouldCreateIncludeExcludeCycle(ctx, p, receiverId, id)
+                                wouldCreateIncludeExcludeCycle(
+                                    ctx,
+                                    p,
+                                    receiverId,
+                                    id,
+                                )
                             ) {
                                 ctx.emit("editor:error", {
                                     message: `Cycle detected: ${receiverId} excluding ${id} would create a cycle.`,
@@ -238,8 +268,10 @@ export function exclude(
                             accepted.push(id);
                         }
                         if (accepted.length > 0 || current.length > 0) {
-                            if (!p.excludes_for_buttons) p.excludes_for_buttons = {};
-                            p.excludes_for_buttons[receiverId] = Array.from(next);
+                            if (!p.excludes_for_buttons)
+                                p.excludes_for_buttons = {};
+                            p.excludes_for_buttons[receiverId] =
+                                Array.from(next);
                         }
 
                         if (p.includes_for_buttons?.[receiverId]) {
@@ -247,7 +279,9 @@ export function exclude(
                                 p.includes_for_buttons[receiverId].filter(
                                     (x) => !accepted.includes(x),
                                 );
-                            if (p.includes_for_buttons[receiverId].length === 0) {
+                            if (
+                                p.includes_for_buttons[receiverId].length === 0
+                            ) {
                                 delete p.includes_for_buttons[receiverId];
                             }
                         }
@@ -256,7 +290,9 @@ export function exclude(
                     if (!p.fields) p.fields = [];
                     if (!p.filters) p.filters = [];
                 } else {
-                    throw new Error("Receiver must be a tag, button field, or option");
+                    throw new Error(
+                        "Receiver must be a tag, button field, or option",
+                    );
                 }
             }),
         undo: () => ctx.undo(),
@@ -276,99 +312,126 @@ export function connect(
                 if (kind === "bind") {
                     if (ctx.isTagId(fromId) && ctx.isTagId(toId)) {
                         if (wouldCreateTagCycle(ctx, p, fromId, toId)) {
-                            throw new Error(`bind would create a cycle: ${fromId} ? ${toId}`);
+                            throw new Error(
+                                `bind would create a cycle: ${fromId} ? ${toId}`,
+                            );
                         }
-                        const child = (p.filters ?? []).find((t) => t.id === toId);
+
+                        const child = (p.filters ?? []).find(
+                            (t) => t.id === toId,
+                        );
+
                         if (child) child.bind_id = fromId;
                         return;
                     }
+
                     if (
                         (ctx.isTagId(fromId) && ctx.isFieldId(toId)) ||
                         (ctx.isFieldId(fromId) && ctx.isTagId(toId))
                     ) {
                         const fieldId = ctx.isFieldId(toId) ? toId : fromId;
                         const tagId = ctx.isTagId(fromId) ? fromId : toId;
-                        const f = (p.fields ?? []).find((x) => x.id === fieldId);
+
+                        const f = (p.fields ?? []).find(
+                            (x) => x.id === fieldId,
+                        );
+
                         if (!f) return;
+
                         if (!f.bind_id) {
                             f.bind_id = tagId;
                             return;
                         }
+
                         if (typeof f.bind_id === "string") {
-                            if (f.bind_id !== tagId) f.bind_id = [f.bind_id, tagId];
+                            if (f.bind_id !== tagId) {
+                                f.bind_id = [f.bind_id, tagId];
+                            }
                             return;
                         }
-                        if (!f.bind_id.includes(tagId)) f.bind_id.push(tagId);
+
+                        if (!f.bind_id.includes(tagId)) {
+                            f.bind_id.push(tagId);
+                        }
+
                         return;
                     }
-                    throw new Error(`bind: unsupported route ${fromId} ? ${toId}`);
+
+                    throw new Error(
+                        `bind: unsupported route ${fromId} ? ${toId}`,
+                    );
                 }
 
                 if (kind === "include" || kind === "exclude") {
-                    const key = kind === "include" ? "includes" : "excludes";
+                    const tagKey = kind === "include" ? "includes" : "excludes";
+                    const mapKey =
+                        kind === "include"
+                            ? "includes_for_buttons"
+                            : "excludes_for_buttons";
 
                     if (ctx.isTagId(fromId) && ctx.isFieldId(toId)) {
-                        const t = (p.filters ?? []).find((x) => x.id === fromId);
+                        const t = (p.filters ?? []).find(
+                            (x) => x.id === fromId,
+                        );
+
                         if (!t) return;
-                        const arr = (t[key] ??= []);
+
+                        const arr = (t[tagKey] ??= []);
                         if (!arr.includes(toId)) arr.push(toId);
+
+                        return;
+                    }
+
+                    if (ctx.isFieldId(fromId) && ctx.isFieldId(toId)) {
+                        const source = (p.fields ?? []).find(
+                            (x) => x.id === fromId,
+                        );
+
+                        if (!source?.button) {
+                            throw new Error(
+                                `${kind}: source field must be button=true: ${fromId} ? ${toId}`,
+                            );
+                        }
+
+                        addMappedField(p, mapKey, fromId, toId);
                         return;
                     }
 
                     if (ctx.isOptionId(fromId) && ctx.isFieldId(toId)) {
-                        const mapKey =
-                            kind === "include"
-                                ? "includes_for_options"
-                                : "excludes_for_options";
-                        const maps = (p as any)[mapKey] as
-                            | Record<string, string[]>
-                            | undefined;
-                        const next = { ...(maps ?? {}) };
-                        const arr = next[fromId] ?? [];
-                        if (!arr.includes(toId)) arr.push(toId);
-                        next[fromId] = arr;
-                        (p as any)[mapKey] = next;
+                        addMappedField(p, mapKey, fromId, toId);
                         return;
                     }
 
-                    throw new Error(`${kind}: unsupported route ${fromId} ? ${toId}`);
+                    throw new Error(
+                        `${kind}: unsupported route ${fromId} ? ${toId}`,
+                    );
                 }
 
                 if (kind === "service") {
                     ensureServiceExists(ctx.opts, fromId);
 
                     if (toId.startsWith("t:")) {
-                        ctx.exec({
-                            name: "connect:service?tag",
-                            do: () =>
-                                ctx.patchProps((next) => {
-                                    const t = (next.filters ?? []).find((x) => x.id === toId);
-                                    if (t) (t as any).service_id = fromId;
-                                }),
-                            undo: () => ctx.undo(),
-                        });
+                        const t = (p.filters ?? []).find((x) => x.id === toId);
+                        if (t) (t as any).service_id = fromId;
                         return;
                     }
 
                     if (toId.startsWith("o:")) {
-                        ctx.exec({
-                            name: "connect:service?option",
-                            do: () =>
-                                ctx.patchProps((next) => {
-                                    for (const f of next.fields ?? []) {
-                                        const o = f.options?.find((x) => x.id === toId);
-                                        if (o) {
-                                            (o as any).service_id = fromId;
-                                            return;
-                                        }
-                                    }
-                                }),
-                            undo: () => ctx.undo(),
-                        });
+                        for (const f of p.fields ?? []) {
+                            const o = f.options?.find((x) => x.id === toId);
+
+                            if (o) {
+                                (o as any).service_id = fromId;
+                                return;
+                            }
+                        }
+
                         return;
                     }
 
-                    throw new Error('service: to must be a tag ("t:*") or option ("o:*")');
+                    throw new Error(
+                        'service: to must be a tag ("t:*") or option ("o:*")',
+                    );
                 }
 
                 throw new Error(`Unknown connect kind: ${kind}`);
@@ -389,101 +452,174 @@ export function disconnect(
             ctx.patchProps((p) => {
                 if (kind === "bind") {
                     if (ctx.isTagId(fromId) && ctx.isTagId(toId)) {
-                        const child = (p.filters ?? []).find((t) => t.id === toId);
-                        if (child?.bind_id === fromId) delete child.bind_id;
+                        const child = (p.filters ?? []).find(
+                            (t) => t.id === toId,
+                        );
+
+                        if (child?.bind_id === fromId) {
+                            delete child.bind_id;
+                        }
+
                         return;
                     }
+
                     if (
                         (ctx.isTagId(fromId) && ctx.isFieldId(toId)) ||
                         (ctx.isFieldId(fromId) && ctx.isTagId(toId))
                     ) {
                         const fieldId = ctx.isFieldId(toId) ? toId : fromId;
                         const tagId = ctx.isTagId(fromId) ? fromId : toId;
-                        const f = (p.fields ?? []).find((x) => x.id === fieldId);
+
+                        const f = (p.fields ?? []).find(
+                            (x) => x.id === fieldId,
+                        );
+
                         if (!f?.bind_id) return;
+
                         if (typeof f.bind_id === "string") {
-                            if (f.bind_id === tagId) delete f.bind_id;
+                            if (f.bind_id === tagId) {
+                                delete f.bind_id;
+                            }
+
                             return;
                         }
+
                         f.bind_id = f.bind_id.filter((x) => x !== tagId) as any;
-                        if (f.bind_id?.length === 0) delete f.bind_id;
+
+                        if (f.bind_id?.length === 0) {
+                            delete f.bind_id;
+                        }
+
                         return;
                     }
-                    throw new Error(`unbind: unsupported route ${fromId} ? ${toId}`);
+
+                    throw new Error(
+                        `unbind: unsupported route ${fromId} ? ${toId}`,
+                    );
                 }
 
                 if (kind === "include" || kind === "exclude") {
-                    const key = kind === "include" ? "includes" : "excludes";
+                    const tagKey = kind === "include" ? "includes" : "excludes";
+                    const mapKey =
+                        kind === "include"
+                            ? "includes_for_buttons"
+                            : "excludes_for_buttons";
 
                     if (ctx.isTagId(fromId) && ctx.isFieldId(toId)) {
-                        const t = (p.filters ?? []).find((x) => x.id === fromId);
+                        const t = (p.filters ?? []).find(
+                            (x) => x.id === fromId,
+                        );
+
                         if (!t) return;
-                        t[key] = (t[key] ?? []).filter((x) => x !== toId);
-                        if (!t[key]?.length) delete (t as any)[key];
+
+                        t[tagKey] = (t[tagKey] ?? []).filter((x) => x !== toId);
+
+                        if (!t[tagKey]?.length) {
+                            delete (t as any)[tagKey];
+                        }
+
                         return;
                     }
 
-                    if (ctx.isOptionId(fromId) && ctx.isFieldId(toId)) {
-                        const mapKey =
-                            kind === "include"
-                                ? "includes_for_options"
-                                : "excludes_for_options";
+                    if (
+                        (ctx.isFieldId(fromId) || ctx.isOptionId(fromId)) &&
+                        ctx.isFieldId(toId)
+                    ) {
                         const maps = (p as any)[mapKey] as
                             | Record<string, string[]>
                             | undefined;
-                        if (!maps) return;
-                        if (maps[fromId]) {
-                            maps[fromId] = (maps[fromId] ?? []).filter(
-                                (fid) => fid !== toId,
-                            );
-                            if (!maps[fromId]?.length) delete maps[fromId];
+
+                        if (!maps?.[fromId]) return;
+
+                        maps[fromId] = maps[fromId].filter(
+                            (fid) => fid !== toId,
+                        );
+
+                        if (!maps[fromId]?.length) {
+                            delete maps[fromId];
                         }
-                        if (!Object.keys(maps).length) delete (p as any)[mapKey];
+
+                        if (!Object.keys(maps).length) {
+                            delete (p as any)[mapKey];
+                        }
+
                         return;
                     }
 
-                    throw new Error(`${kind}: unsupported route ${fromId} ? ${toId}`);
+                    throw new Error(
+                        `${kind}: unsupported route ${fromId} ? ${toId}`,
+                    );
                 }
 
                 if (kind === "service") {
                     ensureServiceExists(ctx.opts, fromId);
 
                     if (toId.startsWith("t:")) {
-                        ctx.exec({
-                            name: "disconnect:service?tag",
-                            do: () =>
-                                ctx.patchProps((next) => {
-                                    const t = (next.filters ?? []).find((x) => x.id === toId);
-                                    if (t) delete (t as any).service_id;
-                                }),
-                            undo: () => ctx.undo(),
-                        });
+                        const t = (p.filters ?? []).find((x) => x.id === toId);
+
+                        if (t) {
+                            delete (t as any).service_id;
+                        }
+
                         return;
                     }
 
                     if (toId.startsWith("o:")) {
-                        ctx.exec({
-                            name: "disconnect:service?option",
-                            do: () =>
-                                ctx.patchProps((next) => {
-                                    for (const f of next.fields ?? []) {
-                                        const o = f.options?.find((x) => x.id === toId);
-                                        if (o) {
-                                            delete (o as any).service_id;
-                                            return;
-                                        }
-                                    }
-                                }),
-                            undo: () => ctx.undo(),
-                        });
+                        for (const f of p.fields ?? []) {
+                            const o = f.options?.find((x) => x.id === toId);
+
+                            if (o) {
+                                delete (o as any).service_id;
+                                return;
+                            }
+                        }
+
                         return;
                     }
 
-                    throw new Error('service: to must be a tag ("t:*") or option ("o:*")');
+                    throw new Error(
+                        'service: to must be a tag ("t:*") or option ("o:*")',
+                    );
                 }
 
                 throw new Error(`Unknown disconnect kind: ${kind}`);
             }),
         undo: () => ctx.undo(),
     });
+}
+
+function addMappedField(
+    p: any,
+    mapKey: "includes_for_buttons" | "excludes_for_buttons",
+    fromId: string,
+    toId: string,
+): void {
+    const maps = (p[mapKey] ?? {}) as Record<string, string[]>;
+    const arr = maps[fromId] ?? [];
+
+    if (!arr.includes(toId)) {
+        maps[fromId] = [...arr, toId];
+    }
+
+    p[mapKey] = maps;
+}
+
+function removeMappedField(
+    p: any,
+    mapKey: "includes_for_buttons" | "excludes_for_buttons",
+    fromId: string,
+    toId: string,
+): void {
+    const maps = p[mapKey] as Record<string, string[]> | undefined;
+    if (!maps?.[fromId]) return;
+
+    maps[fromId] = maps[fromId].filter((fid) => fid !== toId);
+
+    if (!maps[fromId]?.length) {
+        delete maps[fromId];
+    }
+
+    if (!Object.keys(maps).length) {
+        delete p[mapKey];
+    }
 }
