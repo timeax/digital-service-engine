@@ -55,7 +55,68 @@ type SharedDiagnostic = {
     message: string;
     simulationAnchor?: SimulationAnchor;
     invalidFieldIds: string[];
+    affectedIds: string[];
+    affectedServiceIds?: string[];
 };
+
+export type TriggerEffects = {
+    includes: Set<string>;
+    excludes: Set<string>;
+};
+
+export type TriggerEffectMap = Map<string, TriggerEffects>;
+
+function uniqueStrings(values: Array<string | undefined>): string[] {
+    const out = new Set<string>();
+    for (const value of values) {
+        if (!value) continue;
+        out.add(value);
+    }
+    return Array.from(out);
+}
+
+export function buildTriggerEffectMap(props: ServiceProps): TriggerEffectMap {
+    const map: TriggerEffectMap = new Map();
+
+    const ensure = (key: string): TriggerEffects => {
+        let item = map.get(key);
+        if (!item) {
+            item = { includes: new Set<string>(), excludes: new Set<string>() };
+            map.set(key, item);
+        }
+        return item;
+    };
+
+    for (const [key, ids] of Object.entries(props.includes_for_buttons ?? {})) {
+        const item = ensure(key);
+        for (const id of ids ?? []) item.includes.add(id);
+    }
+
+    for (const [key, ids] of Object.entries(props.excludes_for_buttons ?? {})) {
+        const item = ensure(key);
+        for (const id of ids ?? []) item.excludes.add(id);
+    }
+
+    return map;
+}
+
+export function isRefExcludedBySelectedKeys(
+    ref: { fieldId?: string; nodeId: string },
+    selectedKeys: readonly string[],
+    effectMap: TriggerEffectMap,
+): boolean {
+    for (const key of selectedKeys) {
+        const effects = effectMap.get(key);
+        if (!effects) continue;
+        if (
+            (ref.fieldId && effects.excludes.has(ref.fieldId)) ||
+            effects.excludes.has(ref.nodeId)
+        ) {
+            return true;
+        }
+    }
+    return false;
+}
 
 export type RateCoherenceDiagnostic =
     | (SharedDiagnostic & {
@@ -113,7 +174,7 @@ export function validateRateCoherenceDeep(params: {
     for (const anchor of anchors) {
         const selectedKeys =
             anchor.kind === "option"
-                ? [`${anchor.fieldId}::${anchor.id}`]
+                ? [anchor.id]
                 : [anchor.fieldId];
 
         const visibleFields = builder
@@ -143,6 +204,12 @@ export function validateRateCoherenceDeep(params: {
                     label: anchor.label,
                 },
                 invalidFieldIds: [fieldId],
+                affectedIds: uniqueStrings([
+                    tagId,
+                    anchor.id,
+                    anchor.fieldId,
+                    fieldId,
+                ]),
             });
         }
 
@@ -193,6 +260,20 @@ export function validateRateCoherenceDeep(params: {
                     label: anchor.label,
                 },
                 invalidFieldIds: visibleInvalidFieldIds,
+                affectedIds: uniqueStrings([
+                    tagId,
+                    ...selectedKeys,
+                    anchor.id,
+                    anchor.fieldId,
+                    primary.nodeId,
+                    primary.fieldId,
+                    candidate.nodeId,
+                    candidate.fieldId,
+                ]),
+                affectedServiceIds: uniqueStrings([
+                    primary.service_id == null ? undefined : String(primary.service_id),
+                    candidate.service_id == null ? undefined : String(candidate.service_id),
+                ]),
             });
         }
     }

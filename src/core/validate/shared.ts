@@ -22,7 +22,14 @@ export interface ValidationCtx {
     readonly fieldById: Map<string, Field>;
 
     fieldsVisibleUnder: (tagId: string) => Field[];
+    simulatedVisibilityContexts: SimulatedVisibilityContext[];
 }
+
+export type SimulatedVisibilityContext = {
+    tagId: string;
+    selectedKeys: string[];
+    visibleFieldIds: string[];
+};
 
 export function isFiniteNumber(v: unknown): v is number {
     return typeof v === "number" && Number.isFinite(v);

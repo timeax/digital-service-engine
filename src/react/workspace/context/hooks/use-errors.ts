@@ -220,7 +220,15 @@ export function useErrors(opts: UseErrorsOptions = {}): UseErrorsReturn {
 
                 try {
                     const props = api.editor.getProps() as ServiceProps;
-                    const res = validate(props, api.builder.getOptions?.() ?? {}); // sync engine
+                    const builderOptions = api.builder.getOptions?.() ?? {};
+                    const res = validate(props, {
+                        ...builderOptions,
+                        simulateVisibility:
+                            (builderOptions as any).simulateVisibility ?? true,
+                        visibilityOnlyEffectfulTriggers:
+                            (builderOptions as any)
+                                .visibilityOnlyEffectfulTriggers ?? true,
+                    } as any); // sync engine
                     if (token !== runTokenRef.current) return;
 
                     setValidation(toValidationRows(res ?? []));

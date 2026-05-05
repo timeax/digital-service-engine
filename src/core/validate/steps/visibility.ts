@@ -1,7 +1,7 @@
 // src/core/validate/steps/visibility.ts
 
 import type { Field, Tag } from "@/schema";
-import type { ValidationCtx } from "../shared";
+import type { SimulatedVisibilityContext, ValidationCtx } from "../shared";
 import { isServiceIdRef, withAffected } from "../shared";
 import { visibleFieldsUnder } from "@/core/visibility";
 
@@ -68,17 +68,11 @@ function resolveRootTags(tags: Tag[]): Tag[] {
     return roots.length ? roots : tags.slice(0, 1);
 }
 
-function isEffectfulTrigger(v: ValidationCtx, trigger: string): boolean {
-    const inc = v.props.includes_for_buttons ?? {};
-    const exc = v.props.excludes_for_buttons ?? {};
-    return (inc[trigger]?.length ?? 0) > 0 || (exc[trigger]?.length ?? 0) > 0;
-}
-
 function collectSelectableTriggersInContext(
     v: ValidationCtx,
     tagId: string,
     selectedKeys: Set<string>,
-    onlyEffectful: boolean,
+    effectfulKeys: Set<string>,
 ): string[] {
     const visible = visibleFieldsUnder(v.props, tagId, {
         selectedKeys: selectedKeys,
@@ -90,13 +84,13 @@ function collectSelectableTriggersInContext(
         // button-field trigger
         if ((f as any).button === true) {
             const t = f.id;
-            if (!onlyEffectful || isEffectfulTrigger(v, t)) triggers.push(t);
+            if (effectfulKeys.has(t)) triggers.push(t);
         }
 
-        // option triggers (canonical: "fieldId::optionId")
+        // option triggers
         for (const o of f.options ?? []) {
-            const t = `${f.id}::${o.id}`;
-            if (!onlyEffectful || isEffectfulTrigger(v, t)) triggers.push(t);
+            const t = o.id;
+            if (effectfulKeys.has(t)) triggers.push(t);
         }
     }
 
@@ -236,16 +230,36 @@ export function validateVisibility(
     v: ValidationCtx,
     options: SimulateVisibilityOptions = {},
 ): void {
+    v.simulatedVisibilityContexts = [];
+
     const simulate = options.simulate === true;
 
     if (!simulate) {
         runVisibilityRulesOnce(v);
+
+        for (const tag of v.tags) {
+            v.simulatedVisibilityContexts.push({
+                tagId: tag.id,
+                selectedKeys: Array.from(v.selectedKeys),
+                visibleFieldIds: v.fieldsVisibleUnder(tag.id).map((f) => f.id),
+            });
+        }
+
         return;
     }
 
     const maxStates = Math.max(1, options.maxStates ?? 500);
     const maxDepth = Math.max(0, options.maxDepth ?? 6);
     const onlyEffectful = options.onlyEffectfulTriggers !== false; // default true
+    const effectfulKeys = new Set<string>();
+    if (onlyEffectful) {
+        for (const key of Object.keys(v.props.includes_for_buttons ?? {})) {
+            effectfulKeys.add(key);
+        }
+        for (const key of Object.keys(v.props.excludes_for_buttons ?? {})) {
+            effectfulKeys.add(key);
+        }
+    }
 
     const roots = resolveRootTags(v.tags);
     const rootTags = options.simulateAllRoots ? roots : roots.slice(0, 1);
@@ -258,6 +272,7 @@ export function validateVisibility(
 
     // visited pruning by selection signature
     const visited = new Set<string>();
+    const seenContexts = new Set<string>();
 
     type State = { rootTagId: string; selected: Set<string>; depth: number };
     const stack: State[] = [];
@@ -277,13 +292,29 @@ export function validateVisibility(
         if (validatedStates >= maxStates) break;
 
         const state = stack.pop()!;
-        const sig = stableKeyOfSelection(state.selected);
-
+        const sig = `${state.rootTagId}::${stableKeyOfSelection(state.selected)}`;
         if (visited.has(sig)) continue;
         visited.add(sig);
 
         // apply selection for this state
         v.selectedKeys = state.selected;
+        const visibleNow = visibleFieldsUnder(v.props, state.rootTagId, {
+            selectedKeys: state.selected,
+        }).map((f) => f.id);
+        const context: SimulatedVisibilityContext = {
+            tagId: state.rootTagId,
+            selectedKeys: Array.from(state.selected),
+            visibleFieldIds: visibleNow,
+        };
+        const contextKey = [
+            context.tagId,
+            [...context.selectedKeys].sort().join("|"),
+            [...context.visibleFieldIds].sort().join("|"),
+        ].join("::");
+        if (!seenContexts.has(contextKey)) {
+            seenContexts.add(contextKey);
+            v.simulatedVisibilityContexts.push(context);
+        }
 
         // validate once under this selection context
         validatedStates++;
@@ -297,7 +328,7 @@ export function validateVisibility(
             v,
             state.rootTagId,
             state.selected,
-            onlyEffectful,
+            effectfulKeys,
         );
 
         // DFS, deterministic: push reverse so earlier triggers explored first

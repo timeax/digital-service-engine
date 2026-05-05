@@ -1,10 +1,9 @@
-import type { Builder } from "@/core/builder";
-import { compilePolicies, type PolicyDiagnostic } from "@/core/policy";
 import type {
     DgpServiceCapability,
     DgpServiceMap,
     DynamicRule,
     FallbackSettings,
+    Field,
     RatePolicy,
     ServiceIdRef,
 } from "@/schema";
@@ -12,10 +11,14 @@ import {
     constraintFitOk,
     getServiceCapability,
     normalizeRatePolicy,
-    rateOk,
     toFiniteNumber,
 } from "@/utils/util";
-import { DEFAULT_FALLBACK_SETTINGS } from "@/core/governance";
+import { buildNodeMap } from "@/core/node-map";
+import { buildTriggerEffectMap } from "@/core/rate-coherence";
+import type { ValidationCtx } from "@/core/validate/shared";
+import { validateRateCoherenceForVisibleContext } from "@/core/validate/steps/rate-coherence";
+import { compilePolicies, PolicyDiagnostic } from "@/core/policy";
+import { Builder } from "@/core/builder";
 
 export type ServiceCheck = {
     id: ServiceIdRef;
@@ -70,7 +73,6 @@ export function filterServicesForVisibleGroup(
     const { context } = input;
 
     const usedSet = new Set(context.usedServiceIds.map(String));
-    const primary = context.usedServiceIds[0];
     const explicitFallbackSettings =
         context.fallbackSettings ?? context.fallback;
     const resolvedRatePolicy = normalizeRatePolicy(
@@ -78,14 +80,6 @@ export function filterServicesForVisibleGroup(
             explicitFallbackSettings?.ratePolicy ??
             builderOptions?.ratePolicy,
     );
-    const fallbackSettingsSource =
-        explicitFallbackSettings ?? builderOptions?.fallbackSettings;
-
-    const fb: FallbackSettings = {
-        ...DEFAULT_FALLBACK_SETTINGS,
-        ...(fallbackSettingsSource ?? {}),
-        ratePolicy: resolvedRatePolicy,
-    };
     const policySource = context.policies ?? builderOptions?.policies ?? [];
 
     const visibleServiceIds =
@@ -122,8 +116,15 @@ export function filterServicesForVisibleGroup(
             context.effectiveConstraints ?? {},
         );
 
-        const passesRate =
-            primary == null ? true : rateOk(svcMap, id, primary, fb);
+        const passesRate = candidatePassesRateCoherence(
+            deps.builder,
+            svcMap,
+            context.tagId,
+            context.selectedButtons ?? [],
+            context.usedServiceIds,
+            id,
+            resolvedRatePolicy,
+        );
 
         const polRes = evaluatePoliciesRaw(
             policySource,
@@ -147,7 +148,9 @@ export function filterServicesForVisibleGroup(
             passesRate,
             passesPolicies,
             policyErrors: polRes.errors.length ? polRes.errors : undefined,
-            policyWarnings: polRes.warnings.length ? polRes.warnings : undefined,
+            policyWarnings: polRes.warnings.length
+                ? polRes.warnings
+                : undefined,
             reasons,
             cap,
             rate: toFiniteNumber(cap.rate),
@@ -280,7 +283,9 @@ function collectVisibleServiceIds(
     const tag = tags.find((t) => t.id === tagId);
     if (tag?.service_id != null) out.add(String(tag.service_id));
 
-    const visibleFieldIds = new Set(builder.visibleFields(tagId, selectedButtons));
+    const visibleFieldIds = new Set(
+        builder.visibleFields(tagId, selectedButtons),
+    );
     for (const field of fields) {
         if (!visibleFieldIds.has(field.id)) continue;
 
@@ -302,7 +307,9 @@ function policyProjectValue(
     projection: string,
 ) {
     if (!cap) return undefined;
-    const key = projection.startsWith("service.") ? projection.slice(8) : projection;
+    const key = projection.startsWith("service.")
+        ? projection.slice(8)
+        : projection;
     return (cap as any)[key];
 }
 
@@ -315,8 +322,7 @@ function matchesRuleFilter(
     const f = rule.filter;
     if (!f) return true;
 
-    if (f.tag_id && !toStrSet(f.tag_id).has(String(tagId))) return false;
-    return true;
+    return !(f.tag_id && !toStrSet(f.tag_id).has(String(tagId)));
 }
 
 function toStrSet(v: string | string[] | number | number[]): Set<string> {
@@ -324,4 +330,165 @@ function toStrSet(v: string | string[] | number | number[]): Set<string> {
     const s = new Set<string>();
     for (const x of arr) s.add(String(x));
     return s;
+}
+
+function candidatePassesRateCoherence(
+    builder: Builder,
+    serviceMap: DgpServiceMap,
+    tagId: string,
+    selectedKeys: string[],
+    usedServiceIds: readonly ServiceIdRef[],
+    candidateId: ServiceIdRef,
+    ratePolicy: RatePolicy,
+): boolean {
+    if (usedServiceIds.length === 0) return true;
+
+    const props = builder.getProps();
+    const baseFields = props.fields ?? [];
+    const candidateFieldId = syntheticServiceFieldId("candidate", candidateId, 0);
+
+    const syntheticFields: Field[] = [
+        ...usedServiceIds.map((serviceId, index) => ({
+            id: syntheticServiceFieldId("used", serviceId, index),
+            label: `Used service ${String(serviceId)}`,
+            type: "custom",
+            button: true,
+            service_id: serviceId,
+            pricing_role: "base",
+        }) satisfies Field),
+        {
+            id: candidateFieldId,
+            label: `Candidate ${String(candidateId)}`,
+            type: "custom",
+            button: true,
+            service_id: candidateId,
+            pricing_role: "base",
+        } satisfies Field,
+    ];
+
+    const fields = [...baseFields, ...syntheticFields];
+    const visibleFieldIds = [
+        ...builder.visibleFields(tagId, selectedKeys),
+        ...syntheticFields.map((field) => field.id),
+    ];
+
+    const anchoredFilters = (props.filters ?? []).map((tag) =>
+        tag.id === tagId && usedServiceIds[0] != null
+            ? { ...tag, service_id: usedServiceIds[0] }
+            : tag,
+    );
+
+    const validationProps = {
+        ...props,
+        filters: anchoredFilters,
+        fields,
+    };
+
+    const errors: ValidationCtx["errors"] = [];
+    const tags = validationProps.filters ?? [];
+    const fieldById = new Map(fields.map((field) => [field.id, field]));
+    const tagById = new Map(tags.map((tag) => [tag.id, tag]));
+
+    const v: ValidationCtx = {
+        props: validationProps,
+        nodeMap: buildNodeMap(validationProps),
+        options: {
+            ...builder.getOptions?.(),
+            serviceMap,
+            ratePolicy,
+        },
+        errors,
+        serviceMap,
+        selectedKeys: new Set(selectedKeys),
+        tags,
+        fields,
+        invalidRateFieldIds: new Set<string>(),
+        tagById,
+        fieldById,
+        fieldsVisibleUnder: () => [],
+        simulatedVisibilityContexts: [],
+    };
+
+    validateRateCoherenceForVisibleContext({
+        v,
+        tagId,
+        selectedKeys,
+        visibleFieldIds,
+        effectMap: buildTriggerEffectMap(validationProps),
+        seen: new Set<string>(),
+    });
+
+    return !errors.some((error) =>
+        rateIssueAffectsCandidate(
+            error,
+            candidateId,
+            candidateFieldId,
+            usedServiceIds[0],
+        ),
+    );
+}
+
+function syntheticServiceFieldId(
+    kind: "used" | "candidate",
+    serviceId: ServiceIdRef,
+    index: number,
+): string {
+    return `__service_filter_${kind}__:${index}:${String(serviceId)}`;
+}
+
+function rateIssueAffectsCandidate(
+    error: ValidationCtx["errors"][number],
+    candidateId: ServiceIdRef,
+    candidateFieldId: string,
+    primaryAnchorId?: ServiceIdRef,
+): boolean {
+    if (error.code !== "rate_coherence_violation") return false;
+
+    const candidateKey = String(candidateId);
+    const details = (error.details ?? {}) as {
+        affectedServiceIds?: unknown[];
+        primary?: {
+            serviceId?: unknown;
+            service_id?: unknown;
+            fieldId?: unknown;
+            nodeId?: unknown;
+        };
+        candidate?: {
+            serviceId?: unknown;
+            service_id?: unknown;
+            fieldId?: unknown;
+            nodeId?: unknown;
+        };
+    };
+    const anchorKey =
+        primaryAnchorId == null ? undefined : String(primaryAnchorId);
+    const primaryMatchesAnchor =
+        anchorKey == null ||
+        String(details.primary?.serviceId) === anchorKey ||
+        String(details.primary?.service_id) === anchorKey;
+
+    if (
+        primaryMatchesAnchor &&
+        details.affectedServiceIds?.some(
+            (serviceId) => String(serviceId) === candidateKey,
+        )
+    ) {
+        return true;
+    }
+
+    if (primaryMatchesAnchor && String(error.nodeId) === candidateFieldId) {
+        return true;
+    }
+
+    return [details.primary, details.candidate].some((ref) => {
+        if (!ref) return false;
+        if (!primaryMatchesAnchor) return false;
+
+        return (
+            String(ref.serviceId) === candidateKey ||
+            String(ref.service_id) === candidateKey ||
+            String(ref.fieldId) === candidateFieldId ||
+            String(ref.nodeId) === candidateFieldId
+        );
+    });
 }

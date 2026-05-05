@@ -14,6 +14,7 @@ import { validateOrderKinds } from "./steps/order-kinds";
 import { validateServiceVsUserInput } from "./steps/service-vs-input";
 import { validateUtilityMarkers } from "./steps/utility";
 import { validateRates } from "./steps/rates";
+import { validateRateCoherence } from "./steps/rate-coherence";
 import { validateConstraints } from "./steps/constraints";
 import { validateCustomFields } from "./steps/custom";
 import { validateGlobalUtilityGuard } from "./steps/global-utility-guard";
@@ -23,8 +24,6 @@ import { validateFallbacks } from "./steps/fallbacks";
 import { applyPolicies } from "./policies/apply-policies";
 import type { ValidationCtx } from "./shared";
 import { buildNodeMap } from "@/core/node-map";
-import { createBuilder } from "@/core/builder";
-import { validateRateCoherenceDeep } from "@/core/rate-coherence";
 import {
     mergeValidatorOptions,
     resolveFallbackSettings,
@@ -129,6 +128,7 @@ export function validate(
         tagById,
         fieldById,
         fieldsVisibleUnder: (_tagId: string): Field[] => [],
+        simulatedVisibilityContexts: [],
     };
 
     // 1) structure
@@ -168,53 +168,22 @@ export function validate(
     // 7) rates & pricing roles
     validateRates(v);
 
-    if (Object.keys(serviceMap).length > 0 && tags.length > 0) {
-        const builder = createBuilder({ serviceMap });
-        builder.load(props);
+    // 8) contextual coherence over simulated visibility contexts
+    validateRateCoherence(v);
 
-        for (const tag of tags) {
-            const diags = validateRateCoherenceDeep({
-                builder,
-                services: serviceMap,
-                tagId: tag.id,
-                ratePolicy: ratePolicy,
-                invalidFieldIds: v.invalidRateFieldIds,
-            });
-
-            for (const diag of diags) {
-                if (diag.kind !== "contextual") continue;
-                errors.push({
-                    code: "rate_coherence_violation",
-                    severity: "error",
-                    message: diag.message,
-                    nodeId: diag.nodeId,
-                    details: {
-                        tagId: diag.tagId,
-                        simulationAnchor: diag.simulationAnchor,
-                        primary: diag.primary,
-                        offender: diag.offender,
-                        policy: diag.policy,
-                        policyPct: diag.policyPct,
-                        invalidFieldIds: diag.invalidFieldIds,
-                    },
-                });
-            }
-        }
-    }
-
-    // 8) constraints vs capabilities + inheritance
+    // 9) constraints vs capabilities + inheritance
     validateConstraints(v);
 
-    // 9) custom field rules
+    // 10) custom field rules
     validateCustomFields(v);
 
-    // 10) optional global utility guard
+    // 11) optional global utility guard
     validateGlobalUtilityGuard(v);
 
-    // 11) unbound fields
+    // 12) unbound fields
     validateUnboundFields(v);
 
-    // 12) fallbacks strict-mode conversion
+    // 13) fallbacks strict-mode conversion
     validateFallbacks(v);
 
     return v.errors;
