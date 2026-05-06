@@ -18,6 +18,16 @@ export function filterServicesForVisibleGroup(
         fallbackSettings?: FallbackSettings;
         /** Backward-compatible alias */
         fallback?: FallbackSettings;
+        rateContext?:
+            | {
+                  mode: "context";
+              }
+            | {
+                  mode: "custom_primary_rate";
+                  source: "manual" | "service";
+                  primaryRate?: number;
+                  primaryServiceId?: number | string;
+              };
     },
 ): ServiceCheck[] {
     const coreInput: FilterServicesForVisibleGroupInput = {
@@ -31,6 +41,7 @@ export function filterServicesForVisibleGroup(
             ratePolicy: input.ratePolicy,
             fallbackSettings: input.fallbackSettings,
             fallback: input.fallback,
+            rateContext: input.rateContext,
         },
     };
     const result = filterServicesForVisibleGroupCore(coreInput, {

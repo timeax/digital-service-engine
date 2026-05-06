@@ -11,6 +11,7 @@ import {
     constraintFitOk,
     getServiceCapability,
     normalizeRatePolicy,
+    passesRatePolicy,
     toFiniteNumber,
 } from "@/utils/util";
 import { buildNodeMap } from "@/core/node-map";
@@ -54,6 +55,16 @@ export type FilterServicesForVisibleGroupInput = {
         fallback?: FallbackSettings;
         strictSafety?: boolean;
         enforcePolicies?: boolean;
+        rateContext?:
+            | {
+                  mode: "context";
+              }
+            | {
+                  mode: "custom_primary_rate";
+                  source: "manual" | "service";
+                  primaryRate?: number;
+                  primaryServiceId?: ServiceIdRef;
+              };
     };
 };
 
@@ -81,6 +92,10 @@ export function filterServicesForVisibleGroup(
             builderOptions?.ratePolicy,
     );
     const policySource = context.policies ?? builderOptions?.policies ?? [];
+    const resolvedCustomPrimaryRate = resolveCustomPrimaryRate(
+        context.rateContext,
+        svcMap,
+    );
 
     const visibleServiceIds =
         context.selectedButtons === undefined
@@ -116,15 +131,22 @@ export function filterServicesForVisibleGroup(
             context.effectiveConstraints ?? {},
         );
 
-        const passesRate = candidatePassesRateCoherence(
-            deps.builder,
-            svcMap,
-            context.tagId,
-            context.selectedButtons ?? [],
-            context.usedServiceIds,
-            id,
-            resolvedRatePolicy,
-        );
+        const passesRate =
+            resolvedCustomPrimaryRate != null
+                ? passesRatePolicy(
+                      resolvedRatePolicy,
+                      resolvedCustomPrimaryRate,
+                      toFiniteNumber(cap.rate),
+                  )
+                : candidatePassesRateCoherence(
+                      deps.builder,
+                      svcMap,
+                      context.tagId,
+                      context.selectedButtons ?? [],
+                      context.usedServiceIds,
+                      id,
+                      resolvedRatePolicy,
+                  );
 
         const polRes = evaluatePoliciesRaw(
             policySource,
@@ -164,6 +186,23 @@ export function filterServicesForVisibleGroup(
                 ? lastDiagnostics
                 : undefined,
     };
+}
+
+function resolveCustomPrimaryRate(
+    rateContext: FilterServicesForVisibleGroupInput["context"]["rateContext"],
+    serviceMap: DgpServiceMap,
+): number | undefined {
+    if (!rateContext || rateContext.mode !== "custom_primary_rate") {
+        return undefined;
+    }
+
+    if (rateContext.source === "manual") {
+        return toFiniteNumber(rateContext.primaryRate);
+    }
+
+    if (rateContext.primaryServiceId == null) return undefined;
+    const cap = getServiceCapability(serviceMap, rateContext.primaryServiceId);
+    return toFiniteNumber(cap?.rate);
 }
 
 function evaluatePoliciesRaw(

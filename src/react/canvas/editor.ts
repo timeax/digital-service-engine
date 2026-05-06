@@ -727,6 +727,16 @@ export class Editor {
             fallbackSettings?: FallbackSettings;
             /** Backward-compatible alias */
             fallback?: FallbackSettings;
+            rateContext?:
+                | {
+                      mode: "context";
+                  }
+                | {
+                      mode: "custom_primary_rate";
+                      source: "manual" | "service";
+                      primaryRate?: number;
+                      primaryServiceId?: number | string;
+                  };
         },
     ): ServiceCheck[] {
         return filterServicesForVisibleGroup(this.moduleCtx(), candidates, ctx);

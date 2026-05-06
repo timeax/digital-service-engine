@@ -486,4 +486,93 @@ describe("core.filterServicesForVisibleGroup", () => {
         expect(byId.get("101")?.passesRate).toBe(true);
         expect(byId.get("201")?.passesPolicies).toBe(true);
     });
+
+    it("supports custom manual primary rate context", () => {
+        const b = createBuilder({ serviceMap });
+        b.load(baseProps());
+
+        const result = filterServicesForVisibleGroup(
+            {
+                candidates: [101, 102],
+                context: {
+                    tagId: "root",
+                    usedServiceIds: [100],
+                    ratePolicy: { kind: "lte_primary", pct: 10 },
+                    rateContext: {
+                        mode: "custom_primary_rate",
+                        source: "manual",
+                        primaryRate: 12,
+                    },
+                },
+            },
+            { builder: b },
+        );
+
+        const byId = new Map(result.checks.map((c) => [String(c.id), c]));
+        expect(byId.get("101")?.passesRate).toBe(true);
+        expect(byId.get("102")?.passesRate).toBe(false);
+    });
+
+    it("supports custom service-derived primary rate context", () => {
+        const b = createBuilder({ serviceMap });
+        b.load(baseProps());
+
+        const result = filterServicesForVisibleGroup(
+            {
+                candidates: [101, 104],
+                context: {
+                    tagId: "root",
+                    usedServiceIds: [100],
+                    ratePolicy: { kind: "lte_primary", pct: 10 },
+                    rateContext: {
+                        mode: "custom_primary_rate",
+                        source: "service",
+                        primaryServiceId: 102,
+                    },
+                },
+            },
+            { builder: b },
+        );
+
+        const byId = new Map(result.checks.map((c) => [String(c.id), c]));
+        expect(byId.get("101")?.passesRate).toBe(false);
+        expect(byId.get("104")?.passesRate).toBe(false);
+    });
+
+    it("keeps policies and constraints authoritative in custom rate context", () => {
+        const b = createBuilder({ serviceMap });
+        b.load(baseProps());
+
+        const result = filterServicesForVisibleGroup(
+            {
+                candidates: [103, 201],
+                context: {
+                    tagId: "root",
+                    usedServiceIds: [100],
+                    effectiveConstraints: { dripfeed: true },
+                    policies: [
+                        {
+                            id: "no_mix_platform",
+                            scope: "visible_group",
+                            subject: "services",
+                            op: "no_mix",
+                            projection: "service.platform_id",
+                            severity: "error",
+                        },
+                    ],
+                    ratePolicy: { kind: "within_pct", pct: 100 },
+                    rateContext: {
+                        mode: "custom_primary_rate",
+                        source: "manual",
+                        primaryRate: 10,
+                    },
+                },
+            },
+            { builder: b },
+        );
+
+        const byId = new Map(result.checks.map((c) => [String(c.id), c]));
+        expect(byId.get("103")?.reasons).toContain("constraint_mismatch");
+        expect(byId.get("201")?.reasons).toContain("policy_error");
+    });
 });
