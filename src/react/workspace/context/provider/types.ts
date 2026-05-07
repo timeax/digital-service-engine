@@ -195,7 +195,7 @@ export interface WorkspaceAPI {
         ): Promise<void>;
         templates(
             params?: Partial<Pick<TemplatesListParams, "branchId" | "since">>,
-        ): Promise<void>;
+        ): Promise<BackendResult<readonly FieldTemplate[]>>;
         participants(
             params?: Partial<{ branchId: string; since?: number | string }>,
         ): Promise<void>;

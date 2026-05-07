@@ -5,8 +5,8 @@ import type {
     BackendResult,
     FieldTemplate,
     TemplateCreateInput,
-    TemplateUpdatePatch,
     TemplatesListParams,
+    TemplateUpdatePatch,
     WorkspaceBackend,
 } from "../../backend";
 import type { Loadable, WorkspaceAPI } from "@/react/workspace";
@@ -54,6 +54,115 @@ export interface UseTemplatesSliceParams {
     readonly runtime: BackendRuntime;
 }
 
+function parseTimestamp(
+    value?: string | number | null,
+): number | undefined {
+    if (value === undefined || value === null) return undefined;
+
+    if (typeof value === "number") {
+        return Number.isFinite(value) ? value : undefined;
+    }
+
+    const parsed = Date.parse(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function templateTime(template: FieldTemplate): number | undefined {
+    return (
+        parseTimestamp(template.updatedAt) ?? parseTimestamp(template.createdAt)
+    );
+}
+
+function shouldReplaceTemplates(params: {
+    requestedSince?: string | number;
+    lastUpdatedAt?: string | number;
+}): boolean {
+    if (!params.requestedSince) return true;
+    if (!params.lastUpdatedAt) return false;
+
+    const requested = parseTimestamp(params.requestedSince);
+    const last = parseTimestamp(params.lastUpdatedAt);
+
+    if (requested === undefined || last === undefined) {
+        return false;
+    }
+
+    return requested < last;
+}
+
+function pickNewestTemplate(
+    current: FieldTemplate,
+    incoming: FieldTemplate,
+): FieldTemplate {
+    const currentTime = templateTime(current);
+    const incomingTime = templateTime(incoming);
+
+    if (currentTime !== undefined && incomingTime !== undefined) {
+        return incomingTime >= currentTime ? incoming : current;
+    }
+
+    if (currentTime === undefined && incomingTime !== undefined) return incoming;
+    if (currentTime !== undefined && incomingTime === undefined) return current;
+
+    return incoming;
+}
+
+function mergeTemplates(
+    current: readonly FieldTemplate[] | null | undefined,
+    incoming: readonly FieldTemplate[],
+    opts?: {
+        since?: string | number;
+        deletedIds?: readonly string[];
+        reconcileMissingSince?: boolean;
+    },
+): readonly FieldTemplate[] {
+    const sinceTime = parseTimestamp(opts?.since);
+    const incomingIds = new Set(incoming.map((template) => template.id));
+    const deletedIds = new Set(opts?.deletedIds ?? []);
+
+    const byId = new Map<string, FieldTemplate>();
+
+    for (const template of current ?? []) {
+        if (deletedIds.has(template.id)) continue;
+
+        const updatedTime = templateTime(template);
+
+        const shouldHaveAppearedInDelta =
+            opts?.reconcileMissingSince === true &&
+            sinceTime !== undefined &&
+            updatedTime !== undefined &&
+            updatedTime > sinceTime;
+
+        const missingFromDelta =
+            shouldHaveAppearedInDelta && !incomingIds.has(template.id);
+
+        if (!missingFromDelta) {
+            byId.set(template.id, template);
+        }
+    }
+
+    for (const template of incoming) {
+        if (deletedIds.has(template.id)) continue;
+
+        const existing = byId.get(template.id);
+
+        byId.set(
+            template.id,
+            existing ? pickNewestTemplate(existing, template) : template,
+        );
+    }
+
+    return Array.from(byId.values()).sort((a, b) => {
+        const aTime = templateTime(a);
+        const bTime = templateTime(b);
+
+        if (aTime !== undefined && bTime !== undefined && aTime !== bTime) {
+            return bTime - aTime;
+        }
+
+        return a.name.localeCompare(b.name);
+    });
+}
 export function useTemplatesSlice(
     params: UseTemplatesSliceParams,
 ): TemplatesSliceApi {
@@ -91,18 +200,33 @@ export function useTemplatesSlice(
 
             setTemplates((s) => ({ ...s, loading: true }));
 
+            const requestedSince = params?.since ?? templates.updatedAt;
+
             const res = await backend.templates.refresh({
                 workspaceId,
                 branchId,
-                since: params?.since ?? templates.updatedAt,
+                since: requestedSince,
             });
 
             if (res.ok) {
-                setTemplates({
-                    data: res.value,
-                    loading: false,
-                    updatedAt: runtime.now(),
+                setTemplates((current) => {
+                    const replace = shouldReplaceTemplates({
+                        requestedSince,
+                        lastUpdatedAt: current.updatedAt,
+                    });
+
+                    return {
+                        data: replace
+                            ? res.value
+                            : mergeTemplates(current.data, res.value, {
+                                  since: requestedSince,
+                                  reconcileMissingSince: false,
+                              }),
+                        loading: false,
+                        updatedAt: runtime.now(),
+                    };
                 });
+
                 return res;
             } else {
                 setLoadableError(setTemplates, res.error);
@@ -122,7 +246,10 @@ export function useTemplatesSlice(
         async (input: TemplateCreateInput) => {
             const res = await backend.templates.create(workspaceId, {
                 ...input,
-                branchId: input.branchId ?? getCurrentBranchId(),
+                branchId:
+                    input.branchId !== null
+                        ? input.branchId
+                        : getCurrentBranchId(),
             });
 
             if (res.ok) {
@@ -197,11 +324,22 @@ export function useTemplatesSlice(
         async (id: string) => {
             const res = await backend.templates.delete(id);
             if (res.ok) {
-                await refreshTemplates({ branchId: getCurrentBranchId() });
+                const deleteRefreshSince = runtime.now();
+                setTemplates((current) => ({
+                    ...current,
+                    data:
+                        current.data?.filter((template) => template.id !== id) ??
+                        current.data,
+                    updatedAt: deleteRefreshSince,
+                }));
+                await refreshTemplates({
+                    branchId: getCurrentBranchId(),
+                    since: deleteRefreshSince,
+                });
             }
             return res;
         },
-        [backend.templates, getCurrentBranchId, refreshTemplates],
+        [backend.templates, getCurrentBranchId, refreshTemplates, runtime],
     );
 
     const invalidateTemplates = React.useCallback((): void => {
@@ -240,3 +378,11 @@ export function useTemplatesSlice(
         ],
     );
 }
+
+export const __templatesSliceInternals = {
+    parseTimestamp,
+    templateTime,
+    shouldReplaceTemplates,
+    pickNewestTemplate,
+    mergeTemplates,
+};

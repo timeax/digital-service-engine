@@ -14,6 +14,7 @@ import {
     type Actor,
     type BackendError,
     type Branch,
+    type FieldTemplate,
     type ServiceSnapshot,
     type WorkspaceAPI,
 } from "@/react/workspace";
@@ -66,6 +67,25 @@ function makeSnapshot(label: string): ServiceSnapshot {
                 fields: [],
             },
         } as ServiceSnapshot["data"],
+    };
+}
+
+function makeTemplate(
+    id: string,
+    updatedAt: string,
+    overrides?: Partial<FieldTemplate>,
+): FieldTemplate {
+    return {
+        id,
+        key: `key-${id}`,
+        name: `Template ${id}`,
+        kind: "text",
+        definition: {},
+        published: true,
+        version: 1,
+        createdAt: updatedAt,
+        updatedAt,
+        ...overrides,
     };
 }
 
@@ -1061,5 +1081,426 @@ describe("WorkspaceProvider boot", () => {
         expect(mountCount).toBe(1);
         expect(unmountCount).toBe(0);
         expect(policiesLoadSpy.mock.calls.length).toBe(baselinePolicyLoads);
+    });
+
+    it("full refresh without since replaces templates", async () => {
+        const actor = makeActor();
+        const backend = createMemoryWorkspaceBackend({
+            workspaceId: "ws-templates-full-refresh",
+            actorId: actor.id,
+            seed: {
+                authors: [{ id: actor.id, name: actor.name ?? "Tester" }],
+                branches: [makeBranch("main", true)],
+                snapshots: { main: { snapshot: makeSnapshot("templates-1") } },
+                templates: [makeTemplate("t1", "2026-01-01T00:00:00.000Z")],
+                policies: { rules: [] },
+            },
+        });
+
+        let api: WorkspaceAPI | undefined;
+        function Capture(): null {
+            api = useWorkspace();
+            return null;
+        }
+
+        await act(async () => {
+            root?.render(
+                <WorkspaceProvider backend={backend} actor={actor} autoAutosave={false}>
+                    <Capture />
+                </WorkspaceProvider>,
+            );
+            await flushMicrotasks();
+        });
+        await waitFor(() => Boolean(api) && api!.boot.isBooting === false);
+
+        vi.spyOn(backend.templates, "refresh").mockResolvedValue({
+            ok: true,
+            value: [makeTemplate("t2", "2026-01-02T00:00:00.000Z")],
+        });
+
+        await act(async () => {
+            api!.invalidate(["templates"]);
+            await flushMicrotasks();
+        });
+        await act(async () => {
+            await api!.refresh.templates({ branchId: "main" });
+            await flushMicrotasks();
+        });
+
+        expect(api!.templates.data?.map((t) => t.id)).toEqual(["t2"]);
+    });
+
+    it("delta refresh with one updated template merges into existing list", async () => {
+        const actor = makeActor();
+        const keep = makeTemplate("keep", "2026-01-01T00:00:00.000Z");
+        const updateOld = makeTemplate("update", "2026-07-02T00:00:00.000Z");
+        const backend = createMemoryWorkspaceBackend({
+            workspaceId: "ws-templates-delta-refresh",
+            actorId: actor.id,
+            seed: {
+                authors: [{ id: actor.id, name: actor.name ?? "Tester" }],
+                branches: [makeBranch("main", true)],
+                snapshots: { main: { snapshot: makeSnapshot("templates-2") } },
+                templates: [keep, updateOld],
+                policies: { rules: [] },
+            },
+        });
+
+        let api: WorkspaceAPI | undefined;
+        function Capture(): null {
+            api = useWorkspace();
+            return null;
+        }
+
+        await act(async () => {
+            root?.render(
+                <WorkspaceProvider backend={backend} actor={actor} autoAutosave={false}>
+                    <Capture />
+                </WorkspaceProvider>,
+            );
+            await flushMicrotasks();
+        });
+        await waitFor(() => Boolean(api) && api!.boot.isBooting === false);
+
+        const refreshSpy = vi.spyOn(backend.templates, "refresh");
+
+        refreshSpy.mockResolvedValueOnce({
+            ok: true,
+            value: [
+                makeTemplate("update", "2026-07-04T00:00:00.000Z", {
+                    name: "Template update newer",
+                }),
+            ],
+        });
+        await act(async () => {
+            await api!.refresh.templates({
+                branchId: "main",
+                since: "2026-06-01T00:00:00.000Z",
+            });
+            await flushMicrotasks();
+        });
+        expect(
+            api!.templates.data?.find((template) => template.id === "update")
+                ?.name,
+        ).toBe("Template update newer");
+        expect(api!.templates.data?.some((template) => template.id === "keep")).toBe(
+            true,
+        );
+    });
+
+    it("delta refresh with empty response does not clear unchanged templates", async () => {
+        const actor = makeActor();
+        const backend = createMemoryWorkspaceBackend({
+            workspaceId: "ws-templates-delta-empty",
+            actorId: actor.id,
+            seed: {
+                authors: [{ id: actor.id, name: actor.name ?? "Tester" }],
+                branches: [makeBranch("main", true)],
+                snapshots: { main: { snapshot: makeSnapshot("templates-2b") } },
+                templates: [
+                    makeTemplate("keep-a", "2026-01-01T00:00:00.000Z"),
+                    makeTemplate("keep-b", "2026-01-02T00:00:00.000Z"),
+                ],
+                policies: { rules: [] },
+            },
+        });
+
+        let api: WorkspaceAPI | undefined;
+        function Capture(): null {
+            api = useWorkspace();
+            return null;
+        }
+
+        await act(async () => {
+            root?.render(
+                <WorkspaceProvider backend={backend} actor={actor} autoAutosave={false}>
+                    <Capture />
+                </WorkspaceProvider>,
+            );
+            await flushMicrotasks();
+        });
+        await waitFor(() => Boolean(api) && api!.boot.isBooting === false);
+
+        vi.spyOn(backend.templates, "refresh").mockResolvedValue({
+            ok: true,
+            value: [],
+        });
+
+        await act(async () => {
+            await api!.refresh.templates({
+                branchId: "main",
+                since: "2026-06-02T00:00:00.000Z",
+            });
+            await flushMicrotasks();
+        });
+        expect(api!.templates.data?.map((t) => t.id).sort()).toEqual([
+            "keep-a",
+            "keep-b",
+        ]);
+    });
+
+    it("delta refresh does not infer deletion from missing items in normal refresh flow", async () => {
+        const actor = makeActor();
+        const backend = createMemoryWorkspaceBackend({
+            workspaceId: "ws-templates-delta-delete",
+            actorId: actor.id,
+            seed: {
+                authors: [{ id: actor.id, name: actor.name ?? "Tester" }],
+                branches: [makeBranch("main", true)],
+                snapshots: { main: { snapshot: makeSnapshot("templates-2c") } },
+                templates: [
+                    makeTemplate("keep", "2026-01-01T00:00:00.000Z"),
+                    makeTemplate("delete-me", "2026-07-03T00:00:00.000Z"),
+                ],
+                policies: { rules: [] },
+            },
+        });
+
+        let api: WorkspaceAPI | undefined;
+        function Capture(): null {
+            api = useWorkspace();
+            return null;
+        }
+
+        await act(async () => {
+            root?.render(
+                <WorkspaceProvider backend={backend} actor={actor} autoAutosave={false}>
+                    <Capture />
+                </WorkspaceProvider>,
+            );
+            await flushMicrotasks();
+        });
+        await waitFor(() => Boolean(api) && api!.boot.isBooting === false);
+
+        vi.spyOn(backend.templates, "refresh").mockResolvedValue({
+            ok: true,
+            value: [],
+        });
+
+        await act(async () => {
+            await api!.refresh.templates({
+                branchId: "main",
+                since: "2026-07-02T12:00:00.000Z",
+            });
+            await flushMicrotasks();
+        });
+        expect(api!.templates.data?.some((template) => template.id === "delete-me")).toBe(
+            true,
+        );
+    });
+
+    it("delta merge keeps newer local template over older incoming", async () => {
+        const actor = makeActor();
+        const backend = createMemoryWorkspaceBackend({
+            workspaceId: "ws-templates-newer-local",
+            actorId: actor.id,
+            seed: {
+                authors: [{ id: actor.id, name: actor.name ?? "Tester" }],
+                branches: [makeBranch("main", true)],
+                snapshots: { main: { snapshot: makeSnapshot("templates-3") } },
+                templates: [
+                    makeTemplate("same", "2026-01-05T00:00:00.000Z", {
+                        name: "Local New",
+                    }),
+                ],
+                policies: { rules: [] },
+            },
+        });
+
+        let api: WorkspaceAPI | undefined;
+        function Capture(): null {
+            api = useWorkspace();
+            return null;
+        }
+
+        await act(async () => {
+            root?.render(
+                <WorkspaceProvider backend={backend} actor={actor} autoAutosave={false}>
+                    <Capture />
+                </WorkspaceProvider>,
+            );
+            await flushMicrotasks();
+        });
+        await waitFor(() => Boolean(api) && api!.boot.isBooting === false);
+
+        vi.spyOn(backend.templates, "refresh").mockResolvedValue({
+            ok: true,
+            value: [
+                makeTemplate("same", "2026-01-04T00:00:00.000Z", {
+                    name: "Incoming Old",
+                }),
+            ],
+        });
+
+        await act(async () => {
+            await api!.refresh.templates({
+                branchId: "main",
+                since: "2026-06-01T00:00:00.000Z",
+            });
+            await flushMicrotasks();
+        });
+
+        expect(
+            api!.templates.data?.find((template) => template.id === "same")
+                ?.name,
+        ).toBe("Local New");
+    });
+
+    it("delta merge keeps newer incoming template over older local", async () => {
+        const actor = makeActor();
+        const backend = createMemoryWorkspaceBackend({
+            workspaceId: "ws-templates-newer-incoming",
+            actorId: actor.id,
+            seed: {
+                authors: [{ id: actor.id, name: actor.name ?? "Tester" }],
+                branches: [makeBranch("main", true)],
+                snapshots: { main: { snapshot: makeSnapshot("templates-4") } },
+                templates: [
+                    makeTemplate("same", "2026-01-04T00:00:00.000Z", {
+                        name: "Local Old",
+                    }),
+                ],
+                policies: { rules: [] },
+            },
+        });
+
+        let api: WorkspaceAPI | undefined;
+        function Capture(): null {
+            api = useWorkspace();
+            return null;
+        }
+
+        await act(async () => {
+            root?.render(
+                <WorkspaceProvider backend={backend} actor={actor} autoAutosave={false}>
+                    <Capture />
+                </WorkspaceProvider>,
+            );
+            await flushMicrotasks();
+        });
+        await waitFor(() => Boolean(api) && api!.boot.isBooting === false);
+
+        vi.spyOn(backend.templates, "refresh").mockResolvedValue({
+            ok: true,
+            value: [
+                makeTemplate("same", "2026-01-06T00:00:00.000Z", {
+                    name: "Incoming New",
+                }),
+            ],
+        });
+
+        await act(async () => {
+            await api!.refresh.templates({
+                branchId: "main",
+                since: "2026-06-01T00:00:00.000Z",
+            });
+            await flushMicrotasks();
+        });
+
+        expect(
+            api!.templates.data?.find((template) => template.id === "same")
+                ?.name,
+        ).toBe("Incoming New");
+    });
+
+    it("treats stale requested since older than slice updatedAt as full replace", async () => {
+        const actor = makeActor();
+        const backend = createMemoryWorkspaceBackend({
+            workspaceId: "ws-templates-stale-since",
+            actorId: actor.id,
+            seed: {
+                authors: [{ id: actor.id, name: actor.name ?? "Tester" }],
+                branches: [makeBranch("main", true)],
+                snapshots: { main: { snapshot: makeSnapshot("templates-5") } },
+                templates: [makeTemplate("keep", "2026-01-03T00:00:00.000Z")],
+                policies: { rules: [] },
+            },
+        });
+
+        let api: WorkspaceAPI | undefined;
+        function Capture(): null {
+            api = useWorkspace();
+            return null;
+        }
+
+        await act(async () => {
+            root?.render(
+                <WorkspaceProvider backend={backend} actor={actor} autoAutosave={false}>
+                    <Capture />
+                </WorkspaceProvider>,
+            );
+            await flushMicrotasks();
+        });
+        await waitFor(() => Boolean(api) && api!.boot.isBooting === false);
+
+        vi.spyOn(backend.templates, "refresh").mockResolvedValue({
+            ok: true,
+            value: [makeTemplate("new", "2026-01-07T00:00:00.000Z")],
+        });
+
+        await act(async () => {
+            await api!.refresh.templates({
+                branchId: "main",
+                since: "2000-01-01T00:00:00.000Z",
+            });
+            await flushMicrotasks();
+        });
+
+        expect(api!.templates.data?.map((t) => t.id)).toEqual(["new"]);
+    });
+
+    it("deleteTemplate keeps remaining templates when refresh returns empty delta", async () => {
+        const actor = makeActor();
+        const backend = createMemoryWorkspaceBackend({
+            workspaceId: "ws-templates-delete-empty-refresh",
+            actorId: actor.id,
+            seed: {
+                authors: [{ id: actor.id, name: actor.name ?? "Tester" }],
+                branches: [makeBranch("main", true)],
+                snapshots: { main: { snapshot: makeSnapshot("templates-6") } },
+                templates: [
+                    makeTemplate("t1", "2026-01-01T00:00:00.000Z"),
+                    makeTemplate("t2", "2026-01-02T00:00:00.000Z"),
+                    makeTemplate("t3", "2026-01-03T00:00:00.000Z"),
+                    makeTemplate("t4", "2026-01-04T00:00:00.000Z"),
+                ],
+                policies: { rules: [] },
+            },
+        });
+
+        let api: WorkspaceAPI | undefined;
+        function Capture(): null {
+            api = useWorkspace();
+            return null;
+        }
+
+        await act(async () => {
+            root?.render(
+                <WorkspaceProvider
+                    backend={backend}
+                    actor={actor}
+                    autoAutosave={false}
+                >
+                    <Capture />
+                </WorkspaceProvider>,
+            );
+            await flushMicrotasks();
+        });
+        await waitFor(() => Boolean(api) && api!.boot.isBooting === false);
+
+        vi.spyOn(backend.templates, "refresh").mockResolvedValue({
+            ok: true,
+            value: [],
+        });
+
+        await act(async () => {
+            await api!.deleteTemplate("t2");
+            await flushMicrotasks();
+        });
+
+        const ids = (api!.templates.data ?? []).map((template) => template.id);
+        expect(ids).toHaveLength(3);
+        expect(ids).not.toContain("t2");
+        expect(ids.sort()).toEqual(["t1", "t3", "t4"]);
     });
 });

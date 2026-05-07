@@ -6,9 +6,8 @@ import type {
     Result,
     TemplatesListParams,
 } from "@/react/workspace";
-import type { DgpServiceMap } from "@/schema/provider";
-
 import { WorkspaceContext } from "@/react/workspace";
+import type { DgpServiceMap } from "@/schema/provider";
 import type { WorkspaceAPI, WorkspaceProviderProps } from "./types";
 import { LIVE_OFF } from "./helpers";
 
@@ -423,7 +422,7 @@ export function WorkspaceProvider(
                         Pick<TemplatesListParams, "branchId" | "since">
                     >,
                 ) => {
-                    await templatesSlice.refreshTemplates(params);
+                    return await templatesSlice.refreshTemplates(params);
                 },
                 participants: async (
                     params?: Partial<{
