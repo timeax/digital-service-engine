@@ -64,7 +64,7 @@
         "react": "^19.2.4",
         "react-day-picker": "^9.8.1",
         "react-dom": "^19.2.4",
-        "@timeax/form-palette": "^0.1.35"
+        "@timeax/form-palette": "^0.2.0"
     },
     "devDependencies": {
         "@radix-ui/react-label": "^2.1.8",

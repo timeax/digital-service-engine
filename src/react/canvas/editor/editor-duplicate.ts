@@ -1,5 +1,6 @@
 import type { ServiceProps, Tag } from "@/schema";
 import type {
+    DuplicateManyOptions,
     DuplicateOptions,
     EditorModuleContext,
     NodeRef,
@@ -19,19 +20,97 @@ export function duplicate(
     try {
         let newId = "";
         ctx.transact("duplicate", () => {
-            if (ref.kind === "tag") {
-                newId = duplicateTag(ctx, ref.id, opts);
-            } else if (ref.kind === "field") {
-                newId = duplicateField(ctx, ref.id, opts);
-            } else {
-                newId = duplicateOption(ctx, ref.fieldId, ref.id, opts);
-            }
+            newId = duplicateInPlace(ctx, ref, opts);
         });
         return newId;
     } catch (err) {
         ctx.loadSnapshot(snapBefore, "undo");
         throw err;
     }
+}
+
+export function duplicateMany(
+    ctx: EditorModuleContext,
+    ids: readonly string[],
+    opts: DuplicateManyOptions = {},
+): string[] {
+    const ordered = Array.from(new Set((ids ?? []).map((id) => String(id))));
+    if (!ordered.length) return [];
+
+    const snapBefore = ctx.makeSnapshot("duplicateMany:before");
+    try {
+        const created: string[] = [];
+        ctx.transact("duplicateMany", () => {
+            const props = ctx.getProps();
+            const selectedFields = new Set<string>();
+            for (const id of ordered) {
+                if (ctx.isFieldId(id) && (props.fields ?? []).some((f) => f.id === id)) {
+                    selectedFields.add(id);
+                }
+            }
+
+            for (const id of ordered) {
+                if (ctx.isTagId(id)) {
+                    if (!(ctx.getProps().filters ?? []).some((t) => t.id === id)) continue;
+                    created.push(
+                        duplicateInPlace(ctx, { kind: "tag", id }, opts as DuplicateOptions),
+                    );
+                    continue;
+                }
+
+                if (ctx.isFieldId(id)) {
+                    if (!(ctx.getProps().fields ?? []).some((f) => f.id === id)) continue;
+                    created.push(
+                        duplicateInPlace(ctx, { kind: "field", id }, opts as DuplicateOptions),
+                    );
+                    continue;
+                }
+
+                if (ctx.isOptionId(id)) {
+                    const owner = ownerFieldOfOption(ctx.getProps(), id);
+                    if (!owner) continue;
+                    if (selectedFields.has(owner.fieldId)) continue;
+                    created.push(
+                        duplicateInPlace(
+                            ctx,
+                            { kind: "option", fieldId: owner.fieldId, id },
+                            opts as DuplicateOptions,
+                        ),
+                    );
+                }
+            }
+        });
+        return created;
+    } catch (err) {
+        ctx.loadSnapshot(snapBefore, "undo");
+        throw err;
+    }
+}
+
+function duplicateInPlace(
+    ctx: EditorModuleContext,
+    ref: NodeRef,
+    opts: DuplicateOptions = {},
+): string {
+    if (ref.kind === "tag") {
+        return duplicateTag(ctx, ref.id, opts);
+    }
+    if (ref.kind === "field") {
+        return duplicateField(ctx, ref.id, opts);
+    }
+    return duplicateOption(ctx, ref.fieldId, ref.id, opts);
+}
+
+function ownerFieldOfOption(
+    props: ServiceProps,
+    optionId: string,
+): { fieldId: string } | null {
+    for (const field of props.fields ?? []) {
+        if ((field.options ?? []).some((o) => o.id === optionId)) {
+            return { fieldId: field.id };
+        }
+    }
+    return null;
 }
 
 export function duplicateTag(

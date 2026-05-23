@@ -5,6 +5,12 @@ import { sharedUi } from "./shared";
 
 export const treeSelectDescriptor: InputDescriptor = {
     Component: InputField as any,
+    options: {
+        supported: true,
+        autoCreate: true,
+        defaultLabel: "Option label",
+        defaultValue: "option",
+    },
 
     defaultProps: {
         variant: "treeselect", // MUST

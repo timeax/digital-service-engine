@@ -28,6 +28,7 @@ export type DuplicateOptions = {
     nameStrategy?: (old?: string) => string | undefined;
     optionIdStrategy?: (old: string) => string;
 };
+export type DuplicateManyOptions = Omit<DuplicateOptions, "id">;
 
 export type EditorNodeLookup =
     | { kind: "tag"; data?: Tag; owners: { parentTagId?: string } }

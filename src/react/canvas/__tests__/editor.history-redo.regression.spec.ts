@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createBuilder } from "@/core";
 import type { ServiceProps } from "@/schema";
 import { CanvasAPI } from "../api";
@@ -146,5 +146,20 @@ describe("Editor history redo regression", () => {
 
         expect(editor.redo()).toBe(true);
         expect(b.getProps().filters.some((t) => t.id === tagId)).toBe(true);
+    });
+
+    it("refreshes graph during undo/redo snapshot restore even when layout canvas exists", () => {
+        const { api, editor } = setup();
+        const refreshGraphSpy = vi.spyOn(api, "refreshGraph");
+
+        editor.addTag({ label: "UndoRefresh" });
+        refreshGraphSpy.mockClear();
+
+        expect(editor.undo()).toBe(true);
+        expect(refreshGraphSpy).toHaveBeenCalledTimes(1);
+
+        refreshGraphSpy.mockClear();
+        expect(editor.redo()).toBe(true);
+        expect(refreshGraphSpy).toHaveBeenCalledTimes(1);
     });
 });

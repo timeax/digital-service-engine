@@ -23,6 +23,7 @@ import type { CanvasAPI } from "./api";
 import type { PolicyDiagnostic } from "@/core/policy";
 import type {
     DuplicateOptions,
+    DuplicateManyOptions,
     EditorModuleContext,
     FieldRef,
     NodeRef,
@@ -32,7 +33,10 @@ import type {
     TagRef,
     WireKind,
 } from "./editor/editor-types";
-import { duplicate } from "./editor/editor-duplicate";
+import {
+    duplicate,
+    duplicateMany as duplicateManyNodes,
+} from "./editor/editor-duplicate";
 import { addNotice, removeNotice, updateNotice } from "./editor/editor-notices";
 import {
     addField,
@@ -43,6 +47,7 @@ import {
     getNode,
     reLabel,
     remove,
+    removeMany as removeManyNodes,
     removeField,
     removeOption,
     removeTag,
@@ -75,9 +80,11 @@ import {
     disconnect,
     exclude,
     include,
+    wouldCreateTagCycle,
 } from "./editor/editor-relations";
 import { filterServicesForVisibleGroup } from "./editor/editor-service-filter";
 import { genId, uniqueId, uniqueOptionId } from "./editor/editor-ids";
+import { ownerOfOption } from "./editor/editor-utils";
 import { placeNode, placeOption } from "./editor/editor-placement";
 import {
     addCatalogGroup,
@@ -98,7 +105,14 @@ import {
 
 const MAX_LIMIT = 100;
 
-export type { TagRef, FieldRef, OptionRef, NodeRef, DuplicateOptions };
+export type {
+    TagRef,
+    FieldRef,
+    OptionRef,
+    NodeRef,
+    DuplicateOptions,
+    DuplicateManyOptions,
+};
 
 export class Editor {
     private readonly builder: Builder;
@@ -210,6 +224,13 @@ export class Editor {
 
     duplicate(ref: NodeRef, opts: DuplicateOptions = {}): string {
         return duplicate(this.moduleCtx(), ref, opts);
+    }
+
+    duplicateMany(
+        ids: readonly string[],
+        opts: DuplicateManyOptions = {},
+    ): string[] {
+        return duplicateManyNodes(this.moduleCtx(), ids, opts);
     }
 
     reLabel(id: string, nextLabel: string): void {
@@ -334,6 +355,287 @@ export class Editor {
 
     remove(id: string) {
         return remove(this.moduleCtx(), id);
+    }
+
+    removeMany(ids: readonly string[]) {
+        return removeManyNodes(this.moduleCtx(), ids);
+    }
+
+    clearServiceMany(ids: readonly string[]): void {
+        const ordered = Array.from(new Set((ids ?? []).map((id) => String(id))));
+        if (!ordered.length) return;
+        this.transact("clearServiceMany", () => {
+            this.patchProps((p) => {
+                for (const id of ordered) {
+                    if (this.isTagId(id)) {
+                        const t = (p.filters ?? []).find((x) => x.id === id);
+                        if (t && "service_id" in (t as any)) delete (t as any).service_id;
+                        continue;
+                    }
+                    if (this.isFieldId(id)) {
+                        const f = (p.fields ?? []).find((x) => x.id === id);
+                        if (f && "service_id" in (f as any)) delete (f as any).service_id;
+                        continue;
+                    }
+                    if (this.isOptionId(id)) {
+                        const own = ownerOfOption(p, id);
+                        if (!own) continue;
+                        const f = (p.fields ?? []).find((x) => x.id === own.fieldId);
+                        const o = f?.options?.find((x) => x.id === id);
+                        if (o && "service_id" in (o as any)) delete (o as any).service_id;
+                    }
+                }
+            });
+        });
+    }
+
+    rebindMany(
+        ids: readonly string[],
+        targetTagId: string,
+        opts?: { allowTagCycles?: boolean },
+    ): void {
+        const ordered = Array.from(new Set((ids ?? []).map((id) => String(id))));
+        if (!ordered.length) return;
+        this.transact("rebindMany", () => {
+            this.patchProps((p) => {
+                const targetExists = (p.filters ?? []).some((t) => t.id === targetTagId);
+                if (!targetExists) return;
+                for (const id of ordered) {
+                    if (this.isFieldId(id)) {
+                        const f = (p.fields ?? []).find((x) => x.id === id);
+                        if (!f) continue;
+                        f.bind_id = targetTagId;
+                        continue;
+                    }
+                    if (this.isTagId(id)) {
+                        const t = (p.filters ?? []).find((x) => x.id === id);
+                        if (!t) continue;
+                        if (!opts?.allowTagCycles && wouldCreateTagCycle(this.moduleCtx(), p, targetTagId, id)) {
+                            continue;
+                        }
+                        t.bind_id = targetTagId;
+                    }
+                }
+            });
+        });
+    }
+
+    includeMany(receiverId: string, ids: readonly string[]): void {
+        const accepted = Array.from(new Set((ids ?? []).map((id) => String(id))))
+            .filter((id) => id !== receiverId)
+            .filter((id) => this.getNode(id).data != null);
+        if (!accepted.length) return;
+        include(this.moduleCtx(), receiverId, accepted);
+    }
+
+    excludeMany(receiverId: string, ids: readonly string[]): void {
+        const accepted = Array.from(new Set((ids ?? []).map((id) => String(id))))
+            .filter((id) => id !== receiverId)
+            .filter((id) => this.getNode(id).data != null);
+        if (!accepted.length) return;
+        exclude(this.moduleCtx(), receiverId, accepted);
+    }
+
+    clearRelationsMany(
+        ids: readonly string[],
+        mode: "owned" | "incoming" | "both" = "both",
+    ): void {
+        const selected = new Set(Array.from(new Set((ids ?? []).map((id) => String(id)))));
+        if (!selected.size) return;
+        this.transact("clearRelationsMany", () => {
+            this.patchProps((p) => {
+                const clearOwned = mode === "owned" || mode === "both";
+                const clearIncoming = mode === "incoming" || mode === "both";
+                for (const t of p.filters ?? []) {
+                    if (clearOwned && selected.has(t.id)) {
+                        delete t.includes;
+                        delete t.excludes;
+                    }
+                    if (clearIncoming) {
+                        if (t.includes) {
+                            t.includes = t.includes.filter((x) => !selected.has(String(x)));
+                            if (!t.includes.length) delete t.includes;
+                        }
+                        if (t.excludes) {
+                            t.excludes = t.excludes.filter((x) => !selected.has(String(x)));
+                            if (!t.excludes.length) delete t.excludes;
+                        }
+                    }
+                }
+
+                const maps: Array<"includes_for_buttons" | "excludes_for_buttons" | "includes_for_options" | "excludes_for_options"> = [
+                    "includes_for_buttons",
+                    "excludes_for_buttons",
+                    "includes_for_options",
+                    "excludes_for_options",
+                ];
+                for (const k of maps) {
+                    const map = (p as any)[k] as Record<string, string[]> | undefined;
+                    if (!map) continue;
+                    for (const key of Object.keys(map)) {
+                        if (clearOwned && selected.has(String(key))) {
+                            delete map[key];
+                            continue;
+                        }
+                        if (clearIncoming) {
+                            map[key] = (map[key] ?? []).filter((x) => !selected.has(String(x)));
+                            if (!map[key]?.length) delete map[key];
+                        }
+                    }
+                    if (!Object.keys(map).length) delete (p as any)[k];
+                }
+            });
+        });
+    }
+
+    renameLabelsMany(
+        ids: readonly string[],
+        input: { prefix?: string; suffix?: string },
+    ): void {
+        const ordered = Array.from(new Set((ids ?? []).map((id) => String(id))));
+        if (!ordered.length) return;
+        const prefix = input.prefix ?? "";
+        const suffix = input.suffix ?? "";
+        this.transact("renameLabelsMany", () => {
+            this.patchProps((p) => {
+                for (const id of ordered) {
+                    if (this.isTagId(id)) {
+                        const t = (p.filters ?? []).find((x) => x.id === id);
+                        if (t) t.label = `${prefix}${t.label ?? ""}${suffix}`.trim();
+                        continue;
+                    }
+                    if (this.isFieldId(id)) {
+                        const f = (p.fields ?? []).find((x) => x.id === id);
+                        if (f) f.label = `${prefix}${f.label ?? ""}${suffix}`.trim();
+                        continue;
+                    }
+                    if (this.isOptionId(id)) {
+                        const own = ownerOfOption(p, id);
+                        if (!own) continue;
+                        const f = (p.fields ?? []).find((x) => x.id === own.fieldId);
+                        const o = f?.options?.find((x) => x.id === id);
+                        if (o) o.label = `${prefix}${o.label ?? ""}${suffix}`.trim();
+                    }
+                }
+            });
+        });
+    }
+
+    setPricingRoleMany(
+        ids: readonly string[],
+        role: "base" | "utility",
+    ): void {
+        const ordered = Array.from(new Set((ids ?? []).map((id) => String(id))));
+        if (!ordered.length) return;
+        this.transact("setPricingRoleMany", () => {
+            for (const id of ordered) {
+                if (this.isFieldId(id) || this.isOptionId(id)) {
+                    this.setService(id, { pricing_role: role });
+                }
+            }
+        });
+    }
+
+    clearFieldDefaultsMany(ids: readonly string[]): void {
+        const ordered = Array.from(new Set((ids ?? []).map((id) => String(id))));
+        if (!ordered.length) return;
+        this.transact("clearFieldDefaultsMany", () => {
+            this.patchProps((p) => {
+                for (const id of ordered) {
+                    if (!this.isFieldId(id)) continue;
+                    const f = (p.fields ?? []).find((x) => x.id === id);
+                    if (f && "defaults" in (f as any)) delete (f as any).defaults;
+                }
+            });
+        });
+    }
+
+    clearFieldValidationMany(ids: readonly string[]): void {
+        const ordered = Array.from(new Set((ids ?? []).map((id) => String(id))));
+        if (!ordered.length) return;
+        this.transact("clearFieldValidationMany", () => {
+            this.patchProps((p) => {
+                for (const id of ordered) {
+                    if (!this.isFieldId(id)) continue;
+                    const f = (p.fields ?? []).find((x) => x.id === id);
+                    if (f && "validation" in (f as any)) delete (f as any).validation;
+                }
+            });
+        });
+    }
+
+    autoCreateOptionsMany(
+        ids: readonly string[],
+        makeOption?: (fieldId: string) => { id?: string; label: string; value?: string | number },
+    ): void {
+        const ordered = Array.from(new Set((ids ?? []).map((id) => String(id))));
+        if (!ordered.length) return;
+        this.transact("autoCreateOptionsMany", () => {
+            this.patchProps((p) => {
+                for (const id of ordered) {
+                    if (!this.isFieldId(id)) continue;
+                    const f = (p.fields ?? []).find((x) => x.id === id);
+                    if (!f) continue;
+                    const opts = (f.options ??= []);
+                    if (opts.length > 0) continue;
+                    const next = makeOption?.(id) ?? { label: "Option label", value: "option" };
+                    opts.push({
+                        id: next.id ?? this.moduleCtx().genId("o"),
+                        label: next.label,
+                        value: next.value,
+                    } as any);
+                }
+            });
+        });
+    }
+
+    clearAllOptionsMany(ids: readonly string[]): void {
+        const ordered = Array.from(new Set((ids ?? []).map((id) => String(id))));
+        if (!ordered.length) return;
+        const optionIds: string[] = [];
+        const props = this.getProps();
+        for (const id of ordered) {
+            if (!this.isFieldId(id)) continue;
+            const f = (props.fields ?? []).find((x) => x.id === id);
+            for (const o of f?.options ?? []) optionIds.push(o.id);
+        }
+        if (!optionIds.length) return;
+        removeManyNodes(this.moduleCtx(), optionIds);
+    }
+
+    removeNoticesForNodes(ids: readonly string[]): void {
+        const selected = new Set(Array.from(new Set((ids ?? []).map((id) => String(id)))));
+        if (!selected.size) return;
+        this.transact("removeNoticesForNodes", () => {
+            this.patchProps((p) => {
+                if (!p.notices?.length) return;
+                p.notices = p.notices.filter((n: any) => {
+                    const target = n.target;
+                    if (!target || target.scope === "global") return true;
+                    if (target.scope === "node") return !selected.has(String(target.node_id));
+                    return true;
+                });
+                if (!p.notices.length) delete p.notices;
+            });
+        });
+    }
+
+    setNoticesVisibilityForNodes(
+        ids: readonly string[],
+        type: "public" | "private",
+    ): void {
+        const selected = new Set(Array.from(new Set((ids ?? []).map((id) => String(id)))));
+        if (!selected.size) return;
+        this.transact("setNoticesVisibilityForNodes", () => {
+            this.patchProps((p) => {
+                for (const n of p.notices ?? []) {
+                    const target: any = n.target;
+                    if (target?.scope === "node" && selected.has(String(target.node_id))) {
+                        (n as any).type = type;
+                    }
+                }
+            });
+        });
     }
 
     getNode(id: string) {
@@ -686,9 +988,8 @@ export class Editor {
                         : Array.from(canvas.selection),
                 );
             }
-        } else {
-            this.api.refreshGraph();
         }
+        this.api.refreshGraph();
         this.emit("editor:change", { props: s.props, reason, snapshot: s });
     }
 

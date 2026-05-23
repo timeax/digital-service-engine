@@ -5,6 +5,9 @@ import { sharedUi } from "./shared";
 
 export const chipsDescriptor: InputDescriptor = {
     Component: InputField as any,
+    options: {
+        supported: false,
+    },
 
     defaultProps: {
         variant: "chips", // MUST

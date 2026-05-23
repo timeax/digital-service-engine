@@ -13,7 +13,7 @@ import {treeSelectDescriptor} from "./treeselect";
 import {multiSelectDescriptor} from "./multiselect";
 import {selectDescriptor} from "./select";
 import {radioDescriptor} from "./radio";
-import {checkboxDescriptor} from "./checkbox";
+import {checkboxDescriptor, checkboxOptionsDescriptor} from "./checkbox";
 import {chipsDescriptor} from "./chips";
 import {colorDescriptor} from "./color";
 import {dateDescriptor} from "./date";
@@ -270,17 +270,26 @@ export function registerEntries(registry: Registry): void {
         fileDescriptor,
     ];
 
-    registry.registerMany(
-        entries.map((descriptor) => {
-            const finalDescriptor = withInputFieldUi(descriptor);
-            const variant = variantOf(finalDescriptor);
+    const baseEntries = entries.map((descriptor) => {
+        const finalDescriptor = withInputFieldUi(descriptor);
+        const variant = variantOf(finalDescriptor);
 
-            return {
-                kind: variant,
-                descriptor: finalDescriptor,
-            };
-        }),
-    );
+        return {
+            kind: variant,
+            descriptor: finalDescriptor,
+        };
+    });
+
+    const checkboxOptions = withInputFieldUi(checkboxOptionsDescriptor);
+
+    registry.registerMany([
+        ...baseEntries,
+        {
+            kind: "checkbox",
+            descriptor: checkboxOptions,
+            variant: "options",
+        },
+    ]);
 }
 
 // re-export entries (optional convenience)
@@ -298,6 +307,7 @@ export {
     selectDescriptor,
     radioDescriptor,
     checkboxDescriptor,
+    checkboxOptionsDescriptor,
     chipsDescriptor,
     colorDescriptor,
     dateDescriptor,

@@ -6,6 +6,150 @@ import type {
 } from "./editor-types";
 import { clearFieldButtonReceiverMaps, isActualButtonField, ownerOfOption } from "./editor-utils";
 
+const RELATION_MAP_KEYS = [
+    "includes_for_buttons",
+    "excludes_for_buttons",
+    "includes_for_options",
+    "excludes_for_options",
+] as const;
+
+function stripDeletedIds(
+    ids: readonly string[],
+): { ordered: string[]; set: Set<string> } {
+    const ordered = Array.from(new Set((ids ?? []).map((id) => String(id))));
+    return { ordered, set: new Set(ordered) };
+}
+
+function cleanTagRelationsForDeleted(
+    p: ServiceProps,
+    deleted: Set<string>,
+): void {
+    for (const t of p.filters ?? []) {
+        if (t.bind_id && deleted.has(String(t.bind_id))) delete t.bind_id;
+
+        if (t.includes) {
+            const next = t.includes.filter((x) => !deleted.has(String(x)));
+            if (next.length) t.includes = next;
+            else delete t.includes;
+        }
+
+        if (t.excludes) {
+            const next = t.excludes.filter((x) => !deleted.has(String(x)));
+            if (next.length) t.excludes = next;
+            else delete t.excludes;
+        }
+    }
+}
+
+function cleanFieldBindsForDeleted(p: ServiceProps, deleted: Set<string>): void {
+    for (const f of p.fields ?? []) {
+        const bind = f.bind_id;
+        if (!bind) continue;
+        if (Array.isArray(bind)) {
+            const next = bind.filter((x) => !deleted.has(String(x)));
+            if (next.length) f.bind_id = next;
+            else delete f.bind_id;
+            continue;
+        }
+        if (deleted.has(String(bind))) delete f.bind_id;
+    }
+}
+
+function cleanRelationMapsForDeleted(
+    p: ServiceProps,
+    deleted: Set<string>,
+): void {
+    for (const key of RELATION_MAP_KEYS) {
+        const map = (p as any)[key] as Record<string, string[]> | undefined;
+        if (!map) continue;
+
+        for (const mapKey of Object.keys(map)) {
+            if (deleted.has(String(mapKey))) {
+                delete map[mapKey];
+                continue;
+            }
+
+            const next = (map[mapKey] ?? []).filter(
+                (item) => !deleted.has(String(item)),
+            );
+            if (next.length) map[mapKey] = next;
+            else delete map[mapKey];
+        }
+
+        if (!Object.keys(map).length) delete (p as any)[key];
+    }
+}
+
+function cleanOrderForTagsForDeleted(
+    p: ServiceProps,
+    deleted: Set<string>,
+): void {
+    const map = p.order_for_tags;
+    if (!map) return;
+    const fieldIds = new Set((p.fields ?? []).map((f) => String(f.id)));
+
+    for (const key of Object.keys(map)) {
+        if (deleted.has(String(key))) {
+            delete map[key];
+            continue;
+        }
+        const next = (map[key] ?? []).filter(
+            (fid) => !deleted.has(String(fid)) && fieldIds.has(String(fid)),
+        );
+        if (next.length) map[key] = next;
+        else delete map[key];
+    }
+
+    if (!Object.keys(map).length) delete p.order_for_tags;
+}
+
+function cleanNoticesForDeleted(p: ServiceProps, deleted: Set<string>): void {
+    if (!p.notices?.length) return;
+    p.notices = p.notices.filter((n) => {
+        const target: any = n.target;
+        if (!target || target.scope === "global") return true;
+        if (target.scope === "node" && deleted.has(String(target.node_id))) {
+            return false;
+        }
+        return true;
+    });
+    if (!p.notices.length) delete p.notices;
+}
+
+function applyDeleteCleanup(p: ServiceProps, deleted: Set<string>): void {
+    cleanTagRelationsForDeleted(p, deleted);
+    cleanFieldBindsForDeleted(p, deleted);
+    cleanRelationMapsForDeleted(p, deleted);
+    cleanOrderForTagsForDeleted(p, deleted);
+    cleanNoticesForDeleted(p, deleted);
+}
+
+function removeOptionInPlace(p: ServiceProps, optionId: string): boolean {
+    const owner = ownerOfOption(p, optionId);
+    if (!owner) return false;
+    const f = (p.fields ?? []).find((x) => x.id === owner.fieldId);
+    if (!f?.options) return false;
+    const before = f.options.length;
+    f.options = f.options.filter((o) => o.id !== optionId);
+    return f.options.length !== before;
+}
+
+function removeFieldInPlace(p: ServiceProps, fieldId: string): string[] {
+    const field = (p.fields ?? []).find((f) => f.id === fieldId);
+    if (!field) return [];
+    const deleted = [fieldId, ...(field.options ?? []).map((o) => String(o.id))];
+    const before = (p.fields ?? []).length;
+    p.fields = (p.fields ?? []).filter((f) => f.id !== fieldId);
+    clearFieldButtonReceiverMaps(p, fieldId);
+    return (p.fields ?? []).length !== before ? deleted : [];
+}
+
+function removeTagInPlace(p: ServiceProps, tagId: string): boolean {
+    const before = (p.filters ?? []).length;
+    p.filters = (p.filters ?? []).filter((t) => t.id !== tagId);
+    return (p.filters ?? []).length !== before;
+}
+
 export function reLabel(
     ctx: EditorModuleContext,
     id: string,
@@ -191,22 +335,9 @@ export function removeOption(ctx: EditorModuleContext, optionId: string) {
         name: "removeOption",
         do: () =>
             ctx.patchProps((p) => {
-                const owner = ownerOfOption(p, optionId);
-                if (!owner) return;
-                const f = (p.fields ?? []).find((x) => x.id === owner.fieldId);
-                if (!f?.options) return;
-                f.options = f.options.filter((o) => o.id !== optionId);
-
-                const maps: Array<"includes_for_options" | "excludes_for_options"> = [
-                    "includes_for_options",
-                    "excludes_for_options",
-                ];
-                for (const m of maps) {
-                    const map = (p as any)[m] as Record<string, string[]> | undefined;
-                    if (!map) continue;
-                    if (map[optionId]) delete map[optionId];
-                    if (!Object.keys(map).length) delete (p as any)[m];
-                }
+                const removed = removeOptionInPlace(p, optionId);
+                if (!removed) return;
+                applyDeleteCleanup(p, new Set([optionId]));
             }),
         undo: () => ctx.undo(),
     });
@@ -445,19 +576,9 @@ export function removeTag(ctx: EditorModuleContext, id: string) {
         do: () =>
             ctx.patchProps((p) => {
                 prevSlice = cloneDeep(p);
-                p.filters = (p.filters ?? []).filter((t) => t.id !== id);
-                for (const t of p.filters ?? []) {
-                    if (t.bind_id === id) delete t.bind_id;
-                    t.includes = (t.includes ?? []).filter((x) => x !== id);
-                    t.excludes = (t.excludes ?? []).filter((x) => x !== id);
-                }
-                for (const f of p.fields ?? []) {
-                    if (Array.isArray(f.bind_id)) {
-                        f.bind_id = f.bind_id.filter((x) => x !== id);
-                    } else if (f.bind_id === id) {
-                        delete f.bind_id;
-                    }
-                }
+                const removed = removeTagInPlace(p, id);
+                if (!removed) return;
+                applyDeleteCleanup(p, new Set([id]));
             }),
         undo: () => ctx.replaceProps(prevSlice),
     });
@@ -545,57 +666,24 @@ export function removeField(ctx: EditorModuleContext, id: string) {
         do: () =>
             ctx.patchProps((p) => {
                 prevSlice = cloneDeep(p);
-                p.fields = (p.fields ?? []).filter((f) => f.id !== id);
-                clearFieldButtonReceiverMaps(p, id);
-                for (const mapKey of [
-                    "includes_for_buttons",
-                    "excludes_for_buttons",
-                ] as const) {
-                    const m = p[mapKey];
-                    if (!m) continue;
-                    for (const k of Object.keys(m)) {
-                        m[k] = (m[k] ?? []).filter((fid) => fid !== id);
-                        if (!m[k]?.length) delete m[k];
-                    }
-                }
-                for (const t of p.filters ?? []) {
-                    t.includes = (t.includes ?? []).filter((x) => x !== id);
-                    t.excludes = (t.excludes ?? []).filter((x) => x !== id);
-                }
+                const removedIds = removeFieldInPlace(p, id);
+                if (!removedIds.length) return;
+                applyDeleteCleanup(p, new Set(removedIds));
             }),
         undo: () => ctx.replaceProps(prevSlice),
     });
 }
 
 export function remove(ctx: EditorModuleContext, id: string) {
+    const key = String(id);
     if (ctx.isTagId(id)) {
         ctx.exec({
             name: "removeTag",
             do: () =>
                 ctx.patchProps((p) => {
-                    p.filters = (p.filters ?? []).filter((t) => t.id !== id);
-
-                    for (const t of p.filters ?? []) {
-                        if (t.bind_id === id) delete t.bind_id;
-                        t.includes = (t.includes ?? []).filter((x) => x !== id);
-                        t.excludes = (t.excludes ?? []).filter((x) => x !== id);
-                    }
-
-                    for (const f of p.fields ?? []) {
-                        if (Array.isArray(f.bind_id)) {
-                            f.bind_id = f.bind_id.filter((x) => x !== id) as any;
-                        } else if (f.bind_id === id) {
-                            delete f.bind_id;
-                        }
-                    }
-
-                    if (p.order_for_tags?.[id]) delete p.order_for_tags[id];
-                    for (const k of Object.keys(p.order_for_tags ?? {})) {
-                        p.order_for_tags![k] = (p.order_for_tags![k] ?? []).filter(
-                            (fid) => (p.fields ?? []).some((f) => f.id === fid),
-                        );
-                        if (!p.order_for_tags![k].length) delete p.order_for_tags![k];
-                    }
+                    const removed = removeTagInPlace(p, key);
+                    if (!removed) return;
+                    applyDeleteCleanup(p, new Set([key]));
                 }),
             undo: () => ctx.undo(),
         });
@@ -607,33 +695,9 @@ export function remove(ctx: EditorModuleContext, id: string) {
             name: "removeField",
             do: () =>
                 ctx.patchProps((p) => {
-                    p.fields = (p.fields ?? []).filter((f) => f.id !== id);
-
-                    for (const t of p.filters ?? []) {
-                        t.includes = (t.includes ?? []).filter((x) => x !== id);
-                        t.excludes = (t.excludes ?? []).filter((x) => x !== id);
-                    }
-
-                    for (const k of Object.keys(p.order_for_tags ?? {})) {
-                        p.order_for_tags![k] = (p.order_for_tags![k] ?? []).filter(
-                            (fid) => fid !== id,
-                        );
-                        if (!p.order_for_tags![k].length) delete p.order_for_tags![k];
-                    }
-
-                    const maps: Array<"includes_for_options" | "excludes_for_options"> = [
-                        "includes_for_options",
-                        "excludes_for_options",
-                    ];
-                    for (const m of maps) {
-                        const map = (p as any)[m] as Record<string, string[]> | undefined;
-                        if (!map) continue;
-                        for (const key of Object.keys(map)) {
-                            map[key] = (map[key] ?? []).filter((fid) => fid !== id);
-                            if (!map[key]?.length) delete map[key];
-                        }
-                        if (!Object.keys(map).length) delete (p as any)[m];
-                    }
+                    const removedIds = removeFieldInPlace(p, key);
+                    if (!removedIds.length) return;
+                    applyDeleteCleanup(p, new Set(removedIds));
                 }),
             undo: () => ctx.undo(),
         });
@@ -641,11 +705,61 @@ export function remove(ctx: EditorModuleContext, id: string) {
     }
 
     if (ctx.isOptionId(id)) {
-        removeOption(ctx, id);
+        ctx.exec({
+            name: "removeOption",
+            do: () =>
+                ctx.patchProps((p) => {
+                    const removed = removeOptionInPlace(p, key);
+                    if (!removed) return;
+                    applyDeleteCleanup(p, new Set([key]));
+                }),
+            undo: () => ctx.undo(),
+        });
         return;
     }
 
     throw new Error("remove: unknown id prefix");
+}
+
+export function removeMany(ctx: EditorModuleContext, ids: readonly string[]): void {
+    const { ordered } = stripDeletedIds(ids);
+    if (!ordered.length) return;
+
+    ctx.transact("removeMany", () => {
+        ctx.patchProps((p) => {
+            const existingFieldIds = new Set((p.fields ?? []).map((f) => String(f.id)));
+            const existingTagIds = new Set((p.filters ?? []).map((t) => String(t.id)));
+            const existingOptionIds = new Set(
+                (p.fields ?? []).flatMap((f) => (f.options ?? []).map((o) => String(o.id))),
+            );
+
+            const fieldIds = ordered.filter((id) => ctx.isFieldId(id) && existingFieldIds.has(id));
+            const fieldIdSet = new Set(fieldIds);
+            const tagIds = ordered.filter((id) => ctx.isTagId(id) && existingTagIds.has(id));
+            const optionIds = ordered.filter((id) => {
+                if (!ctx.isOptionId(id) || !existingOptionIds.has(id)) return false;
+                const owner = ownerOfOption(p, id);
+                if (!owner) return false;
+                return !fieldIdSet.has(String(owner.fieldId));
+            });
+
+            const deleted = new Set<string>();
+
+            for (const optionId of optionIds) {
+                if (removeOptionInPlace(p, optionId)) deleted.add(optionId);
+            }
+            for (const fieldId of fieldIds) {
+                const removedIds = removeFieldInPlace(p, fieldId);
+                for (const rid of removedIds) deleted.add(rid);
+            }
+            for (const tagId of tagIds) {
+                if (removeTagInPlace(p, tagId)) deleted.add(tagId);
+            }
+
+            if (!deleted.size) return;
+            applyDeleteCleanup(p, deleted);
+        });
+    });
 }
 
 export function getNode(ctx: EditorModuleContext, id: string): EditorNodeLookup {

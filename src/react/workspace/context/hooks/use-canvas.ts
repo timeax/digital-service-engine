@@ -6,7 +6,13 @@ import { useMemo } from "react";
 import type { CanvasAPI } from "@/react";
 import type { CanvasState } from "@/schema/canvas-types";
 import type { GraphSnapshot } from "@/schema/graph";
-import type { Field, FieldOption, ServiceProps, Tag } from "@/schema";
+import type {
+    Field,
+    FieldOption,
+    ServiceProps,
+    ServicePropsNotice,
+    Tag,
+} from "@/schema";
 
 import { useCanvasAPI } from "../context";
 import type { VisibleGroupResult } from "@/react/canvas/selection";
@@ -54,11 +60,23 @@ export interface UseCanvasReturn {
     graph: GraphSnapshot;
     api: CanvasAPI;
     props?: ServiceProps;
+    selectionCapabilities: SelectionCapabilities;
 }
+
+export type SelectionCapabilities = {
+    hasTags: boolean;
+    hasFields: boolean;
+    hasOptions: boolean;
+    hasServiceBearingNodes: boolean;
+    hasSelectedFieldWithOptions: boolean;
+    hasNoticesForSelection: boolean;
+    canIncludeExcludeTargets: boolean;
+    canRebind: boolean;
+};
 
 /** ---------------- helpers ---------------- */
 function deriveSelectionInfo(
-    props: NodeMap,
+    nodeMap: NodeMap,
     ids: readonly string[],
 ): CanvasSelection {
     const tags: string[] = [];
@@ -66,7 +84,7 @@ function deriveSelectionInfo(
     const options: string[] = [];
 
     for (const id of ids) {
-        const node = props.get(id);
+        const node = nodeMap.get(id);
         if (!node) continue;
 
         if (node.kind == "tag") {
@@ -97,6 +115,71 @@ function deriveSelectionInfo(
         tagIds: uniq(tags),
         fieldIds: uniq(fields),
         optionIds: uniq(options),
+    };
+}
+
+function noticeTargetsSelection(
+    notice: ServicePropsNotice,
+    selected: ReadonlySet<string>,
+): boolean {
+    const target = notice.target;
+    if (target.scope === "global") return false;
+    return selected.has(String(target.node_id));
+}
+
+export function deriveSelectionCapabilities(
+    props: ServiceProps | undefined,
+    selectionInfo: CanvasSelection,
+): SelectionCapabilities {
+    const selected = new Set(selectionInfo.ids.map(String));
+    const fields = props?.fields ?? [];
+    const tags = props?.filters ?? [];
+    const notices = props?.notices ?? [];
+
+    const hasSelectedFieldWithOptions = fields.some(
+        (f) => selected.has(String(f.id)) && (f.options?.length ?? 0) > 0,
+    );
+
+    const hasServiceBearingNodes =
+        tags.some(
+            (t) =>
+                selected.has(String(t.id)) &&
+                t.service_id !== undefined &&
+                t.service_id !== null,
+        ) ||
+        fields.some(
+            (f) =>
+                selected.has(String(f.id)) &&
+                (f as Field).service_id !== undefined &&
+                (f as Field).service_id !== null,
+        ) ||
+        fields.some((f) =>
+            (f.options ?? []).some(
+                (o) =>
+                    selected.has(String(o.id)) &&
+                    o.service_id !== undefined &&
+                    o.service_id !== null,
+            ),
+        );
+
+    const hasNoticesForSelection = notices.some((n) =>
+        noticeTargetsSelection(n, selected),
+    );
+
+    return {
+        hasTags: selectionInfo.tagIds.length > 0,
+        hasFields: selectionInfo.fieldIds.length > 0,
+        hasOptions: selectionInfo.optionIds.length > 0,
+        hasServiceBearingNodes,
+        hasSelectedFieldWithOptions,
+        hasNoticesForSelection,
+        canIncludeExcludeTargets:
+            selectionInfo.tagIds.length +
+                selectionInfo.fieldIds.length +
+                selectionInfo.optionIds.length >
+            0,
+        canRebind:
+            selectionInfo.fieldIds.length > 0 || selectionInfo.tagIds.length > 0,
     };
 }
 
@@ -303,7 +386,12 @@ export function useCanvas(): UseCanvasReturn {
         return off;
     }, [api]);
 
-    const selector = useMemo(() => createNodeIndex(api.builder), [props]);
+    const selector = useMemo(() => createNodeIndex(api.builder), [api.builder, props]);
+
+    const selectionCapabilities = React.useMemo(
+        () => deriveSelectionCapabilities(props, selectionInfo),
+        [props, selectionInfo],
+    );
 
     return React.useMemo(
         () => ({
@@ -313,6 +401,7 @@ export function useCanvas(): UseCanvasReturn {
             props,
             selection,
             selectionInfo,
+            selectionCapabilities,
             selector,
             activeId,
             setActive,
@@ -324,6 +413,7 @@ export function useCanvas(): UseCanvasReturn {
             props,
             selection,
             selectionInfo,
+            selectionCapabilities,
             selector,
             activeId,
             setActive,

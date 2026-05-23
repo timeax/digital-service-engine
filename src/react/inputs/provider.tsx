@@ -58,3 +58,7 @@ export function useInputs(): InputsCtxValue {
     if (!v) throw new Error("useInputs() must be used within <InputsProvider>");
     return v;
 }
+
+export function useInputsMaybe(): InputsCtxValue | null {
+    return useContext(Ctx);
+}

@@ -1,7 +1,9 @@
 import {describe, it, expect} from 'vitest';
 import React from 'react';
-import {createInputRegistry, resolveInputDescriptor} from "@/react";
+import {createInputRegistry, resolveInputDescriptor, registerEntries, Provider, useInputsMaybe} from "@/react";
 import type {InputDescriptor} from "@/react";
+import { createRoot } from "react-dom/client";
+import { act } from "react";
 
 function StubA(_: Record<string, unknown>) { return React.createElement('div'); }
 function StubB(_: Record<string, unknown>) { return React.createElement('div'); }
@@ -57,5 +59,72 @@ describe('InputRegistry variant resolution', () => {
         // fallback to default
         const d = resolveInputDescriptor(registry, 'custom:Rating', 'nope' as any);
         expect(d?.Component).toBe(StubA);
+    });
+
+    it("supports descriptor options metadata", () => {
+        const registry = createInputRegistry();
+        const descriptor: InputDescriptor = {
+            Component: StubA,
+            options: {
+                supported: true,
+                autoCreate: true,
+                defaultLabel: "Option label",
+                defaultValue: "option",
+            },
+        };
+
+        registry.register("custom:Choice", descriptor);
+        const resolved = resolveInputDescriptor(registry, "custom:Choice");
+        expect(resolved?.options?.supported).toBe(true);
+        expect(resolved?.options?.autoCreate).toBe(true);
+    });
+
+    it("registers checkbox single and options variants separately", () => {
+        const registry = createInputRegistry();
+        registerEntries(registry);
+
+        const single = resolveInputDescriptor(registry, "checkbox");
+        const group = resolveInputDescriptor(registry, "checkbox", "options");
+
+        expect(single?.defaultProps?.single).toBe(true);
+        expect(single?.options?.supported).toBe(false);
+        expect(group?.defaultProps?.single).toBe(false);
+        expect(group?.options?.supported).toBe(true);
+    });
+});
+
+describe("useInputsMaybe", () => {
+    it("returns null outside provider and context inside provider", async () => {
+        const host = document.createElement("div");
+        document.body.appendChild(host);
+        const root = createRoot(host);
+        const seen: Array<any> = [];
+
+        function Probe() {
+            seen.push(useInputsMaybe());
+            return null;
+        }
+
+        await act(async () => {
+            root.render(React.createElement(Probe));
+        });
+        expect(seen[0]).toBeNull();
+
+        seen.length = 0;
+        await act(async () => {
+            root.render(
+                React.createElement(
+                    Provider,
+                    null,
+                    React.createElement(Probe),
+                ),
+            );
+        });
+
+        expect(seen[0]).toBeTruthy();
+        expect(seen[0].registry).toBeTruthy();
+
+        await act(async () => root.unmount());
+        host.remove();
     });
 });

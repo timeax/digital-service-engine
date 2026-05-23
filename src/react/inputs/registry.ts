@@ -34,11 +34,19 @@ export type Adapter = {
     toValue?: (value: any) => any;
 };
 
+export type InputOptionCapability = {
+    supported?: boolean;
+    autoCreate?: boolean;
+    defaultLabel?: string;
+    defaultValue?: string | number;
+};
+
 export type InputDescriptor = {
     Component: React.ComponentType<Record<string, unknown>>;
     adapter?: Adapter;
     defaultProps?: Record<string, unknown>;
     ui?: Record<string, Ui>;
+    options?: InputOptionCapability;
 };
 
 type VariantMap = Map<InputVariant, InputDescriptor>;
