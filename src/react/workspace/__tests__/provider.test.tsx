@@ -758,12 +758,107 @@ describe("WorkspaceProvider boot", () => {
         expect(spyAuthorsRefresh).not.toHaveBeenCalled();
         expect(spyPermissionsRefresh).not.toHaveBeenCalled();
         expect(spyServicesRefresh).not.toHaveBeenCalled();
-        expect(spyParticipantsRefresh).toHaveBeenCalled();
-        expect(spyTemplatesRefresh).toHaveBeenCalled();
-        expect(spySnapshotsRefresh).toHaveBeenCalled();
-        expect(spySnapshotsLoad).toHaveBeenCalled();
-        expect(spyPoliciesLoad).toHaveBeenCalled();
-        expect(spyCommentsRefresh).toHaveBeenCalled();
+        expect(spyParticipantsRefresh).toHaveBeenCalledWith({
+            workspaceId: backend.info.id,
+            branchId: "main",
+            since: expect.any(Number),
+        });
+        expect(spyTemplatesRefresh).toHaveBeenCalledWith({
+            workspaceId: backend.info.id,
+            branchId: "main",
+            since: expect.any(Number),
+        });
+        expect(spySnapshotsRefresh).toHaveBeenCalledWith({
+            workspaceId: backend.info.id,
+            branchId: "main",
+            actorId: actor.id,
+            since: undefined,
+        });
+        expect(spySnapshotsLoad).toHaveBeenCalledWith({
+            workspaceId: backend.info.id,
+            branchId: "main",
+            actorId: actor.id,
+            versionId: undefined,
+        });
+        expect(spyPoliciesLoad).toHaveBeenCalledWith({
+            workspaceId: backend.info.id,
+            branchId: "main",
+            actorId: actor.id,
+            since: undefined,
+        });
+        expect(spyCommentsRefresh).toHaveBeenCalledWith({
+            workspaceId: backend.info.id,
+            actorId: actor.id,
+            branchId: "main",
+        });
+    });
+
+    it("refresh.branchContext with workspace data passes explicit branch context to branch-aware workspace loadables", async () => {
+        const actor = makeActor();
+        const backend = makeBootBackend("ws-branch-context-with-workspace", actor);
+        let api: WorkspaceAPI | undefined;
+
+        function Capture(): null {
+            api = useWorkspace();
+            return null;
+        }
+
+        await act(async () => {
+            root?.render(
+                <WorkspaceProvider backend={backend} actor={actor} autoAutosave={false}>
+                    <Capture />
+                </WorkspaceProvider>,
+            );
+            await flushMicrotasks();
+        });
+        await waitFor(() => Boolean(api) && api!.boot.isBooting === false);
+        vi.clearAllMocks();
+
+        const spyPermissionsRefresh = vi.spyOn(backend.permissions, "refresh");
+        const spyServicesRefresh = vi.spyOn(backend.services, "refresh");
+        const spyPoliciesLoad = vi.spyOn(backend.policies, "load");
+        const spyTemplatesRefresh = vi.spyOn(backend.templates, "refresh");
+        const spyParticipantsRefresh = vi.spyOn(
+            backend.access,
+            "refreshParticipants",
+        );
+
+        await act(async () => {
+            await api!.refresh.branchContext({
+                branchId: "main",
+                strict: true,
+                includeWorkspaceData: true,
+            });
+            await flushMicrotasks();
+        });
+
+        expect(spyPermissionsRefresh).toHaveBeenCalledWith({
+            workspaceId: backend.info.id,
+            actorId: actor.id,
+            branchId: "main",
+            since: undefined,
+        });
+        expect(spyServicesRefresh).toHaveBeenCalledWith({
+            workspaceId: backend.info.id,
+            branchId: "main",
+            since: expect.any(Number),
+        });
+        expect(spyPoliciesLoad).toHaveBeenCalledWith({
+            workspaceId: backend.info.id,
+            actorId: actor.id,
+            branchId: "main",
+            since: undefined,
+        });
+        expect(spyTemplatesRefresh).toHaveBeenCalledWith({
+            workspaceId: backend.info.id,
+            branchId: "main",
+            since: expect.any(Number),
+        });
+        expect(spyParticipantsRefresh).toHaveBeenCalledWith({
+            workspaceId: backend.info.id,
+            branchId: "main",
+            since: expect.any(Number),
+        });
     });
 
     it("clears stale snapshot immediately when switching to an uncached branch", async () => {

@@ -115,7 +115,7 @@ export function useBranchesSlice(
         BackendResult<readonly Branch[]>
     > => {
         setBranches((s) => ({ ...s, loading: true }));
-        const res = await backend.branches.refresh(workspaceId);
+        const res = await backend.branches.refresh({ workspaceId });
 
         if (!res.ok) {
             setBranches((s) => ({ ...s, loading: false, error: res.error }));
@@ -162,11 +162,11 @@ export function useBranchesSlice(
 
             setParticipants((s) => ({ ...s, loading: true }));
 
-            const res = await backend.access.refreshParticipants(
+            const res = await backend.access.refreshParticipants({
                 workspaceId,
                 branchId,
-                { since: params?.since ?? participants.updatedAt },
-            );
+                since: params?.since ?? participants.updatedAt,
+            });
 
             if (res.ok) {
                 setParticipants({

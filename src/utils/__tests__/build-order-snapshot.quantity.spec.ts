@@ -562,3 +562,42 @@ describe('buildOrderSnapshot — quantity evaluation', () => {
         expect(snap.quantitySource).toMatchObject({kind: 'tag', id: 't:root'});
     });
 });
+
+it('uses selected option quantityDefault from selectedKeys when legacy optionSelectionsByFieldId is empty', () => {
+    const options: FieldOption[] = [
+        {
+            id: 'o:std',
+            label: 'Standard',
+            value: 'standard',
+            meta: {quantityDefault: 4} as any,
+        },
+    ];
+    const field: Field = {
+        id: 'f:opts',
+        type: 'select',
+        label: 'Options',
+        bind_id: 't:root',
+        options,
+    } as Field;
+    const rootWithDefault: Tag = {
+        ...ROOT,
+        meta: {quantityDefault: 9} as any,
+    };
+    const props = propsOf([rootWithDefault], [field]);
+    const builder = makeBuilderVisibleFields(['f:opts']);
+
+    const selection = {
+        activeTagId: 't:root',
+        formValuesByFieldId: {},
+        optionSelectionsByFieldId: {},
+        selectedKeys: ['f:opts::o:std'],
+    };
+
+    const snap = buildOrderSnapshot(props, builder, selection, svcMap, {
+        mode: 'prod',
+        hostDefaultQuantity: 1,
+    });
+
+    expect(snap.quantity).toBe(4);
+    expect(snap.quantitySource).toMatchObject({kind: 'option', id: 'o:std'});
+});

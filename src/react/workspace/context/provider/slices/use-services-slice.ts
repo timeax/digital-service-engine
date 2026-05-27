@@ -12,7 +12,9 @@ import { toServiceMap } from "../helpers";
 
 export interface ServicesSliceApi {
     readonly services: Loadable<DgpServiceMap>;
-    readonly refreshServices: () => Promise<BackendResult<DgpServiceMap>>;
+    readonly refreshServices: (
+        params?: Readonly<{ branchId?: string; since?: number | string }>,
+    ) => Promise<BackendResult<DgpServiceMap>>;
     readonly invalidateServices: () => void;
 }
 
@@ -41,13 +43,16 @@ export function useServicesSlice(
         updatedAt: initialServices ? runtime.now() : undefined,
     });
 
-    const refreshServices = React.useCallback(async (): Promise<
-        BackendResult<DgpServiceMap>
-    > => {
+    const refreshServices = React.useCallback(
+        async (
+            params?: Readonly<{ branchId?: string; since?: number | string }>,
+        ): Promise<BackendResult<DgpServiceMap>> => {
         setServices((s) => ({ ...s, loading: true }));
 
-        const res = await backend.services.refresh(workspaceId, {
-            since: services.updatedAt,
+        const res = await backend.services.refresh({
+            workspaceId,
+            branchId: params?.branchId,
+            since: params?.since ?? services.updatedAt,
         });
 
         if (!res.ok) {
@@ -62,7 +67,9 @@ export function useServicesSlice(
             updatedAt: runtime.now(),
         });
         return { ok: true, value: map ?? ({} as DgpServiceMap) };
-    }, [backend.services, workspaceId, services.updatedAt, runtime]);
+        },
+        [backend.services, workspaceId, services.updatedAt, runtime],
+    );
 
     const invalidateServices = React.useCallback((): void => {
         setServices((s) => ({ ...s, updatedAt: undefined }));

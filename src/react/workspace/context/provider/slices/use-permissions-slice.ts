@@ -12,7 +12,9 @@ import type { BackendRuntime } from "../runtime/use-backend-runtime";
 
 export interface PermissionsSliceApi {
     readonly permissions: Loadable<PermissionsMap>;
-    readonly refreshPermissions: () => Promise<BackendResult<PermissionsMap>>;
+    readonly refreshPermissions: (
+        params?: Readonly<{ branchId?: string; since?: number | string }>,
+    ) => Promise<BackendResult<PermissionsMap>>;
     readonly invalidatePermissions: () => void;
 }
 
@@ -44,11 +46,17 @@ export function usePermissionsSlice(
         updatedAt: initialPermissions ? runtime.now() : undefined,
     });
 
-    const refreshPermissions = React.useCallback(async (): Promise<
-        BackendResult<PermissionsMap>
-    > => {
+    const refreshPermissions = React.useCallback(
+        async (
+            params?: Readonly<{ branchId?: string; since?: number | string }>,
+        ): Promise<BackendResult<PermissionsMap>> => {
         setPermissions((s) => ({ ...s, loading: true }));
-        const res = await backend.permissions.refresh(workspaceId, actor);
+        const res = await backend.permissions.refresh({
+            workspaceId,
+            actorId: actor.id,
+            branchId: params?.branchId,
+            since: params?.since,
+        });
 
         if (res.ok) {
             setPermissions({
@@ -61,7 +69,9 @@ export function usePermissionsSlice(
             setLoadableError(setPermissions, res.error);
             return res;
         }
-    }, [backend.permissions, workspaceId, actor, runtime]);
+        },
+        [backend.permissions, workspaceId, actor.id, runtime],
+    );
 
     const invalidatePermissions = React.useCallback((): void => {
         setPermissions((s) => ({ ...s, updatedAt: undefined }));

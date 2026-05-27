@@ -116,9 +116,14 @@ export interface UseWorkspaceBootParams {
         BackendResult<Readonly<Record<string, boolean>>>
     >;
     readonly refreshBranches: () => Promise<BackendResult<readonly Branch[]>>;
-    readonly refreshServices: () => Promise<
+    readonly refreshServices: (
+        branchId?: string,
+    ) => Promise<
         BackendResult<Readonly<Record<string, unknown>>>
     >;
+    readonly refreshPermissionsWithBranch: (
+        branchId?: string,
+    ) => Promise<BackendResult<Readonly<Record<string, boolean>>>>;
     readonly refreshParticipants: (
         branchId: string,
     ) => Promise<BackendResult<readonly unknown[]>>;
@@ -168,6 +173,7 @@ export function useWorkspaceBoot(
         setCurrentBranchId,
         refreshAuthors,
         refreshPermissions,
+        refreshPermissionsWithBranch,
         refreshBranches,
         refreshServices,
         refreshParticipants,
@@ -335,8 +341,11 @@ export function useWorkspaceBoot(
 
             if (opts?.includeWorkspaceData ?? true) {
                 tasks.push(["authors", refreshAuthors]);
-                tasks.push(["permissions", refreshPermissions]);
-                tasks.push(["services", refreshServices]);
+                tasks.push([
+                    "permissions",
+                    () => refreshPermissionsWithBranch(branchId),
+                ]);
+                tasks.push(["services", () => refreshServices(branchId)]);
             }
 
             if (!branchId) {
@@ -485,6 +494,7 @@ export function useWorkspaceBoot(
             refreshComments,
             refreshParticipants,
             refreshPermissions,
+            refreshPermissionsWithBranch,
             refreshPolicies,
             refreshServices,
             refreshSnapshotPointers,

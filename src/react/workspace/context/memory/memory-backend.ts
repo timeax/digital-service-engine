@@ -470,8 +470,8 @@ export function createMemoryWorkspaceBackend(
     void initStore();
 
     const authorsBase: AuthorsBackend = {
-        list: async (workspaceId: string) => {
-            if (workspaceId !== info.id)
+        list: async (ctx) => {
+            if (ctx.workspaceId !== info.id)
                 return fail("not_found", "Workspace not found.");
             return ok(Array.from(store.authors.values()));
         },
@@ -479,8 +479,8 @@ export function createMemoryWorkspaceBackend(
             const a: Author | undefined = store.authors.get(authorId);
             return ok(a ?? null);
         },
-        refresh: async (workspaceId: string) => {
-            if (workspaceId !== info.id)
+        refresh: async (ctx) => {
+            if (ctx.workspaceId !== info.id)
                 return fail("not_found", "Workspace not found.");
             return ok(Array.from(store.authors.values()));
         },
@@ -493,21 +493,21 @@ export function createMemoryWorkspaceBackend(
     );
 
     const permissionsBase: PermissionsBackend = {
-        get: async (workspaceId: string, actor: Actor) => {
-            if (workspaceId !== info.id)
+        get: async (ctx) => {
+            if (ctx.workspaceId !== info.id)
                 return fail("not_found", "Workspace not found.");
             const seeded: PermissionsMap | undefined =
-                store.permissionsByActor.get(actor.id) ??
+                store.permissionsByActor.get(ctx.actorId) ??
                 store.permissionsByActor.get("*") ??
                 undefined;
 
             return ok(seeded ?? permissivePermissions());
         },
-        refresh: async (workspaceId: string, actor: Actor) => {
-            if (workspaceId !== info.id)
+        refresh: async (ctx) => {
+            if (ctx.workspaceId !== info.id)
                 return fail("not_found", "Workspace not found.");
             const seeded: PermissionsMap | undefined =
-                store.permissionsByActor.get(actor.id) ??
+                store.permissionsByActor.get(ctx.actorId) ??
                 store.permissionsByActor.get("*") ??
                 undefined;
 
@@ -522,8 +522,8 @@ export function createMemoryWorkspaceBackend(
     );
 
     const branchesBase: BranchesBackend = {
-        list: async (workspaceId: string) => {
-            if (workspaceId !== info.id)
+        list: async (ctx) => {
+            if (ctx.workspaceId !== info.id)
                 return fail("not_found", "Workspace not found.");
             return ok(Array.from(store.branches.values()));
         },
@@ -663,8 +663,8 @@ export function createMemoryWorkspaceBackend(
             return ok(undefined);
         },
 
-        refresh: async (workspaceId: string) => {
-            if (workspaceId !== info.id)
+        refresh: async (ctx) => {
+            if (ctx.workspaceId !== info.id)
                 return fail("not_found", "Workspace not found.");
             return ok(Array.from(store.branches.values()));
         },
@@ -677,18 +677,18 @@ export function createMemoryWorkspaceBackend(
     );
 
     const accessBase: BranchAccessBackend = {
-        listParticipants: async (workspaceId: string, branchId: string) => {
-            if (workspaceId !== info.id)
+        listParticipants: async (ctx) => {
+            if (ctx.workspaceId !== info.id)
                 return fail("not_found", "Workspace not found.");
             const list: readonly BranchParticipant[] =
-                store.participantsByBranch.get(branchId) ?? [];
+                store.participantsByBranch.get(ctx.branchId) ?? [];
             return ok(list);
         },
-        refreshParticipants: async (workspaceId: string, branchId: string) => {
-            if (workspaceId !== info.id)
+        refreshParticipants: async (ctx) => {
+            if (ctx.workspaceId !== info.id)
                 return fail("not_found", "Workspace not found.");
             const list: readonly BranchParticipant[] =
-                store.participantsByBranch.get(branchId) ?? [];
+                store.participantsByBranch.get(ctx.branchId) ?? [];
             return ok(list);
         },
     };
@@ -700,14 +700,14 @@ export function createMemoryWorkspaceBackend(
     );
 
     const servicesBase: ServicesBackend = {
-        get: async (workspaceId: string) => {
-            if (workspaceId !== info.id)
+        get: async (ctx) => {
+            if (ctx.workspaceId !== info.id)
                 return fail("not_found", "Workspace not found.");
             if (!store.services) return ok([] as ServicesInput);
             return ok(store.services);
         },
-        refresh: async (workspaceId: string) => {
-            if (workspaceId !== info.id)
+        refresh: async (ctx) => {
+            if (ctx.workspaceId !== info.id)
                 return fail("not_found", "Workspace not found.");
             if (!store.services) return ok([] as ServicesInput);
             return ok(store.services);

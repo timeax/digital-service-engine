@@ -44,7 +44,7 @@ export function useAuthorsSlice(
         BackendResult<readonly Author[]>
     > => {
         setAuthors((s) => ({ ...s, loading: true }));
-        const res = await backend.authors.refresh(workspaceId);
+        const res = await backend.authors.refresh({ workspaceId });
 
         if (res.ok) {
             setAuthors({

@@ -152,8 +152,11 @@ export function WorkspaceProvider(
         setCurrentBranchId: branchesSlice.setCurrentBranchId,
         refreshAuthors: authorsSlice.refreshAuthors,
         refreshPermissions: permissionsSlice.refreshPermissions,
+        refreshPermissionsWithBranch: (branchId?: string) =>
+            permissionsSlice.refreshPermissions({ branchId }),
         refreshBranches: branchesSlice.refreshBranches,
-        refreshServices: servicesSlice.refreshServices as () => Promise<any>,
+        refreshServices: (branchId?: string) =>
+            servicesSlice.refreshServices({ branchId }) as Promise<any>,
         refreshParticipants: (branchId: string) =>
             branchesSlice.refreshParticipants({ branchId }),
         refreshTemplates: (branchId: string) =>

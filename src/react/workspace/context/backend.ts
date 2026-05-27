@@ -67,16 +67,31 @@ export interface MergeResult {
     readonly message?: string;
 }
 
+/* ---------------- shared load context ---------------- */
+
+export type WorkspaceLoadContext = Readonly<{
+    workspaceId: string;
+    actorId?: string;
+    branchId?: string;
+    since?: string | number;
+}>;
+
+export type WorkspaceActorLoadContext = WorkspaceLoadContext &
+    Readonly<{ actorId: string }>;
+
+export type WorkspaceBranchLoadContext = WorkspaceLoadContext &
+    Readonly<{ branchId: string }>;
+
+export type WorkspaceActorBranchLoadContext = WorkspaceLoadContext &
+    Readonly<{ actorId: string; branchId: string }>;
+
 /* ---------------- services ---------------- */
 
 export type ServicesInput = readonly DgpServiceCapability[] | DgpServiceMap;
 
 export interface ServicesBackend {
-    get(workspaceId: string): Result<ServicesInput>;
-    refresh(
-        workspaceId: string,
-        params?: Readonly<{ since?: number | string }>,
-    ): Result<ServicesInput>;
+    get(ctx: WorkspaceLoadContext): Result<ServicesInput>;
+    refresh(ctx: WorkspaceLoadContext): Result<ServicesInput>;
 }
 
 /* ---------------- branch access / participants ---------------- */
@@ -102,13 +117,10 @@ export interface BranchParticipant {
 
 export interface BranchAccessBackend {
     listParticipants(
-        workspaceId: string,
-        branchId: string,
+        ctx: WorkspaceBranchLoadContext,
     ): Result<readonly BranchParticipant[]>;
     refreshParticipants(
-        workspaceId: string,
-        branchId: string,
-        params?: Readonly<{ since?: number | string }>,
+        ctx: WorkspaceBranchLoadContext,
     ): Result<readonly BranchParticipant[]>;
 }
 
@@ -247,12 +259,13 @@ export interface FieldTemplate {
 
 /** Narrow list/search input */
 export interface TemplatesListParams {
-    readonly workspaceId: string;
-    readonly branchId?: string;
+    readonly workspaceId: WorkspaceLoadContext["workspaceId"];
+    readonly actorId?: WorkspaceLoadContext["actorId"];
+    readonly branchId?: WorkspaceLoadContext["branchId"];
     readonly q?: string;
     readonly tags?: readonly string[];
     readonly category?: string;
-    readonly since?: string | number;
+    readonly since?: WorkspaceLoadContext["since"];
 }
 
 export interface TemplateCreateInput {
@@ -346,18 +359,18 @@ export type LiveOptions =
 /* ---------------- authors / permissions / branches ---------------- */
 
 export interface AuthorsBackend {
-    list(workspaceId: string): Result<readonly Author[]>;
+    list(ctx: WorkspaceLoadContext): Result<readonly Author[]>;
     get(authorId: string): Result<Author | null>;
-    refresh(workspaceId: string): Result<readonly Author[]>;
+    refresh(ctx: WorkspaceLoadContext): Result<readonly Author[]>;
 }
 
 export interface PermissionsBackend {
-    get(workspaceId: string, actor: Actor): Result<PermissionsMap>;
-    refresh(workspaceId: string, actor: Actor): Result<PermissionsMap>;
+    get(ctx: WorkspaceActorLoadContext): Result<PermissionsMap>;
+    refresh(ctx: WorkspaceActorLoadContext): Result<PermissionsMap>;
 }
 
 export interface BranchesBackend {
-    list(workspaceId: string): Result<readonly Branch[]>;
+    list(ctx: WorkspaceLoadContext): Result<readonly Branch[]>;
     create(
         workspaceId: string,
         name: string,
@@ -370,7 +383,7 @@ export interface BranchesBackend {
         targetId: string,
     ): Result<MergeResult>;
     delete(workspaceId: string, branchId: string): Result<void>;
-    refresh(workspaceId: string): Result<readonly Branch[]>;
+    refresh(ctx: WorkspaceLoadContext): Result<readonly Branch[]>;
 }
 
 /* ---------------- workspace backend root ---------------- */
@@ -389,11 +402,7 @@ export interface WorkspaceInfo {
  * This is intentionally transport-agnostic and minimal so other layers (e.g. canvas/comments)
  * can reuse it without redefining identity types.
  */
-export interface BackendScope {
-    readonly workspaceId: string;
-    readonly actorId: string;
-    readonly branchId: string;
-}
+export interface BackendScope extends WorkspaceActorBranchLoadContext {}
 
 /**
  * Generic canvas comments backend contract.
@@ -479,7 +488,7 @@ export interface CommentsBackend<
  * - If branchId is provided -> branch-scoped policies
  * - If branchId is omitted  -> workspace-scoped policies
  */
-export interface PolicyScope extends BackendScope {}
+export interface PolicyScope extends WorkspaceActorLoadContext {}
 
 export interface PoliciesLoadResult {
     /** the raw JSON the host stored (authoring format) */

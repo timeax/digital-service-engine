@@ -40,9 +40,13 @@ export interface UseWorkspaceRefreshParams {
     readonly runtime: BackendRuntime;
 
     readonly refreshAuthors: () => Promise<void>;
-    readonly refreshPermissions: () => Promise<void>;
+    readonly refreshPermissions: (
+        params?: Readonly<{ branchId?: string; since?: number | string }>,
+    ) => Promise<void>;
     readonly refreshBranches: () => Promise<void>;
-    readonly refreshServices: () => Promise<void>;
+    readonly refreshServices: (
+        params?: Readonly<{ branchId?: string; since?: number | string }>,
+    ) => Promise<void>;
     readonly refreshPolicies: PoliciesSlice["refreshPolicies"];
     readonly refreshComments: CommentsSliceApi["refreshThreads"];
 
@@ -124,8 +128,8 @@ export function useWorkspaceRefresh(
 
             if (includeWorkspaceData) {
                 tasks.push(() => refreshAuthors());
-                tasks.push(() => refreshPermissions());
-                tasks.push(() => refreshServices());
+                tasks.push(() => refreshPermissions({ branchId }));
+                tasks.push(() => refreshServices({ branchId }));
             }
 
             tasks.push(() => refreshBranchLocalContext(branchId, tolerant));

@@ -470,3 +470,96 @@ describe('buildOrderSnapshot — order kind resolution', () => {
         });
     });
 });
+
+describe('buildOrderSnapshot - selectedKeys derived option selections', () => {
+    it('derives selection.fields, inputs.selections, utilities, and nodeContexts from selectedKeys when legacy map is empty', () => {
+        const tags = [tag('t:root', 'Root')];
+        const utilityOption: FieldOption = {
+            id: 'o:util',
+            label: 'Utility',
+            pricing_role: 'utility',
+            meta: {utility: {rate: 3, mode: 'per_quantity'}} as any,
+        };
+        const inputField: Field = {
+            id: 'f:input',
+            type: 'select',
+            bind_id: 't:root',
+            label: 'Input',
+            options: [utilityOption],
+        } as Field;
+        const props = baseProps(tags, [inputField]);
+        const builder = makeBuilderVisibleFields(['f:input']);
+
+        const snap = buildOrderSnapshot(
+            props,
+            builder,
+            {
+                activeTagId: 't:root',
+                formValuesByFieldId: {'f:input': 'abc'},
+                optionSelectionsByFieldId: {},
+                selectedKeys: ['o:util'],
+            },
+            svcMap,
+            {mode: 'prod', hostDefaultQuantity: 2},
+        );
+
+        expect(snap.selection.fields).toEqual([
+            {id: 'f:input', type: 'select', selectedOptions: ['o:util']},
+        ]);
+        expect(snap.inputs.selections).toEqual({'f:input': ['o:util']});
+        expect(snap.utilities).toEqual([
+            {nodeId: 'o:util', mode: 'per_quantity', rate: 3, inputs: {quantity: 2}},
+        ]);
+        expect(snap.meta?.context?.nodeContexts).toEqual({
+            't:root': 't:root',
+            'o:util': 't:root',
+        });
+    });
+
+    it('keeps highest-rate selected base service as primary regardless of selection order', () => {
+        const tags = [tag('t:root', 'Root', 1)];
+        const fA = field('fA', 't:root', [
+            opt('o:A1', 'A1', 10),
+            opt('o:A2', 'A2', 11),
+            opt('o:A3', 'A3', 1),
+        ]);
+        const props = baseProps(tags, [fA]);
+        const builder = makeBuilderVisibleFields(['fA']);
+
+        const snap = buildOrderSnapshot(
+            props,
+            builder,
+            {
+                activeTagId: 't:root',
+                formValuesByFieldId: {},
+                optionSelectionsByFieldId: {},
+                selectedKeys: ['o:A2', 'o:A1', 'o:A3'],
+            },
+            svcMap,
+            {mode: 'prod'},
+        );
+
+        expect(snap.services).toEqual([1, 11, 10]);
+    });
+
+    it('keeps facade import behavior stable for buildOrderSnapshot', () => {
+        const tags = [tag('t:root', 'Root', 1)];
+        const props = baseProps(tags, []);
+        const builder = makeBuilderVisibleFields([]);
+        const snap = buildOrderSnapshot(
+            props,
+            builder,
+            {
+                activeTagId: 't:root',
+                formValuesByFieldId: {},
+                optionSelectionsByFieldId: {},
+            },
+            svcMap,
+            {mode: 'prod', hostDefaultQuantity: 5},
+        );
+
+        expect(typeof buildOrderSnapshot).toBe('function');
+        expect(snap.selection.tag).toBe('t:root');
+        expect(snap.quantity).toBe(5);
+    });
+});
