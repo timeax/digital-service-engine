@@ -1,6 +1,6 @@
 {
     "name": "@timeax/digital-service-engine",
-    "version": "0.3.3",
+    "version": "0.3.4",
     "description": "Headless service props builder + minimal React Flow workspace.",
     "type": "module",
     "exports": {
