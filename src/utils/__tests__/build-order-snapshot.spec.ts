@@ -562,4 +562,66 @@ describe('buildOrderSnapshot - selectedKeys derived option selections', () => {
         expect(snap.selection.tag).toBe('t:root');
         expect(snap.quantity).toBe(5);
     });
+
+    it('prod collapses non-multi field selections while preserving legacy composite parsing', () => {
+        const tags = [tag('t:root', 'Root')];
+        const inputField: Field = {
+            id: 'f:input',
+            type: 'select',
+            bind_id: 't:root',
+            label: 'Input',
+            options: [opt('o:a', 'A'), opt('o:b', 'B')],
+        } as Field;
+        const props = baseProps(tags, [inputField]);
+        const builder = makeBuilderVisibleFields(['f:input']);
+
+        const snap = buildOrderSnapshot(
+            props,
+            builder,
+            {
+                activeTagId: 't:root',
+                formValuesByFieldId: {},
+                optionSelectionsByFieldId: {},
+                selectedKeys: ['f:input::o:a', 'o:b', 'o:a', 'o:b'],
+            },
+            svcMap,
+            {mode: 'prod'},
+        );
+
+        expect(snap.selection.fields).toEqual([
+            {id: 'f:input', type: 'select', selectedOptions: ['o:b']},
+        ]);
+        expect(snap.inputs.selections).toEqual({'f:input': ['o:b']});
+    });
+
+    it('dev preserves multiple selections for non-multi field and dedupes exact duplicates', () => {
+        const tags = [tag('t:root', 'Root')];
+        const inputField: Field = {
+            id: 'f:input',
+            type: 'select',
+            bind_id: 't:root',
+            label: 'Input',
+            options: [opt('o:a', 'A'), opt('o:b', 'B')],
+        } as Field;
+        const props = baseProps(tags, [inputField]);
+        const builder = makeBuilderVisibleFields(['f:input']);
+
+        const snap = buildOrderSnapshot(
+            props,
+            builder,
+            {
+                activeTagId: 't:root',
+                formValuesByFieldId: {},
+                optionSelectionsByFieldId: {},
+                selectedKeys: ['o:a', 'o:a', 'f:input::o:b', 'o:b'],
+            },
+            svcMap,
+            {mode: 'dev'},
+        );
+
+        expect(snap.selection.fields).toEqual([
+            {id: 'f:input', type: 'select', selectedOptions: ['o:a', 'o:b']},
+        ]);
+        expect(snap.inputs.selections).toEqual({'f:input': ['o:a', 'o:b']});
+    });
 });

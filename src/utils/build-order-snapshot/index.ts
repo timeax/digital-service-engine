@@ -51,7 +51,11 @@ export function buildOrderSnapshot(
     const tagById = new Map((props.filters ?? []).map((t: Tag) => [t.id, t]));
     const fieldById = new Map((props.fields ?? []).map((f: Field) => [f.id, f]));
     const tagConstraints = tagById.get(tagId)?.constraints ?? undefined;
-    const selectedOptionsByFieldId = getSelectedOptionsByFieldId(selection, fieldById);
+    const selectedOptionsByFieldId = getSelectedOptionsByFieldId(
+        selection,
+        fieldById,
+        mode,
+    );
 
     const selectionFields = visibleFieldIds
         .map((fid) => fieldById.get(fid))

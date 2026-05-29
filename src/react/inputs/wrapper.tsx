@@ -209,12 +209,6 @@ export function Wrapper({
         return new Set((field.options ?? []).map((o: FieldOption) => o.id));
     }, [isOptionBased, field.options]);
 
-    // Selection syncing bookkeeping
-    const prevSelectedRef = React.useRef<string[]>([]);
-    React.useEffect(() => {
-        prevSelectedRef.current = [];
-    }, [field.id]);
-
     const adapterCtx = React.useMemo<AdapterCtx>(
         () => ({ field, props: flow.raw }),
         [field, flow.raw],
@@ -254,22 +248,7 @@ export function Wrapper({
                             .filter((id) => optionIds.has(id)),
                     ),
                 );
-
-                const prev = prevSelectedRef.current;
-                prevSelectedRef.current = nextIds;
-
-                const prevSet = new Set(prev);
-                const nextSet = new Set(nextIds);
-
-                // toggle ON
-                for (const id of nextIds) {
-                    if (!prevSet.has(id)) flow.toggleOption(field.id, id);
-                }
-
-                // toggle OFF
-                for (const id of prev) {
-                    if (!nextSet.has(id)) flow.toggleOption(field.id, id);
-                }
+                flow.setFieldOptions(field.id, nextIds);
 
                 return;
             }

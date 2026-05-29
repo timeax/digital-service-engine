@@ -20,6 +20,11 @@ import type {
     Tag,
 } from "@/schema";
 import type { CanvasAPI } from "./api";
+import {
+    resolveInputDescriptor,
+    type Registry,
+    type InputVariant,
+} from "@/react/inputs/registry";
 import type { PolicyDiagnostic } from "@/core/policy";
 import type {
     DuplicateOptions,
@@ -345,6 +350,50 @@ export class Editor {
         return addField(this.moduleCtx(), partial);
     }
 
+    addFieldFromDescriptor(
+        registry: Registry,
+        partial: Omit<Field, "id" | "label" | "type"> & {
+            id?: string;
+            label: string;
+            type: Field["type"];
+        },
+        opts?: { variant?: InputVariant },
+    ): string {
+        const variant =
+            opts?.variant ??
+            (typeof (partial as any)?.meta?.variant === "string"
+                ? ((partial as any).meta.variant as InputVariant)
+                : undefined);
+        const descriptor = resolveInputDescriptor(
+            registry,
+            String(partial.type),
+            variant,
+        );
+
+        const nextMeta: Record<string, unknown> = {
+            ...(((partial as any).meta as Record<string, unknown>) ?? {}),
+        };
+
+        if (descriptor?.multi?.autoEnable === true) {
+            nextMeta.multi = true;
+        }
+
+        const fieldInput = {
+            ...partial,
+            ...(Object.keys(nextMeta).length ? { meta: nextMeta } : {}),
+        };
+        const fieldId = this.addField(fieldInput as any);
+
+        if (descriptor?.options?.autoCreate === true) {
+            this.autoCreateOptionsMany([fieldId], () => ({
+                label: descriptor.options?.defaultLabel ?? "Option label",
+                value: descriptor.options?.defaultValue ?? "option",
+            }));
+        }
+
+        return fieldId;
+    }
+
     updateField(id: string, patch: Partial<Field>) {
         return updateField(this.moduleCtx(), id, patch);
     }
@@ -559,6 +608,32 @@ export class Editor {
                     if (!this.isFieldId(id)) continue;
                     const f = (p.fields ?? []).find((x) => x.id === id);
                     if (f && "validation" in (f as any)) delete (f as any).validation;
+                }
+            });
+        });
+    }
+
+    setFieldMulti(fieldId: string, enabled: boolean): void {
+        const flag = enabled === true;
+        this.transact("setFieldMulti", () => {
+            this.patchProps((p) => {
+                const f = (p.fields ?? []).find((x) => x.id === fieldId);
+                if (!f) return;
+
+                const currentMeta = ((f as any).meta ??
+                    {}) as Record<string, unknown>;
+                const nextMeta = { ...currentMeta };
+
+                if (flag) {
+                    nextMeta.multi = true;
+                } else {
+                    delete nextMeta.multi;
+                }
+
+                if (Object.keys(nextMeta).length === 0) {
+                    delete (f as any).meta;
+                } else {
+                    (f as any).meta = nextMeta;
                 }
             });
         });

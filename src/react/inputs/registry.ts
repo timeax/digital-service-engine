@@ -41,12 +41,18 @@ export type InputOptionCapability = {
     defaultValue?: string | number;
 };
 
+export type InputMultiCapability = {
+    supported?: boolean;
+    autoEnable?: boolean;
+};
+
 export type InputDescriptor = {
     Component: React.ComponentType<Record<string, unknown>>;
     adapter?: Adapter;
     defaultProps?: Record<string, unknown>;
     ui?: Record<string, Ui>;
     options?: InputOptionCapability;
+    multi?: InputMultiCapability;
 };
 
 type VariantMap = Map<InputVariant, InputDescriptor>;

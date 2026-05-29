@@ -591,7 +591,7 @@ export function addField(
         label: string;
         type: Field["type"];
     },
-) {
+): string {
     const id = partial.id ?? ctx.genId("f");
     const payload = { ...partial, id };
     ctx.exec({
@@ -605,6 +605,7 @@ export function addField(
                 p.fields = (p.fields ?? []).filter((f) => f.id !== id);
             }),
     });
+    return id;
 }
 
 export function updateField(

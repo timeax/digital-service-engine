@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createBuilder } from "@/core";
 import type { ServiceProps } from "@/schema";
 import { CanvasAPI } from "../api";
+import { createInputRegistry, type InputDescriptor } from "@/react";
 
 function baseProps(): ServiceProps {
     return {
@@ -246,6 +247,151 @@ describe("Editor batch actions", () => {
         editor.autoCreateOptionsMany(["f:a"]);
         const next = builder.getProps();
         expect(next.fields[0].options?.length).toBe(1);
+    });
+
+    it("addFieldFromDescriptor applies multi autoEnable when descriptor declares it", () => {
+        const { builder, editor } = setup({
+            ...baseProps(),
+            fields: [],
+        } as any);
+        const registry = createInputRegistry();
+        registry.register("multi-kind", {
+            Component: (() => null) as any,
+            multi: { supported: true, autoEnable: true },
+        } satisfies InputDescriptor);
+
+        const id = editor.addFieldFromDescriptor(registry, {
+            label: "Multi Field",
+            type: "multi-kind" as any,
+        });
+
+        const field = builder.getProps().fields.find((f) => f.id === id) as any;
+        expect(field?.meta?.multi).toBe(true);
+    });
+
+    it("addFieldFromDescriptor does not auto-write meta.multi when only supported=true", () => {
+        const { builder, editor } = setup({
+            ...baseProps(),
+            fields: [],
+        } as any);
+        const registry = createInputRegistry();
+        registry.register("optional-multi-kind", {
+            Component: (() => null) as any,
+            multi: { supported: true },
+        } satisfies InputDescriptor);
+
+        const id = editor.addFieldFromDescriptor(registry, {
+            label: "Optional Multi Field",
+            type: "optional-multi-kind" as any,
+        });
+
+        const field = builder.getProps().fields.find((f) => f.id === id) as any;
+        expect(field?.meta?.multi).toBeUndefined();
+    });
+
+    it("addFieldFromDescriptor does not write multi metadata when descriptor has no multi capability", () => {
+        const { builder, editor } = setup({
+            ...baseProps(),
+            fields: [],
+        } as any);
+        const registry = createInputRegistry();
+        registry.register("plain-kind", {
+            Component: (() => null) as any,
+        } satisfies InputDescriptor);
+
+        const id = editor.addFieldFromDescriptor(registry, {
+            label: "Plain Field",
+            type: "plain-kind" as any,
+        });
+
+        const field = builder.getProps().fields.find((f) => f.id === id) as any;
+        expect(field?.meta?.multi).toBeUndefined();
+    });
+
+    it("addFieldFromDescriptor keeps options autoCreate behavior unchanged", () => {
+        const { builder, editor } = setup({
+            ...baseProps(),
+            fields: [],
+        } as any);
+        const registry = createInputRegistry();
+        registry.register("option-kind", {
+            Component: (() => null) as any,
+            options: {
+                supported: true,
+                autoCreate: true,
+                defaultLabel: "Option label",
+                defaultValue: "option",
+            },
+        } satisfies InputDescriptor);
+
+        const id = editor.addFieldFromDescriptor(registry, {
+            label: "Option Field",
+            type: "option-kind" as any,
+        });
+
+        const field = builder.getProps().fields.find((f) => f.id === id) as any;
+        expect(field?.options?.length).toBe(1);
+        expect(field?.options?.[0]?.label).toBe("Option label");
+        expect(field?.options?.[0]?.value).toBe("option");
+        expect(field?.meta?.multi).toBeUndefined();
+    });
+
+    it("addFieldFromDescriptor supports options.autoCreate + multi.autoEnable together", () => {
+        const { builder, editor } = setup({
+            ...baseProps(),
+            fields: [],
+        } as any);
+        const registry = createInputRegistry();
+        registry.register("option-multi-kind", {
+            Component: (() => null) as any,
+            options: {
+                supported: true,
+                autoCreate: true,
+                defaultLabel: "Default option",
+                defaultValue: "default-value",
+            },
+            multi: {
+                supported: true,
+                autoEnable: true,
+            },
+        } satisfies InputDescriptor);
+
+        const id = editor.addFieldFromDescriptor(registry, {
+            label: "Option Multi Field",
+            type: "option-multi-kind" as any,
+        });
+
+        const field = builder.getProps().fields.find((f) => f.id === id) as any;
+        expect(field?.meta?.multi).toBe(true);
+        expect(field?.options?.length).toBe(1);
+        expect(field?.options?.[0]?.label).toBe("Default option");
+        expect(field?.options?.[0]?.value).toBe("default-value");
+    });
+
+    it("setFieldMulti toggles meta.multi while preserving other meta keys", () => {
+        const { builder, editor } = setup({
+            ...baseProps(),
+            fields: [
+                {
+                    id: "f:meta",
+                    type: "select",
+                    label: "Meta",
+                    meta: { variant: "select", keep: "x" },
+                } as any,
+            ],
+        } as any);
+
+        editor.setFieldMulti("f:meta", true);
+        let field = builder.getProps().fields.find((f) => f.id === "f:meta") as any;
+        expect(field?.meta?.multi).toBe(true);
+        expect(field?.meta?.variant).toBe("select");
+        expect(field?.meta?.keep).toBe("x");
+
+        editor.setFieldMulti("f:meta", false);
+        field = builder.getProps().fields.find((f) => f.id === "f:meta") as any;
+        expect(field?.meta?.multi).toBeUndefined();
+        expect(field?.meta?.variant).toBe("select");
+        expect(field?.meta?.keep).toBe("x");
     });
 
     it("clearAllOptionsMany removes all options and related references", () => {

@@ -28,6 +28,21 @@ describe("input registry option capability", () => {
         expect(descriptor?.options?.autoCreate).toBe(true);
     });
 
+    it("stores multi capability metadata on descriptors", () => {
+        const registry = createInputRegistry();
+        registry.register("custom:multi", {
+            Component: (() => null) as any,
+            multi: {
+                supported: true,
+                autoEnable: true,
+            },
+        });
+
+        const descriptor = resolveInputDescriptor(registry, "custom:multi");
+        expect(descriptor?.multi?.supported).toBe(true);
+        expect(descriptor?.multi?.autoEnable).toBe(true);
+    });
+
     it("registers checkbox single/default and checkbox options variant separately", () => {
         const registry = createInputRegistry();
         registerEntries(registry);
@@ -40,7 +55,10 @@ describe("input registry option capability", () => {
         expect(single?.options?.supported).toBe(false);
         expect(group?.defaultProps?.single).toBe(false);
         expect(group?.options?.supported).toBe(true);
+        expect(group?.multi?.supported).toBe(true);
+        expect(group?.multi?.autoEnable).toBe(true);
         expect(chips?.options?.supported).toBe(false);
+        expect(chips?.multi).toBeUndefined();
     });
 });
 

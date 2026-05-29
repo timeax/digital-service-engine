@@ -79,6 +79,22 @@ describe('InputRegistry variant resolution', () => {
         expect(resolved?.options?.autoCreate).toBe(true);
     });
 
+    it("supports descriptor multi metadata", () => {
+        const registry = createInputRegistry();
+        const descriptor: InputDescriptor = {
+            Component: StubA,
+            multi: {
+                supported: true,
+                autoEnable: true,
+            },
+        };
+
+        registry.register("custom:MultiChoice", descriptor);
+        const resolved = resolveInputDescriptor(registry, "custom:MultiChoice");
+        expect(resolved?.multi?.supported).toBe(true);
+        expect(resolved?.multi?.autoEnable).toBe(true);
+    });
+
     it("registers checkbox single and options variants separately", () => {
         const registry = createInputRegistry();
         registerEntries(registry);

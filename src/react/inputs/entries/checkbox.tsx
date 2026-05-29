@@ -3,7 +3,18 @@ import { InputField } from "@timeax/form-palette";
 import type { InputDescriptor } from "@/react";
 import { sharedUi } from "./shared";
 
-const checkboxBaseUi: InputDescriptor["ui"] = {
+const checkboxSingleUi: InputDescriptor["ui"] = {
+    size: sharedUi.size,
+
+    tristate: {
+        type: "boolean",
+        label: "Tri-state",
+        description:
+            'Enable tri-state behaviour (supports an internal "none" state).',
+    },
+};
+
+const checkboxOptionsUi: InputDescriptor["ui"] = {
     size: sharedUi.size,
 
     density: {
@@ -15,13 +26,6 @@ const checkboxBaseUi: InputDescriptor["ui"] = {
             { type: "string", title: "Comfortable", value: "comfortable" },
             { type: "string", title: "Loose", value: "loose" },
         ],
-    },
-
-    single: {
-        type: "boolean",
-        label: "Single",
-        description:
-            "If enabled, behaves like a single checkbox (boolean). Otherwise renders a group (array).",
     },
 
     tristate: {
@@ -59,25 +63,25 @@ const checkboxBaseUi: InputDescriptor["ui"] = {
         type: "boolean",
         label: "Auto capitalise",
         description:
-            "Capitalise the first letter of labels (only when label resolves to a string).",
+            "Capitalise the first letter of labels when the label resolves to a string.",
     },
 
     options: {
         type: "array",
         label: "Options",
         description:
-            "Checkbox options. Can be primitives (string/number/boolean) or objects (label/value/description/disabled/tristate).",
+            "Checkbox options. Can be primitives or objects with label/value/description/disabled/tristate.",
         editable: true,
         item: {
             type: "object",
             label: "Option",
-            description: "An option item for group mode.",
+            description: "An option item for checkbox group mode.",
             editable: true,
             fields: {
                 value: {
                     type: "string",
                     label: "Value",
-                    description: "Unique option value (string).",
+                    description: "Unique option value.",
                 },
                 label: {
                     type: "string",
@@ -98,7 +102,7 @@ const checkboxBaseUi: InputDescriptor["ui"] = {
                     type: "boolean",
                     label: "Tri-state override",
                     description:
-                        "Override tri-state behaviour for this option (if unset, uses variant tristate).",
+                        "Override tri-state behaviour for this option.",
                 },
             },
             order: ["value", "label", "description", "disabled", "tristate"],
@@ -124,9 +128,29 @@ export const checkboxDescriptor: InputDescriptor = {
     Component: InputField as any,
 
     defaultProps: {
-        variant: "checkbox", // MUST
-
+        variant: "checkbox",
         single: true,
+        tristate: false,
+        size: "md",
+    },
+
+    options: {
+        supported: false,
+    },
+
+    multi: {
+        supported: false,
+    },
+
+    ui: checkboxSingleUi,
+};
+
+export const checkboxOptionsDescriptor: InputDescriptor = {
+    Component: InputField as any,
+
+    defaultProps: {
+        variant: "checkbox",
+        single: false,
         tristate: false,
         layout: "list",
         columns: 2,
@@ -135,26 +159,18 @@ export const checkboxDescriptor: InputDescriptor = {
         density: "comfortable",
         autoCap: false,
     },
-    adapter: {
 
-    },
-
-    options: {
-        supported: false,
-    },
-    ui: checkboxBaseUi,
-};
-
-export const checkboxOptionsDescriptor: InputDescriptor = {
-    ...checkboxDescriptor,
-    defaultProps: {
-        ...(checkboxDescriptor.defaultProps ?? {}),
-        single: false,
-    },
     options: {
         supported: true,
         autoCreate: true,
         defaultLabel: "Option label",
         defaultValue: "option",
     },
+
+    multi: {
+        supported: true,
+        autoEnable: true,
+    },
+
+    ui: checkboxOptionsUi,
 };

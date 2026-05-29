@@ -11,6 +11,10 @@ export const multiSelectDescriptor: InputDescriptor = {
         defaultLabel: "Option label",
         defaultValue: "option",
     },
+    multi: {
+        supported: true,
+        autoEnable: true,
+    },
 
     defaultProps: {
         variant: "multi-select", // MUST

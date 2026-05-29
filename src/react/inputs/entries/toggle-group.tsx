@@ -11,6 +11,9 @@ export const toggleGroupDescriptor: InputDescriptor = {
         defaultLabel: "Option label",
         defaultValue: "option",
     },
+    multi: {
+        supported: true,
+    },
 
     defaultProps: {
         variant: "toggle-group", // MUST

@@ -70,6 +70,7 @@ export type UseOrderFlowReturn = {
 
     selectTag: (tagId: string) => void;
     toggleOption: (fieldId: string, optionId?: string) => void;
+    setFieldOptions: (fieldId: string, optionIds: string[]) => void;
 
     /** programmatic value set (rare; wrapper/field hook should handle most) */
     setValue: (fieldId: string, value: Scalar | Scalar[]) => void;
@@ -346,6 +347,97 @@ export function useOrderFlow(): UseOrderFlowReturn {
         [ctx],
     );
 
+    const setFieldOptions = useCallback(
+        (fieldId: string, optionIds: string[]) => {
+            const { builder, selection, init } = ctx.ensureReady(
+                "setFieldOptions",
+            );
+
+            const fields = builder.getProps().fields ?? [];
+            const field = fields.find((f) => f.id === fieldId);
+            if (!field) return;
+
+            const validOptionIds = new Set(
+                (field.options ?? []).map((option) => String(option.id)),
+            );
+
+            const dedupedValid: string[] = [];
+            const seen = new Set<string>();
+            for (const rawOptionId of optionIds ?? []) {
+                const optionId = String(rawOptionId);
+                if (!validOptionIds.has(optionId)) continue;
+                if (seen.has(optionId)) continue;
+                seen.add(optionId);
+                dedupedValid.push(optionId);
+            }
+
+            const mode: "prod" | "dev" = init.mode ?? "prod";
+            const isMulti = field.meta?.multi === true;
+            const normalized =
+                mode === "prod" && !isMulti
+                    ? dedupedValid.length
+                        ? [dedupedValid[dedupedValid.length - 1]!]
+                        : []
+                    : dedupedValid;
+
+            const fieldById = new Map(fields.map((f) => [f.id, f]));
+            const nodeMap = builder.getNodeMap();
+
+            const resolveOptionOwnerFieldId = (
+                token: string,
+            ): string | undefined => {
+                if (!token) return undefined;
+
+                if (token.includes("::")) {
+                    const [legacyFieldId, optionId] = token.split("::", 2);
+                    if (!optionId) return undefined;
+                    const optionRef = nodeMap.get(optionId) as
+                        | { kind?: string; fieldId?: string }
+                        | undefined;
+                    if (
+                        optionRef?.kind === "option" &&
+                        typeof optionRef.fieldId === "string"
+                    ) {
+                        return optionRef.fieldId;
+                    }
+                    if (legacyFieldId && fieldById.has(legacyFieldId)) {
+                        return legacyFieldId;
+                    }
+                    return undefined;
+                }
+
+                const optionRef = nodeMap.get(token) as
+                    | { kind?: string; fieldId?: string }
+                    | undefined;
+                if (
+                    optionRef?.kind === "option" &&
+                    typeof optionRef.fieldId === "string"
+                ) {
+                    return optionRef.fieldId;
+                }
+
+                for (const f of fields) {
+                    if (f.options?.some((option) => option.id === token)) {
+                        return f.id;
+                    }
+                }
+
+                return undefined;
+            };
+
+            const retained = Array.from(selection.all()).filter(
+                (token) => resolveOptionOwnerFieldId(token) !== fieldId,
+            );
+
+            for (const optionId of normalized) {
+                if (!retained.includes(optionId)) retained.push(optionId);
+            }
+
+            selection.many(retained, retained[retained.length - 1]);
+        },
+        [ctx],
+    );
+
     const setValue = useCallback(
         (fieldId: string, value: Scalar | Scalar[]) => {
             // programmatic, goes into form memory (core bucket)
@@ -475,6 +567,7 @@ export function useOrderFlow(): UseOrderFlowReturn {
 
         selectTag,
         toggleOption,
+        setFieldOptions,
         setValue,
         clearField,
 
