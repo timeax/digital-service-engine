@@ -16,9 +16,10 @@ import type {
     ValidationError,
     ValidatorOptions,
 } from "@/schema";
-import {visibleFieldIdsUnder} from "@/core/visibility";
+import {resolveVisibility, type ResolvedVisibility} from "@/core/visibility";
 import {buildNodeMap, NodeMap} from "@/core/node-map";
 import {cloneDeep} from "lodash-es";
+import { fieldOptionIdSet, optionOwnerMap, walkFieldOptions } from "@/core/options";
 
 /** Options you can set on the builder (used for validation/visibility) */
 export type BuilderOptions = Omit<ValidatorOptions, "serviceMap"> & {
@@ -50,6 +51,12 @@ export interface Builder {
      * NOTE: keys are “button ids”: either option.id or field.id for option-less buttons.
      */
     visibleFields(tagId: string, selectedOptionKeys?: string[]): string[];
+
+    /** Compute field ids plus option visibility under a tag. */
+    resolveVisibility(
+        tagId: string,
+        selectedOptionKeys?: string[],
+    ): ResolvedVisibility;
 
     /** Update builder options (validator context etc.) */
     setOptions(patch: Partial<BuilderOptions>): void;
@@ -218,7 +225,7 @@ class BuilderImpl implements Builder {
             if (!showOptions) continue;
             if (!Array.isArray(f.options)) continue;
 
-            for (const o of f.options) {
+            for (const { option: o, parentId } of walkFieldOptions(f)) {
                 nodes.push({
                     id: o.id,
                     kind: "option",
@@ -226,7 +233,7 @@ class BuilderImpl implements Builder {
                 });
                 // field → option edge
                 const e: any = {
-                    from: f.id,
+                    from: parentId ?? f.id,
                     to: o.id,
                     kind: "option" as EdgeKind,
                     meta: { ownerField: f.id },
@@ -313,6 +320,7 @@ class BuilderImpl implements Builder {
 
         const incMap = this.props.includes_for_buttons ?? {};
         const excMap = this.props.excludes_for_buttons ?? {};
+        const effectMap = this.props.option_effects_for_buttons ?? {};
         const includedByButtons = new Set<string>(); // field ids that might be pulled in
         const referencedKeys = new Set<string>(); // keys in maps (field button or option id)
         const referencedOwnerFields = new Set<string>();
@@ -334,6 +342,14 @@ class BuilderImpl implements Builder {
                 // (so we don’t accidentally drop something host intentionally excludes/controls)
                 // not strictly necessary, but conservative:
                 void fid;
+            }
+        }
+        for (const [key, targets] of Object.entries(effectMap)) {
+            referencedKeys.add(key);
+            const owner = this.optionOwnerById.get(key);
+            if (owner) referencedOwnerFields.add(owner.fieldId);
+            for (const [fid, effect] of Object.entries(targets ?? {})) {
+                if (effect?.forceVisible === true) includedByButtons.add(fid);
             }
         }
 
@@ -361,6 +377,7 @@ class BuilderImpl implements Builder {
 
         // 2) prune button maps: keep only valid keys and existing field targets
         const allowedTargets = new Set(fields.map((f) => f.id)); // targets must be existing fields
+        const allowedFieldById = new Map(fields.map((f) => [f.id, f]));
 
         const pruneButtons = (src?: Record<string, string[]>) => {
             if (!src) return undefined;
@@ -385,6 +402,61 @@ class BuilderImpl implements Builder {
             this.props.excludes_for_buttons,
         );
 
+        const pruneOptionEffects = (
+            src?: ServiceProps["option_effects_for_buttons"],
+        ): ServiceProps["option_effects_for_buttons"] | undefined => {
+            if (!src) return undefined;
+            const out: NonNullable<ServiceProps["option_effects_for_buttons"]> = {};
+            for (const [key, targets] of Object.entries(src)) {
+                const keyIsValid = optionIds.has(key) || fieldIds.has(key);
+                if (!keyIsValid) continue;
+
+                const cleanedTargets: NonNullable<
+                    ServiceProps["option_effects_for_buttons"]
+                >[string] = {};
+                for (const [targetFieldId, effect] of Object.entries(
+                    targets ?? {},
+                )) {
+                    const field = allowedFieldById.get(targetFieldId);
+                    if (!field || !effect) continue;
+
+                    const validOptionIds = fieldOptionIdSet(field);
+                    const include = Array.from(
+                        new Set(effect.include ?? []),
+                    ).filter((optionId) => validOptionIds.has(optionId));
+                    const exclude = Array.from(
+                        new Set(effect.exclude ?? []),
+                    ).filter((optionId) => validOptionIds.has(optionId));
+
+                    const next = {
+                        ...(effect.forceVisible === true
+                            ? { forceVisible: true }
+                            : {}),
+                        ...(include.length ? { include } : {}),
+                        ...(exclude.length ? { exclude } : {}),
+                    };
+
+                    if (
+                        next.forceVisible === true ||
+                        next.include?.length ||
+                        next.exclude?.length
+                    ) {
+                        cleanedTargets[targetFieldId] = next;
+                    }
+                }
+
+                if (Object.keys(cleanedTargets).length) {
+                    out[key] = cleanedTargets;
+                }
+            }
+
+            return Object.keys(out).length ? out : undefined;
+        };
+
+        const option_effects_for_buttons = pruneOptionEffects(
+            this.props.option_effects_for_buttons,
+        );
+
         // 3) return canonical object
         const out: ServiceProps = {
             filters: this.props.filters.slice(),
@@ -392,6 +464,7 @@ class BuilderImpl implements Builder {
             ...(this.props.orderKinds ? { orderKinds: this.props.orderKinds } : {}),
             ...(includes_for_buttons && { includes_for_buttons }),
             ...(excludes_for_buttons && { excludes_for_buttons }),
+            ...(option_effects_for_buttons && { option_effects_for_buttons }),
             schema_version: this.props.schema_version ?? "1.0",
             // keep fallbacks & other maps as-is
             ...(this.props.fallbacks
@@ -410,11 +483,15 @@ class BuilderImpl implements Builder {
     }
 
     visibleFields(tagId: string, selectedKeys?: string[]): string[] {
-        return visibleFieldIdsUnder(this.props, tagId, {
-            selectedKeys: new Set(
-                selectedKeys ?? this.options.selectedOptionKeys ?? [],
-            ),
-        });
+        return this.resolveVisibility(tagId, selectedKeys).fieldIds;
+    }
+
+    resolveVisibility(tagId: string, selectedKeys?: string[]): ResolvedVisibility {
+        return resolveVisibility(
+            this.props,
+            tagId,
+            selectedKeys ?? this.options.selectedOptionKeys ?? [],
+        );
     }
 
     getNodeMap(): NodeMap {
@@ -434,9 +511,8 @@ class BuilderImpl implements Builder {
         for (const t of this.props.filters) this.tagById.set(t.id, t);
         for (const f of this.props.fields) {
             this.fieldById.set(f.id, f);
-            if (Array.isArray(f.options)) {
-                for (const o of f.options)
-                    this.optionOwnerById.set(o.id, { fieldId: f.id });
+            for (const [optionId, owner] of optionOwnerMap([f])) {
+                this.optionOwnerById.set(optionId, { fieldId: owner.fieldId });
             }
         }
     }

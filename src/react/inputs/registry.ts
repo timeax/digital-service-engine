@@ -34,11 +34,19 @@ export type Adapter = {
     toValue?: (value: any) => any;
 };
 
+export type InputChildOptionCapability = {
+    supported?: boolean;
+    autoCreate?: boolean;
+    defaultLabel?: string;
+    defaultValue?: string | number;
+};
+
 export type InputOptionCapability = {
     supported?: boolean;
     autoCreate?: boolean;
     defaultLabel?: string;
     defaultValue?: string | number;
+    children?: InputChildOptionCapability;
 };
 
 export type InputMultiCapability = {

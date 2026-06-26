@@ -16,6 +16,7 @@ import type {
     VisibleGroupResult,
 } from "@/react/canvas/selection";
 import { validateVisibleFields } from "@/react/hooks/evalute-field-validation";
+import { fieldOptionIdSet, findOptionOwnerField } from "@/core/options";
 
 const ROOT_TAG_ID = "t:root";
 
@@ -45,6 +46,8 @@ export type UseOrderFlowReturn = {
 
     /** visibility is Selection-only */
     visibleGroup: VisibleGroup | null;
+    visibleOptionsByFieldId: Record<string, string[]>;
+    forcedFieldIds: string[];
 
     /**
      * Values are from form-palette (values()) and are already "visible-only"
@@ -146,6 +149,16 @@ export function useOrderFlow(): UseOrderFlowReturn {
         return ctx.selection?.currentTag?.() ?? ctx.activeTagId;
     }, [ready, ctx.selection, ctx.activeTagId, selTick]);
 
+    const visibleOptionsByFieldId = useMemo(
+        () => visibleGroup?.optionsByFieldId ?? {},
+        [visibleGroup],
+    );
+
+    const forcedFieldIds = useMemo(
+        () => visibleGroup?.forcedFieldIds ?? [],
+        [visibleGroup],
+    );
+
     /**
      * Preview values:
      * - NO validation
@@ -161,6 +174,81 @@ export function useOrderFlow(): UseOrderFlowReturn {
 
             return values;
         }, [ctx.formApi, formTick]);
+
+    useEffect(() => {
+        if (!ready || !ctx.selection) return;
+        const { builder, selection } = ctx.ensureReady("pruneHiddenOptions");
+        const fields = builder.getProps().fields ?? [];
+        const visibleOptionEntries = Object.entries(visibleOptionsByFieldId);
+        if (!visibleOptionEntries.length) return;
+
+        const visibleOptionSets = new Map(
+            visibleOptionEntries.map(([fieldId, optionIds]) => [
+                fieldId,
+                new Set(optionIds),
+            ]),
+        );
+        const changedFieldIds = new Set<string>();
+
+        const ownerForToken = (token: string): string | undefined => {
+            if (!token) return undefined;
+            const owner = findOptionOwnerField(fields, token);
+            return owner?.id;
+        };
+
+        const retained: string[] = [];
+        let changed = false;
+        for (const token of selection.all()) {
+            const ownerFieldId = ownerForToken(token);
+            if (!ownerFieldId) {
+                retained.push(token);
+                continue;
+            }
+
+            const allowed = visibleOptionSets.get(ownerFieldId);
+            if (!allowed) {
+                retained.push(token);
+                continue;
+            }
+
+            if (allowed.has(token)) {
+                retained.push(token);
+                continue;
+            }
+
+            changed = true;
+            changedFieldIds.add(ownerFieldId);
+        }
+
+        if (!changed) return;
+
+        for (const fieldId of changedFieldIds) {
+            const allowed = visibleOptionSets.get(fieldId);
+            const currentValue = (ctx.formApi.snapshot?.() ?? {})[fieldId] as
+                | Scalar
+                | Scalar[]
+                | undefined;
+            if (Array.isArray(currentValue)) {
+                const next = currentValue.filter((value) =>
+                    allowed?.has(String(value)),
+                ) as Scalar[];
+                if (next.length !== currentValue.length) {
+                    ctx.formApi.set(fieldId, next.length ? next : undefined);
+                }
+                continue;
+            }
+
+            if (
+                currentValue !== undefined &&
+                allowed &&
+                !allowed.has(String(currentValue))
+            ) {
+                ctx.formApi.set(fieldId, undefined);
+            }
+        }
+
+        selection.many(retained, retained[retained.length - 1]);
+    }, [ctx, ready, selTick, visibleOptionsByFieldId]);
 
     /**
      * Selections are Selection-only now.
@@ -358,7 +446,9 @@ export function useOrderFlow(): UseOrderFlowReturn {
             if (!field) return;
 
             const validOptionIds = new Set(
-                (field.options ?? []).map((option) => String(option.id)),
+                Array.from(fieldOptionIdSet(field)).map((optionId) =>
+                    String(optionId),
+                ),
             );
 
             const dedupedValid: string[] = [];
@@ -380,31 +470,12 @@ export function useOrderFlow(): UseOrderFlowReturn {
                         : []
                     : dedupedValid;
 
-            const fieldById = new Map(fields.map((f) => [f.id, f]));
             const nodeMap = builder.getNodeMap();
 
             const resolveOptionOwnerFieldId = (
                 token: string,
             ): string | undefined => {
                 if (!token) return undefined;
-
-                if (token.includes("::")) {
-                    const [legacyFieldId, optionId] = token.split("::", 2);
-                    if (!optionId) return undefined;
-                    const optionRef = nodeMap.get(optionId) as
-                        | { kind?: string; fieldId?: string }
-                        | undefined;
-                    if (
-                        optionRef?.kind === "option" &&
-                        typeof optionRef.fieldId === "string"
-                    ) {
-                        return optionRef.fieldId;
-                    }
-                    if (legacyFieldId && fieldById.has(legacyFieldId)) {
-                        return legacyFieldId;
-                    }
-                    return undefined;
-                }
 
                 const optionRef = nodeMap.get(token) as
                     | { kind?: string; fieldId?: string }
@@ -416,13 +487,7 @@ export function useOrderFlow(): UseOrderFlowReturn {
                     return optionRef.fieldId;
                 }
 
-                for (const f of fields) {
-                    if (f.options?.some((option) => option.id === token)) {
-                        return f.id;
-                    }
-                }
-
-                return undefined;
+                return findOptionOwnerField(fields, token)?.id;
             };
 
             const retained = Array.from(selection.all()).filter(
@@ -552,6 +617,8 @@ export function useOrderFlow(): UseOrderFlowReturn {
         notices,
 
         visibleGroup,
+        visibleOptionsByFieldId,
+        forcedFieldIds,
 
         formValuesByFieldId,
         optionSelectionsByFieldId,

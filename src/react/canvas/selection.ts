@@ -2,6 +2,7 @@
 import { createNodeIndex, type Builder } from "@/core";
 import type { Field, PricingRole, ServiceProps, Tag } from "@/schema";
 import type { DgpServiceCapability } from "@/schema/provider";
+import { findFieldOption, findOptionOwnerField } from "@/core/options";
 
 export type Env = "client" | "workspace";
 
@@ -10,6 +11,8 @@ export type VisibleGroup = {
     tag?: Tag;
     fields: Field[];
     fieldIds: string[];
+    optionsByFieldId?: Record<string, string[]>;
+    forcedFieldIds?: string[];
     parentTags?: Tag[];
     childrenTags?: Tag[];
     /** In order of selection: tag base (unless overridden) then selected options */
@@ -145,11 +148,10 @@ export class Selection {
      * What counts as a "button selection" (trigger key):
      * - field key where the field has button === true (e.g. "f:dripfeed")
      * - option key (e.g. "o:fast")
-     * - composite key "fieldId::optionId" (e.g. "f:speed::o:fast")
      *
      * Grouping:
      * - button-field trigger groups under its own fieldId
-     * - option/composite groups under the option's owning fieldId (from nodeMap)
+     * - option trigger groups under the option's owning fieldId (from nodeMap)
      *
      * Deterministic:
      * - preserves selection insertion order
@@ -166,20 +168,6 @@ export class Selection {
 
         for (const key of this.set) {
             if (!key) continue;
-
-            // composite: "fieldId::optionId" => validate optionId; group by option.owner fieldId
-            const idx = key.indexOf("::");
-            if (idx !== -1) {
-                const optionId = key.slice(idx + 2);
-                const optRef = nodeMap.get(optionId) as any;
-                if (
-                    optRef?.kind === "option" &&
-                    typeof optRef.fieldId === "string"
-                ) {
-                    push(optRef.fieldId, key); // keep composite as the trigger key
-                }
-                continue;
-            }
 
             const ref = nodeMap.get(key) as any;
             if (!ref) continue;
@@ -207,7 +195,6 @@ export class Selection {
      * Returns only selection keys that are valid "trigger buttons":
      * - field keys where field.button === true
      * - option keys
-     * - composite keys "fieldId::optionId" (validated by optionId)
      * Excludes tags and non-button fields.
      */
     selectedButtons(): string[] {
@@ -224,15 +211,6 @@ export class Selection {
 
         for (const key of this.set) {
             if (!key) continue;
-
-            // composite: validate optionId part
-            const idx = key.indexOf("::");
-            if (idx !== -1) {
-                const optionId = key.slice(idx + 2);
-                const optRef = nodeMap.get(optionId) as any;
-                if (optRef?.kind === "option") push(key);
-                continue;
-            }
 
             const ref = nodeMap.get(key) as any;
             if (!ref) continue;
@@ -284,15 +262,7 @@ export class Selection {
             if (direct) return direct;
 
             if (this.builder.isOptionId(id)) {
-                return fields.find((x) =>
-                    (x.options ?? []).some((o) => o.id === id),
-                );
-            }
-
-            if (id.includes("::")) {
-                const [fieldId] = id.split("::");
-                if (!fieldId) return undefined;
-                return fields.find((x) => x.id === fieldId);
+                return findOptionOwnerField(fields, id);
             }
 
             return undefined;
@@ -330,17 +300,7 @@ export class Selection {
 
         for (const id of this.set) {
             if (this.builder.isOptionId(id)) {
-                const host = fields.find((x) =>
-                    (x.options ?? []).some((o) => o.id === id),
-                );
-                if (host?.bind_id)
-                    return Array.isArray(host.bind_id)
-                        ? host.bind_id[0]
-                        : host.bind_id;
-            }
-            if (id.includes("::")) {
-                const [fid] = id.split("::");
-                const host = fields.find((x) => x.id === fid);
+                const host = findOptionOwnerField(fields, id);
                 if (host?.bind_id)
                     return Array.isArray(host.bind_id)
                         ? host.bind_id[0]
@@ -362,7 +322,11 @@ export class Selection {
 
         // ---- delegate visible fields to builder
         const selectedTriggerIds = this.selectedButtons();
-        const fieldIds = this.builder.visibleFields(tagId, selectedTriggerIds);
+        const visibility = this.builder.resolveVisibility(
+            tagId,
+            selectedTriggerIds,
+        );
+        const fieldIds = visibility.fieldIds;
 
         const fieldById = new Map(fields.map((f) => [f.id, f]));
         const visible = fieldIds
@@ -401,6 +365,17 @@ export class Selection {
         for (const selId of this.set) {
             // OPTION selected
             const opt = this.findOptionById(fields, selId);
+            if (
+                opt &&
+                !this.isSelectedOptionVisible(
+                    fields,
+                    selId,
+                    fieldIds,
+                    visibility.optionsByFieldId,
+                )
+            ) {
+                continue;
+            }
             if (opt?.service_id != null) {
                 const role = (opt.pricing_role ?? "base") as PricingRole;
                 const cap =
@@ -440,6 +415,8 @@ export class Selection {
             tag,
             fields: visible,
             fieldIds,
+            optionsByFieldId: visibility.optionsByFieldId,
+            forcedFieldIds: visibility.forcedFieldIds,
             parentTags,
             childrenTags,
             services,
@@ -472,17 +449,23 @@ export class Selection {
 
     private findOptionById(fields: Field[], selId: string) {
         if (this.builder.isOptionId(selId)) {
-            for (const f of fields) {
-                const o = f.options?.find((x) => x.id === selId);
-                if (o) return o;
-            }
-        }
-        if (selId.includes("::")) {
-            const [fid, oid] = selId.split("::");
-            const f = fields.find((x) => x.id === fid);
-            const o = f?.options?.find((x) => x.id === oid || x.id === selId);
-            if (o) return o;
+            const field = findOptionOwnerField(fields, selId);
+            return findFieldOption(field, selId);
         }
         return undefined;
+    }
+
+    private isSelectedOptionVisible(
+        fields: Field[],
+        selId: string,
+        visibleFieldIds: string[],
+        optionsByFieldId: Record<string, string[]>,
+    ): boolean {
+        const visibleFields = new Set(visibleFieldIds);
+        const field = findOptionOwnerField(fields, selId);
+
+        if (!field || !visibleFields.has(field.id)) return false;
+        const allowed = optionsByFieldId[field.id];
+        return !allowed || allowed.includes(selId);
     }
 }

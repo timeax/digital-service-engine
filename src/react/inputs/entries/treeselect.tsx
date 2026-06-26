@@ -10,6 +10,9 @@ export const treeSelectDescriptor: InputDescriptor = {
         autoCreate: true,
         defaultLabel: "Option label",
         defaultValue: "option",
+        children: {
+            supported: true,
+        },
     },
     multi: {
         supported: true,

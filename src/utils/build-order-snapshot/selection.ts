@@ -1,17 +1,18 @@
 import type { Field } from "@/schema";
 import { isMultiField } from "../index";
 import type { BuildOrderSelection, SelectedNodeVisit } from "./types";
+import { fieldOptionIdSet, findFieldOption, findOptionOwnerField } from "@/core/options";
 
 export function isOptionBased(f: Field): boolean {
-    const hasOptions = Array.isArray(f.options) && f.options.length > 0;
+    const hasOptions = fieldOptionIdSet(f).size > 0;
     return hasOptions || isMultiField(f);
 }
 
 export function toSelectedOptionKeys(byField: Record<string, string[]>): string[] {
     const keys: string[] = [];
-    for (const [fieldId, optionIds] of Object.entries(byField ?? {})) {
+    for (const optionIds of Object.values(byField ?? {})) {
         for (const optionId of optionIds ?? []) {
-            keys.push(`${fieldId}::${optionId}`);
+            keys.push(optionId);
         }
     }
     return keys;
@@ -21,6 +22,7 @@ export function getSelectedOptionsByFieldId(
     selection: BuildOrderSelection,
     fieldById: Map<string, Field>,
     mode: "prod" | "dev",
+    visibleOptionsByFieldId?: Record<string, string[]>,
 ): Record<string, string[]> {
     const collected: Record<string, string[]> = {};
     for (const visit of buildSelectedNodeVisitOrder(selection, fieldById)) {
@@ -34,13 +36,15 @@ export function getSelectedOptionsByFieldId(
         const field = fieldById.get(fieldId);
         if (!field) continue;
 
-        const validOptionIds = new Set(
-            (field.options ?? []).map((option) => option.id),
-        );
+        const validOptionIds = fieldOptionIdSet(field);
+        const visibleOptionIds = visibleOptionsByFieldId?.[fieldId]
+            ? new Set(visibleOptionsByFieldId[fieldId])
+            : undefined;
         const dedupedValid: string[] = [];
         const seen = new Set<string>();
         for (const optionId of optionIds) {
             if (!validOptionIds.has(optionId)) continue;
+            if (visibleOptionIds && !visibleOptionIds.has(optionId)) continue;
             if (seen.has(optionId)) continue;
             seen.add(optionId);
             dedupedValid.push(optionId);
@@ -75,23 +79,19 @@ export function buildSelectedNodeVisitOrder(
     }
 
     function pushOption(fieldId: string, optionId: string): void {
-        const key = `option:${fieldId}::${optionId}`;
+        const key = `option:${optionId}`;
         if (seen.has(key)) return;
         seen.add(key);
         out.push({ kind: "option", fieldId, optionId });
     }
 
-    for (const item of selection.optionTraversalOrder ?? []) {
-        pushOption(item.fieldId, item.optionId);
+    for (const optionId of selection.optionTraversalOrder ?? []) {
+        const ownerField = findOptionOwnerField(fieldById.values(), optionId);
+        if (ownerField) pushOption(ownerField.id, optionId);
     }
 
     for (const rawKey of selection.selectedKeys ?? []) {
         const key = String(rawKey);
-        if (key.includes("::")) {
-            const [fieldId, optionId] = key.split("::", 2);
-            if (fieldId && optionId) pushOption(fieldId, optionId);
-            continue;
-        }
 
         const field = fieldById.get(key);
         if (field) {
@@ -99,28 +99,29 @@ export function buildSelectedNodeVisitOrder(
             continue;
         }
 
-        const ownerField = findOptionOwnerField(key, fieldById);
+        const ownerField = findOptionOwnerField(fieldById.values(), key);
         if (ownerField) pushOption(ownerField.id, key);
     }
 
     for (const [fieldId, optionIds] of Object.entries(
         selection.optionSelectionsByFieldId ?? {},
     )) {
-        if (!fieldById.has(fieldId)) continue;
+        const hintedField = fieldById.get(fieldId);
+        if (!hintedField) continue;
         for (const optionId of optionIds ?? []) {
-            pushOption(fieldId, optionId);
+            const ownerField = findOptionOwnerField(fieldById.values(), optionId);
+            if (ownerField?.id === hintedField.id) {
+                pushOption(ownerField.id, optionId);
+            }
         }
     }
 
     return out;
 }
 
-function findOptionOwnerField(
+export function findSelectedOption(
+    field: Field | undefined,
     optionId: string,
-    fieldById: Map<string, Field>,
-): Field | undefined {
-    for (const field of fieldById.values()) {
-        if (field.options?.some((option) => option.id === optionId)) return field;
-    }
-    return undefined;
+) {
+    return findFieldOption(field, optionId);
 }

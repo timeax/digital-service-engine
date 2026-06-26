@@ -590,7 +590,7 @@ it('uses selected option quantityDefault from selectedKeys when legacy optionSel
         activeTagId: 't:root',
         formValuesByFieldId: {},
         optionSelectionsByFieldId: {},
-        selectedKeys: ['f:opts::o:std'],
+        selectedKeys: ['o:std'],
     };
 
     const snap = buildOrderSnapshot(props, builder, selection, svcMap, {

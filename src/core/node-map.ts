@@ -1,5 +1,6 @@
 // src/core/node-map.ts
 import type { Field, FieldOption, ServiceProps, Tag } from "@/schema";
+import { walkFieldOptions } from "@/core/options";
 
 export type NodeKind = "tag" | "field" | "option";
 
@@ -31,7 +32,7 @@ export function buildNodeMap(props: ServiceProps): NodeMap {
     for (const f of props.fields ?? []) {
         if (!map.has(f.id)) map.set(f.id, { kind: "field", id: f.id, node: f });
 
-        for (const o of f.options ?? []) {
+        for (const { option: o } of walkFieldOptions(f)) {
             if (!map.has(o.id))
                 map.set(o.id, {
                     kind: "option",
@@ -46,35 +47,25 @@ export function buildNodeMap(props: ServiceProps): NodeMap {
 }
 
 /**
- * Resolve a trigger id into either:
- * - a direct node id (tag/field/option)
- * - or a composite "fieldId::optionId" trigger (used for maps)
+ * Resolve a trigger id into a direct node id (tag/field/option).
  *
  * IMPORTANT:
  * - We do NOT strip any prefixes like "o:".
  * - "o:on" is a perfectly valid *option id* if your data uses it.
+ * - Nested option structure never creates derived/path ids; selection identity
+ *   is always the option's own id.
  */
-export type TriggerRef =
-    | {
-          kind: "composite";
-          triggerKey: string;
-          fieldId: string;
-          optionId: string;
-      }
-    | { kind: NodeKind; triggerKey: string; id: string; fieldId?: string };
+export type TriggerRef = {
+    kind: NodeKind;
+    triggerKey: string;
+    id: string;
+    fieldId?: string;
+};
 
 export function resolveTrigger(
     trigger: string,
     nodeMap: NodeMap,
 ): TriggerRef | undefined {
-    // Composite: fieldId::optionId (maps key by composite)
-    const idx = trigger.indexOf("::");
-    if (idx !== -1) {
-        const fieldId = trigger.slice(0, idx);
-        const optionId = trigger.slice(idx + 2);
-        return { kind: "composite", triggerKey: trigger, fieldId, optionId };
-    }
-
     // Direct node id (tag/field/option)
     const direct = nodeMap.get(trigger);
     if (!direct) return undefined;

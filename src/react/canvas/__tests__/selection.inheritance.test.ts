@@ -122,11 +122,11 @@ describe("Selection.visibleGroup() — inheritance rules", () => {
         });
 
         sel.replace("t:Child");
-        sel.add("f:rootMode::o:rootFast");
+        sel.add("o:rootFast");
         expect(sel.currentTag()).toBe("t:Child");
 
         sel.replace("t:B");
-        sel.add("f:aMode::o:aFast");
+        sel.add("o:aFast");
         expect(sel.currentTag()).toBe("t:A");
     });
 

@@ -205,6 +205,25 @@ export type FieldOption = {
     service_id?: ServiceIdRef;
     pricing_role?: PricingRole;
     meta?: Record<string, unknown> & UtilityMark & WithQuantityDefault;
+    children?: FieldOption[];
+};
+
+export type OptionEffectForButton = {
+    /**
+     * If true, selecting this button/option may force the target field visible.
+     * If false/missing, the option filter only applies when the target field is already visible.
+     */
+    forceVisible?: boolean;
+
+    /**
+     * If present, only these option ids remain visible.
+     */
+    include?: string[];
+
+    /**
+     * Removed after include is applied.
+     */
+    exclude?: string[];
 };
 
 export type Field = BaseFieldUI & {
@@ -275,6 +294,10 @@ export type ServiceProps = {
     fields: Field[];
     includes_for_buttons?: Record<string, string[]>;
     excludes_for_buttons?: Record<string, string[]>;
+    option_effects_for_buttons?: Record<
+        string,
+        Record<string, OptionEffectForButton>
+    >;
     schema_version?: string;
     fallbacks?: ServiceFallback;
     name?: string;

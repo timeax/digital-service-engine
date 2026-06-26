@@ -86,6 +86,65 @@ describe("Selection.visibleGroup()", () => {
         expect(group2.fieldIds).toEqual(["f:extra", "f:optIn"]);
     });
 
+    it("single group exposes forced fields and visible option ids from option effects", () => {
+        const props = {
+            filters: [{ id: "t:root", label: "Root" }],
+            fields: [
+                {
+                    id: "f:package",
+                    label: "Package",
+                    type: "select",
+                    bind_id: "t:root",
+                    options: [
+                        {
+                            id: "o:premium",
+                            label: "Premium",
+                            children: [
+                                {
+                                    id: "o:premium-plus",
+                                    label: "Premium Plus",
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    id: "f:quality",
+                    label: "Quality",
+                    type: "select",
+                    options: [
+                        { id: "o:low", label: "Low" },
+                        { id: "o:high", label: "High" },
+                    ],
+                },
+            ],
+            option_effects_for_buttons: {
+                "o:premium-plus": {
+                    "f:quality": {
+                        forceVisible: true,
+                        include: ["o:high"],
+                    },
+                },
+            },
+        };
+        const builder = mkBuilder(props);
+        const sel = new Selection(builder, {
+            env: "client",
+            rootTagId: "t:root",
+        });
+
+        sel.replace("t:root");
+        sel.add("o:premium-plus");
+
+        const res = sel.visibleGroup();
+        expect(res.kind).toBe("single");
+        const group = (res as any).group;
+
+        expect(group.fieldIds).toEqual(["f:package", "f:quality"]);
+        expect(group.forcedFieldIds).toEqual(["f:quality"]);
+        expect(group.optionsByFieldId["f:quality"]).toEqual(["o:high"]);
+    });
+
     it("services: tag service first unless overridden by the first selected base option; utilities append; extra base options append", () => {
         const props = {
             filters: [

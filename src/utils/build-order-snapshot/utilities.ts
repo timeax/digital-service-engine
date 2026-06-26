@@ -1,6 +1,7 @@
 import type { Field, FieldOption } from "@/schema";
 import type { Scalar, UtilityLineItem, UtilityMode } from "@/schema/order";
 import type { BuildOrderSelection } from "./types";
+import { findFieldOption } from "@/core/options";
 
 type UtilityMarker = {
     mode: UtilityMode;
@@ -31,13 +32,12 @@ export function collectUtilityLineItems(
             if (item) items.push(item);
         }
 
-        if (Array.isArray(field.options) && field.options.length) {
-            const selectedOptionIds = selectedOptionsByFieldId[field.id] ?? [];
-            if (!selectedOptionIds.length) continue;
-
-            const optById = new Map<string, FieldOption>(field.options.map((o) => [o.id, o]));
+        const selectedOptionIds = selectedOptionsByFieldId[field.id] ?? [];
+        if (selectedOptionIds.length) {
             for (const oid of selectedOptionIds) {
-                const option = optById.get(oid);
+                const option = findFieldOption(field, oid) as
+                    | FieldOption
+                    | undefined;
                 if (!option) continue;
                 if ((option.pricing_role ?? "base") !== "utility") continue;
                 const optionMarker = readUtilityMarker((option.meta as any)?.utility);

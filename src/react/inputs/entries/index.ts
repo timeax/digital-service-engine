@@ -192,6 +192,25 @@ function withInputFieldUi(desc: InputDescriptor): InputDescriptor {
                 const fieldNotices = notices.filter((notice) =>
                     matchesNotice(field, notice),
                 );
+                const mapOptionForInputField = (
+                    item: FieldOption,
+                ): FieldOption & { tags: ReturnType<typeof toTagPill>[] } => {
+                    const optionNotices = notices.filter((notice) =>
+                        matchesNotice(item, notice),
+                    );
+
+                    return {
+                        ...item,
+                        tags: optionNotices.map(toTagPill),
+                        ...(item.children?.length
+                            ? {
+                                  children: item.children.map(
+                                      mapOptionForInputField,
+                                  ),
+                              }
+                            : {}),
+                    };
+                };
 
                 return {
                     label: field.label,
@@ -200,17 +219,9 @@ function withInputFieldUi(desc: InputDescriptor): InputDescriptor {
 
                     ...(field.options?.length
                         ? {
-                              options: field.options.map((item) => {
-                                  // @ts-ignore
-                                  const optionNotices = notices.filter(
-                                      (notice) => matchesNotice(item, notice),
-                                  );
-
-                                  return {
-                                      ...item,
-                                      tags: optionNotices.map(toTagPill),
-                                  };
-                              }),
+                              options: field.options.map(
+                                  mapOptionForInputField,
+                              ),
                           }
                         : {}),
                 };

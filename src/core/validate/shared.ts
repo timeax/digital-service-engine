@@ -3,6 +3,7 @@ import type { Field, ServiceProps, Tag } from "@/schema";
 import type { DgpServiceMap } from "@/schema/provider";
 import type { ValidationError, ValidatorOptions } from "@/schema/validation";
 import { NodeMap } from "@/core/node-map";
+import { walkFieldOptions } from "@/core/options";
 
 export interface ValidationCtx {
     readonly props: ServiceProps;
@@ -43,7 +44,9 @@ export function isServiceIdRef(v: unknown): v is import("@/schema").ServiceIdRef
 }
 
 export function hasAnyServiceOption(f: Field): boolean {
-    return (f.options ?? []).some((o) => isServiceIdRef(o.service_id));
+    return walkFieldOptions(f).some((visit) =>
+        isServiceIdRef(visit.option.service_id),
+    );
 }
 
 export function isBoundTo(f: Field, tagId: string): boolean {

@@ -50,6 +50,15 @@
             }
           }
         },
+        "option_effects_for_buttons": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/definitions/OptionEffectForButton"
+            }
+          }
+        },
         "schema_version": {
           "type": "string"
         },
@@ -544,6 +553,12 @@
               ]
             }
           }
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/FieldOption"
+          }
         }
       },
       "required": [
@@ -619,6 +634,29 @@
         "falsy",
         "match"
       ]
+    },
+    "OptionEffectForButton": {
+      "type": "object",
+      "properties": {
+        "forceVisible": {
+          "type": "boolean",
+          "description": "If true, selecting this button/option may force the target field visible. If false/missing, the option filter only applies when the target field is already visible."
+        },
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "If present, only these option ids remain visible."
+        },
+        "exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Removed after include is applied."
+        }
+      }
     },
     "ServiceFallback": {
       "type": "object",

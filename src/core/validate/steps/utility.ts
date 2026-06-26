@@ -1,6 +1,7 @@
 // src/core/validate/steps/utility.ts
 import type { ValidationCtx } from "../shared";
 import { isFiniteNumber, isServiceIdRef, withAffected } from "../shared";
+import { walkFieldOptions } from "@/core/options";
 
 export function validateUtilityMarkers(v: ValidationCtx): void {
     const ALLOWED_UTILITY_MODES: Set<string> = new Set<string>([
@@ -12,8 +13,7 @@ export function validateUtilityMarkers(v: ValidationCtx): void {
 
     // option-level
     for (const f of v.fields) {
-        const optsArr = Array.isArray(f.options) ? f.options : [];
-        for (const o of optsArr) {
+        for (const { option: o } of walkFieldOptions(f)) {
             const role: string = o.pricing_role ?? f.pricing_role ?? "base";
             const hasService: boolean = isServiceIdRef(o.service_id);
             const util: unknown = (o.meta as any)?.utility;

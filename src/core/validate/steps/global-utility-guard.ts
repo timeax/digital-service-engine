@@ -1,6 +1,7 @@
 // src/core/validate/steps/global-utility-guard.ts
 import type { ValidationCtx } from "../shared";
 import { isServiceIdRef } from "../shared";
+import { walkFieldOptions } from "@/core/options";
 
 export function validateGlobalUtilityGuard(v: ValidationCtx): void {
     if (!v.options.globalUtilityGuard) return;
@@ -9,7 +10,7 @@ export function validateGlobalUtilityGuard(v: ValidationCtx): void {
     let hasBase: boolean = false;
 
     for (const f of v.fields) {
-        for (const o of f.options ?? []) {
+        for (const { option: o } of walkFieldOptions(f)) {
             if (!isServiceIdRef(o.service_id)) continue;
 
             const role: string = o.pricing_role ?? f.pricing_role ?? "base";

@@ -35,28 +35,6 @@ function normalizeSelectedTriggerKey(
 ): NormalizedSelectedTrigger | undefined {
     if (!key) return undefined;
 
-    const compositeIdx = key.indexOf("::");
-    if (compositeIdx !== -1) {
-        const fieldId = key.slice(0, compositeIdx).trim();
-        const optionId = key.slice(compositeIdx + 2).trim();
-
-        if (optionId) {
-            const optionRef = nodeMap.get(optionId);
-            if (optionRef?.kind === "option") {
-                return { nodeId: optionRef.id, nodeKind: "option" };
-            }
-        }
-
-        if (fieldId) {
-            const fieldRef = nodeMap.get(fieldId);
-            if (fieldRef?.kind === "field") {
-                return { nodeId: fieldRef.id, nodeKind: "field" };
-            }
-        }
-
-        return undefined;
-    }
-
     const ref = nodeMap.get(key);
     if (!ref) return undefined;
     if (ref.kind !== "field" && ref.kind !== "option") return undefined;

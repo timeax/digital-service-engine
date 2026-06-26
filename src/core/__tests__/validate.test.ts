@@ -107,14 +107,21 @@ describe("validate()", () => {
                 },
             ],
             includes_for_buttons: {
-                "f1::o1": ["x"],
+                "f1::o1": ["x"], // composite keys are invalid even when the option exists
+                o1: ["x"],
                 "f1::bad": ["y"], // bad key (option not found)
             },
             excludes_for_buttons: {
-                "f1::o1": ["z"], // conflict with includes_for_options
+                o1: ["z"], // conflict with includes_for_options
             },
         };
         const out = errs(props);
+        expect(
+            out.some(
+                (e) =>
+                    e.code === "bad_option_key" && e.details?.key === "f1::o1",
+            ),
+        ).toBe(true);
         expect(
             out.some(
                 (e) =>
@@ -125,7 +132,7 @@ describe("validate()", () => {
             out.some(
                 (e) =>
                     e.code === "option_include_exclude_conflict" &&
-                    e.details?.key === "f1::o1",
+                    e.details?.key === "o1",
             ),
         ).toBe(true);
     });
@@ -448,7 +455,7 @@ describe("validate()", () => {
         };
 
         const out = validate(normalise(props), {
-            selectedOptionKeys: ["f:instant-order", "f:plan::o:contract"],
+            selectedOptionKeys: ["f:instant-order", "o:contract"],
         });
 
         expect(
@@ -751,18 +758,18 @@ describe("validate()", () => {
                     ],
                 },
             ],
-            includes_for_buttons: { "toggle::on": ["util"] },
-            excludes_for_buttons: { "toggle::on": ["base"] }, // <-- hide base when "on"
+            includes_for_buttons: { on: ["util"] },
+            excludes_for_buttons: { on: ["base"] }, // <-- hide base when "on"
         };
 
-        const out = validate(props, { selectedOptionKeys: ["toggle::on"] });
+        const out = validate(props, { selectedOptionKeys: ["on"] });
         expect(
             out.some(
                 (e) => e.code === "utility_without_base" && e.nodeId === "T",
             ),
         ).toBe(true);
 
-        const out2 = validate(props, { selectedOptionKeys: ["toggle::off"] });
+        const out2 = validate(props, { selectedOptionKeys: ["off"] });
         expect(
             out2.some(
                 (e) => e.code === "utility_without_base" && e.nodeId === "T",
@@ -819,13 +826,13 @@ describe("validate()", () => {
                 },
             ],
             excludes_for_buttons: {
-                "toggle::hideBase": ["base"],
+                hideBase: ["base"],
             },
         };
 
         // Select "hideBase": base excluded → util visible without base → error
         const out = validate(props, {
-            selectedOptionKeys: ["toggle::hideBase"],
+            selectedOptionKeys: ["hideBase"],
         });
         expect(
             out.some(
@@ -835,7 +842,7 @@ describe("validate()", () => {
 
         // Select "showAll": nothing excluded → base present → OK
         const out2 = validate(props, {
-            selectedOptionKeys: ["toggle::showAll"],
+            selectedOptionKeys: ["showAll"],
         });
         expect(out2.some((e) => e.code === "utility_without_base")).toBe(false);
     });
@@ -953,7 +960,7 @@ describe("validate()", () => {
                 },
                 { id: "incByOpt", label: "IncludedByOption", type: "text" },
             ],
-            includes_for_buttons: { "toggle::on": ["incByOpt"] },
+            includes_for_buttons: { on: ["incByOpt"] },
         };
         const out = validate(props);
         expect(
@@ -984,5 +991,85 @@ describe("validate()", () => {
         expect(warn?.details?.from).toBe(true);
         expect(warn?.details?.to).toBe(false);
         expect(warn?.details?.origin).toBe("root");
+    });
+});
+
+describe("validate option_effects_for_buttons", () => {
+    const props: ServiceProps = {
+        schema_version: "1.0",
+        filters: [{ id: "root", label: "Root" }],
+        fields: [
+            {
+                id: "f:trigger",
+                label: "Trigger",
+                type: "select",
+                bind_id: "root",
+                options: [
+                    {
+                        id: "o:parent",
+                        label: "Parent",
+                        children: [{ id: "o:child", label: "Child" }],
+                    },
+                ],
+            },
+            {
+                id: "f:target",
+                label: "Target",
+                type: "select",
+                options: [
+                    { id: "o:keep", label: "Keep" },
+                    {
+                        id: "o:group",
+                        label: "Group",
+                        children: [{ id: "o:nested", label: "Nested" }],
+                    },
+                ],
+            },
+        ],
+    };
+
+    it("accepts nested trigger and target option ids", () => {
+        const out = validate({
+            ...props,
+            option_effects_for_buttons: {
+                "o:child": {
+                    "f:target": {
+                        forceVisible: true,
+                        include: ["o:nested"],
+                    },
+                },
+            },
+        });
+
+        expect(out.map((error) => error.code)).not.toContain(
+            "bad_option_effect_key",
+        );
+        expect(out.map((error) => error.code)).not.toContain(
+            "bad_option_effect_option",
+        );
+    });
+
+    it("reports invalid effect trigger, target field, and target option ids", () => {
+        const out = validate({
+            ...props,
+            option_effects_for_buttons: {
+                ghostTrigger: {
+                    ghostField: {
+                        include: ["ghostOption"],
+                    },
+                    "f:target": {
+                        include: ["ghostOption"],
+                    },
+                },
+            },
+        });
+
+        expect(out.map((error) => error.code)).toEqual(
+            expect.arrayContaining([
+                "bad_option_effect_key",
+                "bad_option_effect_target",
+                "bad_option_effect_option",
+            ]),
+        );
     });
 });

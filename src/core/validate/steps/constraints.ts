@@ -6,6 +6,7 @@ import {
     withAffected, // <-- your helper (adjust name/import if you named it differently)
 } from "../shared";
 import { getServiceCapability } from "@/utils/util";
+import { walkFieldOptions } from "@/core/options";
 
 type ConstraintBag = Record<string, boolean | undefined>;
 
@@ -75,7 +76,7 @@ export function validateConstraints(v: ValidationCtx): void {
         const visible = v.fieldsVisibleUnder(t.id);
 
         for (const f of visible) {
-            for (const o of f.options ?? []) {
+            for (const { option: o } of walkFieldOptions(f)) {
                 if (!isServiceIdRef(o.service_id)) continue;
 
                 const svc: unknown = getServiceCapability(v.serviceMap, o.service_id);

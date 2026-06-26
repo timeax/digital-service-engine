@@ -19,6 +19,7 @@ import type { BuildOrderSelection, BuildOrderSnapshotSettings } from "./types";
 import { collectUtilityLineItems } from "./utilities";
 import { buildNodeContexts } from "./context";
 import { buildDevWarnings } from "./warnings";
+import { findOptionOwnerField } from "@/core/options";
 
 export type { BuildOrderSelection, BuildOrderSnapshotSettings } from "./types";
 
@@ -46,15 +47,45 @@ export function buildOrderSnapshot(
     const tagId = selection.activeTagId;
     const selectedButtonKeys =
         selection.selectedKeys ?? toSelectedOptionKeys(selection.optionSelectionsByFieldId);
-    const visibleFieldIds = builder.visibleFields(tagId, selectedButtonKeys);
-
     const tagById = new Map((props.filters ?? []).map((t: Tag) => [t.id, t]));
     const fieldById = new Map((props.fields ?? []).map((f: Field) => [f.id, f]));
+    const resolve =
+        typeof (builder as Partial<Builder> & {
+            resolveVisibility?: Builder["resolveVisibility"];
+        }).resolveVisibility === "function"
+            ? (builder as Partial<Builder> & {
+                  resolveVisibility: Builder["resolveVisibility"];
+              }).resolveVisibility.bind(builder)
+            : undefined;
+
+    let resolvedVisibility = resolve?.(tagId, selectedButtonKeys);
+    let visibleFieldIds =
+        resolvedVisibility?.fieldIds ?? builder.visibleFields(tagId, selectedButtonKeys);
+    const filteredSelectedButtonKeys = filterSelectedKeysByVisibility(
+        selectedButtonKeys,
+        visibleFieldIds,
+        resolvedVisibility?.optionsByFieldId,
+        fieldById,
+    );
+
+    if (
+        resolve &&
+        filteredSelectedButtonKeys.join("\u0000") !== selectedButtonKeys.join("\u0000")
+    ) {
+        resolvedVisibility = resolve(tagId, filteredSelectedButtonKeys);
+        visibleFieldIds = resolvedVisibility.fieldIds;
+    }
+
+    const effectiveSelection: BuildOrderSelection = {
+        ...selection,
+        selectedKeys: filteredSelectedButtonKeys,
+    };
     const tagConstraints = tagById.get(tagId)?.constraints ?? undefined;
     const selectedOptionsByFieldId = getSelectedOptionsByFieldId(
-        selection,
+        effectiveSelection,
         fieldById,
         mode,
+        resolvedVisibility?.optionsByFieldId,
     );
 
     const selectionFields = visibleFieldIds
@@ -74,7 +105,7 @@ export function buildOrderSnapshot(
     const { formValues, selections } = buildInputs(
         visibleFieldIds,
         fieldById,
-        selection,
+        effectiveSelection,
         selectedOptionsByFieldId,
     );
 
@@ -82,7 +113,7 @@ export function buildOrderSnapshot(
         visibleFieldIds,
         fieldById,
         tagById,
-        selection,
+        effectiveSelection,
         tagId,
         hostDefaultQty,
     );
@@ -90,7 +121,7 @@ export function buildOrderSnapshot(
     const { serviceMap, servicesList } = resolveServices(
         tagId,
         visibleFieldIds,
-        selection,
+        effectiveSelection,
         tagById,
         fieldById,
         services,
@@ -119,7 +150,7 @@ export function buildOrderSnapshot(
     const utilities = collectUtilityLineItems(
         visibleFieldIds,
         fieldById,
-        selection,
+        effectiveSelection,
         selectedOptionsByFieldId,
         qtyRes.quantity,
     );
@@ -132,7 +163,7 @@ export function buildOrderSnapshot(
                   prunedFallbacks.original,
                   fieldById,
                   visibleFieldIds,
-                  selection,
+                  effectiveSelection,
               )
             : undefined;
 
@@ -150,7 +181,7 @@ export function buildOrderSnapshot(
                 tagId,
                 visibleFieldIds,
                 fieldById,
-                selection,
+                effectiveSelection,
                 selectedOptionsByFieldId,
             ),
             policy: toSnapshotPolicy(fbSettings),
@@ -163,7 +194,7 @@ export function buildOrderSnapshot(
         builtAt,
         selection: {
             tag: tagId,
-            buttons: selectedButtonKeys,
+            buttons: filteredSelectedButtonKeys,
             fields: selectionFields,
         },
         inputs: { form: formValues, selections },
@@ -180,4 +211,34 @@ export function buildOrderSnapshot(
         ...(warnings ? { warnings } : {}),
         meta,
     };
+}
+
+function filterSelectedKeysByVisibility(
+    selectedKeys: string[],
+    visibleFieldIds: string[],
+    optionsByFieldId: Record<string, string[]> | undefined,
+    fieldById: Map<string, Field>,
+): string[] {
+    if (!optionsByFieldId) return selectedKeys;
+
+    const visibleFields = new Set(visibleFieldIds);
+    const out: string[] = [];
+
+    for (const rawKey of selectedKeys) {
+        const key = String(rawKey);
+        if (fieldById.has(key)) {
+            if (visibleFields.has(key)) out.push(key);
+            continue;
+        }
+
+        const owner = findOptionOwnerField(fieldById.values(), key);
+
+        if (!owner || !visibleFields.has(owner.id)) continue;
+
+        const allowed = optionsByFieldId[owner.id];
+        if (allowed && !allowed.includes(key)) continue;
+        out.push(key);
+    }
+
+    return out;
 }

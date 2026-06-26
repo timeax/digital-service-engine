@@ -7,6 +7,7 @@ import {
     normalizeRatePolicy,
     passesRatePolicy,
 } from "@/utils/util";
+import { walkFieldOptions } from "@/core/options";
 
 export function validateRates(v: ValidationCtx): void {
     const ratePolicy = normalizeRatePolicy(v.options.ratePolicy);
@@ -17,7 +18,7 @@ export function validateRates(v: ValidationCtx): void {
         const baseRates: Array<{ optionId: string; serviceId: string; rate: number }> =
             [];
 
-        for (const o of f.options ?? []) {
+        for (const { option: o } of walkFieldOptions(f)) {
             const role: string = o.pricing_role ?? f.pricing_role ?? "base";
             if (role !== "base") continue;
 

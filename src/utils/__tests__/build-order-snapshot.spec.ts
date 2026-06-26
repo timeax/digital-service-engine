@@ -3,7 +3,7 @@ import {describe, it, expect} from 'vitest';
 import {buildOrderSnapshot} from '../build-order-snapshot';
 import type {BuildOrderSelection} from '../build-order-snapshot';
 
-import type {Builder} from '../../core';
+import {createBuilder, type Builder} from '../../core';
 import type {ServiceIdRef, ServiceProps, Field, FieldOption, Tag} from '../../schema';
 import type {DgpServiceMap} from '../../schema/provider';
 
@@ -97,10 +97,7 @@ describe('buildOrderSnapshot — service composition', () => {
             activeTagId: 't:root',
             formValuesByFieldId: {},
             optionSelectionsByFieldId: {fA: ['o:A1', 'o:A2']},
-            optionTraversalOrder: [
-                {fieldId: 'fA', optionId: 'o:A1'},
-                {fieldId: 'fA', optionId: 'o:A2'},
-            ],
+            optionTraversalOrder: ['o:A1', 'o:A2'],
         };
 
         const snap = buildOrderSnapshot(props, builder, selection, svcMap, {mode: 'prod'});
@@ -178,10 +175,7 @@ describe('buildOrderSnapshot — service composition', () => {
             activeTagId: 't:root',
             formValuesByFieldId: {},
             optionSelectionsByFieldId: {fA: ['o:U1', 'o:B1']},
-            optionTraversalOrder: [
-                {fieldId: 'fA', optionId: 'o:U1'},
-                {fieldId: 'fA', optionId: 'o:B1'},
-            ],
+            optionTraversalOrder: ['o:U1', 'o:B1'],
         };
 
         const snap = buildOrderSnapshot(props, builder, selection, svcMap, {mode: 'prod'});
@@ -449,7 +443,7 @@ describe('buildOrderSnapshot — order kind resolution', () => {
         expect(snap.orderKindSource).toBeNull();
     });
 
-    it('normalizes composite/internal selection tokens to option ids for lookup', () => {
+    it('uses flat option ids for order-kind lookup', () => {
         const snap = buildOrderSnapshot(
             base,
             builder,
@@ -457,7 +451,7 @@ describe('buildOrderSnapshot — order kind resolution', () => {
                 activeTagId: 't:subscription',
                 formValuesByFieldId: {},
                 optionSelectionsByFieldId: {},
-                selectedKeys: ['f:term::o:quote'],
+                selectedKeys: ['o:quote'],
             },
             svcMap,
             {mode: 'prod'},
@@ -563,7 +557,7 @@ describe('buildOrderSnapshot - selectedKeys derived option selections', () => {
         expect(snap.quantity).toBe(5);
     });
 
-    it('prod collapses non-multi field selections while preserving legacy composite parsing', () => {
+    it('prod collapses non-multi field selections from flat option ids', () => {
         const tags = [tag('t:root', 'Root')];
         const inputField: Field = {
             id: 'f:input',
@@ -582,7 +576,7 @@ describe('buildOrderSnapshot - selectedKeys derived option selections', () => {
                 activeTagId: 't:root',
                 formValuesByFieldId: {},
                 optionSelectionsByFieldId: {},
-                selectedKeys: ['f:input::o:a', 'o:b', 'o:a', 'o:b'],
+                selectedKeys: ['o:a', 'o:b', 'o:a', 'o:b'],
             },
             svcMap,
             {mode: 'prod'},
@@ -613,7 +607,7 @@ describe('buildOrderSnapshot - selectedKeys derived option selections', () => {
                 activeTagId: 't:root',
                 formValuesByFieldId: {},
                 optionSelectionsByFieldId: {},
-                selectedKeys: ['o:a', 'o:a', 'f:input::o:b', 'o:b'],
+                selectedKeys: ['o:a', 'o:a', 'o:b', 'o:b'],
             },
             svcMap,
             {mode: 'dev'},
@@ -623,5 +617,120 @@ describe('buildOrderSnapshot - selectedKeys derived option selections', () => {
             {id: 'f:input', type: 'select', selectedOptions: ['o:a', 'o:b']},
         ]);
         expect(snap.inputs.selections).toEqual({'f:input': ['o:a', 'o:b']});
+    });
+});
+
+describe('buildOrderSnapshot - option effects visibility', () => {
+    it('does not let hidden selected options contribute selections, services, utilities, or quantity', () => {
+        const props: ServiceProps = {
+            schema_version: '1.0',
+            filters: [tag('t:root', 'Root', 1)],
+            fields: [
+                field('f:package', 't:root', [
+                    opt('o:premium', 'Premium'),
+                ]),
+                field('f:quality', 't:root', [
+                    opt('o:low', 'Low', 10),
+                    opt('o:high', 'High', 11),
+                    {
+                        id: 'o:utility',
+                        label: 'Utility',
+                        service_id: 99,
+                        pricing_role: 'utility',
+                        meta: {
+                            utility: {
+                                mode: 'flat',
+                                rate: 7,
+                            },
+                            quantityDefault: 9,
+                        },
+                    },
+                ]),
+            ],
+            option_effects_for_buttons: {
+                'o:premium': {
+                    'f:quality': {
+                        include: ['o:high'],
+                    },
+                },
+            },
+        };
+        const builder = createBuilder();
+        builder.load(props);
+
+        const snap = buildOrderSnapshot(
+            builder.getProps(),
+            builder,
+            {
+                activeTagId: 't:root',
+                formValuesByFieldId: {},
+                optionSelectionsByFieldId: {},
+                selectedKeys: ['o:premium', 'o:low', 'o:utility'],
+            },
+            svcMap,
+            {mode: 'prod'},
+        );
+
+        expect(snap.selection.buttons).toEqual(['o:premium']);
+        expect(snap.selection.fields).not.toContainEqual(
+            expect.objectContaining({
+                id: 'f:quality',
+                selectedOptions: expect.arrayContaining(['o:low']),
+            }),
+        );
+        expect(snap.inputs.selections['f:quality']).toBeUndefined();
+        expect(snap.services).toEqual([1]);
+        expect(snap.serviceMap).toEqual({'t:root': [1]});
+        expect((snap as any).utilities).toBeUndefined();
+        expect(snap.quantitySource.kind).toBe('default');
+    });
+
+    it('allows visible nested option selections to contribute services', () => {
+        const props: ServiceProps = {
+            schema_version: '1.0',
+            filters: [tag('t:root', 'Root', 1)],
+            fields: [
+                field('f:package', 't:root', [
+                    {
+                        id: 'o:premium',
+                        label: 'Premium',
+                        children: [{id: 'o:premium-plus', label: 'Plus'}],
+                    },
+                ]),
+                field('f:quality', 't:root', [
+                    {
+                        id: 'o:group',
+                        label: 'Group',
+                        children: [opt('o:nested-high', 'Nested High', 11)],
+                    },
+                ]),
+            ],
+            option_effects_for_buttons: {
+                'o:premium-plus': {
+                    'f:quality': {
+                        include: ['o:nested-high'],
+                    },
+                },
+            },
+        };
+        const builder = createBuilder();
+        builder.load(props);
+
+        const snap = buildOrderSnapshot(
+            builder.getProps(),
+            builder,
+            {
+                activeTagId: 't:root',
+                formValuesByFieldId: {},
+                optionSelectionsByFieldId: {},
+                selectedKeys: ['o:premium-plus', 'o:nested-high'],
+            },
+            svcMap,
+            {mode: 'prod'},
+        );
+
+        expect(snap.inputs.selections['f:quality']).toEqual(['o:nested-high']);
+        expect(snap.services).toEqual([11]);
+        expect(snap.serviceMap['o:nested-high']).toEqual([11]);
     });
 });

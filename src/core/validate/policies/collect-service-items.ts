@@ -8,6 +8,7 @@ import type {
 import type { DynamicRule } from "@/schema/validation";
 
 import { matchesWhere } from "../shared";
+import { walkFieldOptions } from "@/core/options";
 
 export type ServiceItem = Readonly<{
     /** Scope tag context (only meaningful for visible_group / tag-filtered global) */
@@ -257,7 +258,7 @@ export function collectServiceItems(
         }
 
         // option services
-        for (const o of f.options ?? []) {
+        for (const { option: o } of walkFieldOptions(f)) {
             const oSid: unknown = (o as any).service_id;
             if (!isServiceIdRef(oSid)) continue;
 

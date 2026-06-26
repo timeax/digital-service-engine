@@ -17,6 +17,7 @@ import type {
 import { resolveInputDescriptor, useInputs } from "@/react";
 
 import { useOrderFlow } from "@/react/hooks/use-order-flow";
+import { filterFieldOptionsById, fieldOptionIdSet } from "@/core/options";
 
 function toKind(field: Field): InputKind {
     return field.type as InputKind;
@@ -161,6 +162,20 @@ export function Wrapper({
     const kind = toKind(field);
     const variant = toVariant(field);
 
+    const renderedField = React.useMemo<Field>(() => {
+        const visibleOptionIds = flow.visibleOptionsByFieldId[field.id];
+        if (!visibleOptionIds) return field;
+
+        return {
+            ...field,
+            options:
+                filterFieldOptionsById(
+                    field.options,
+                    new Set(visibleOptionIds),
+                ) ?? [],
+        };
+    }, [field, flow.visibleOptionsByFieldId]);
+
     const descriptor: InputDescriptor | undefined = React.useMemo(
         () => resolveInputDescriptor(registry, kind, variant),
         [kind, registry, variant],
@@ -180,8 +195,8 @@ export function Wrapper({
     >;
 
     const defaultProps = useMemo(() => {
-        return { ...baseProps, ...(field.defaults ?? {}) };
-    }, [baseProps, field.defaults]);
+        return { ...baseProps, ...(renderedField.defaults ?? {}) };
+    }, [baseProps, renderedField.defaults]);
 
     const valueProp = adapter.valueProp ?? "value";
     const changeProp = adapter.changeProp ?? "onChange";
@@ -206,12 +221,14 @@ export function Wrapper({
     // Option ids allow-list (defensive)
     const optionIds = React.useMemo(() => {
         if (!isOptionBased) return new Set<string>();
-        return new Set((field.options ?? []).map((o: FieldOption) => o.id));
-    }, [isOptionBased, field.options]);
+        return new Set(
+            Array.from(fieldOptionIdSet(renderedField)).map(String),
+        );
+    }, [isOptionBased, renderedField]);
 
     const adapterCtx = React.useMemo<AdapterCtx>(
-        () => ({ field, props: flow.raw }),
-        [field, flow.raw],
+        () => ({ field: renderedField, props: flow.raw }),
+        [renderedField, flow.raw],
     );
 
     const onHostChange = React.useCallback(
@@ -231,7 +248,7 @@ export function Wrapper({
             if (isOptionBased) {
                 if (!adapter.getSelectedOptions) {
                     throw new Error(
-                        `[Wrapper] Adapter for "${field.id}" (${field.type}) must implement getSelectedOptions() because this field has options.`,
+                        `[Wrapper] Adapter for "${renderedField.id}" (${renderedField.type}) must implement getSelectedOptions() because this field has options.`,
                     );
                 }
 
@@ -248,7 +265,7 @@ export function Wrapper({
                             .filter((id) => optionIds.has(id)),
                     ),
                 );
-                flow.setFieldOptions(field.id, nextIds);
+                flow.setFieldOptions(renderedField.id, nextIds);
 
                 return;
             }
@@ -256,15 +273,15 @@ export function Wrapper({
             if (isActionButton) {
                 const isActive =
                     adapter.isActive?.(stored, adapterCtx) ?? Boolean(stored);
-                if (isActive) flow.toggleOption(field.id);
-                else flow.clearField(field.id);
+                if (isActive) flow.toggleOption(renderedField.id);
+                else flow.clearField(renderedField.id);
             }
         },
         [
             adapter,
             adapterCtx,
-            field.id,
-            field.type,
+            renderedField.id,
+            renderedField.type,
             flow,
             fp,
             isActionButton,
@@ -283,12 +300,12 @@ export function Wrapper({
 
         return {
             ...ctx,
-            field,
+            field: renderedField,
             flow,
             value: fp.value,
             error: fp.error,
         };
-    }, [ctxOverrides, field, flow, fp.error, fp.value]);
+    }, [ctxOverrides, renderedField, flow, fp.error, fp.value]);
 
     const templatedDefaultProps = React.useMemo(() => {
         if (!templateStrings) return defaultProps;
@@ -302,16 +319,16 @@ export function Wrapper({
     }, [extraProps, templateCtx, templateStrings]);
 
     const fieldProps =
-        adapter?.getInputPropsFromField?.({ field, props: flow.raw }) ?? {};
+        adapter?.getInputPropsFromField?.({ field: renderedField, props: flow.raw }) ?? {};
     // Build host props
     const hostProps: Record<string, unknown> = {
-        id: field.id,
-        field,
+        id: renderedField.id,
+        field: renderedField,
         disabled: !!disabled || !!fp.disabled,
         required: field.required,
 
         // DO NOT pass `name` to InputField/entries
-        fieldKey: field.id,
+        fieldKey: renderedField.id,
 
         ...(fieldProps ?? {}),
         // error channel

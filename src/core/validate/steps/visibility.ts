@@ -4,6 +4,7 @@ import type { Field, Tag } from "@/schema";
 import type { SimulatedVisibilityContext, ValidationCtx } from "../shared";
 import { isServiceIdRef, withAffected } from "../shared";
 import { visibleFieldsUnder } from "@/core/visibility";
+import { walkFieldOptions } from "@/core/options";
 
 /**
  * v.selectedKeys is a Set<string> (per your note).
@@ -88,7 +89,7 @@ function collectSelectableTriggersInContext(
         }
 
         // option triggers
-        for (const o of f.options ?? []) {
+        for (const { option: o } of walkFieldOptions(f)) {
             const t = o.id;
             if (effectfulKeys.has(t)) triggers.push(t);
         }
@@ -165,7 +166,7 @@ function runVisibilityRulesOnce(v: ValidationCtx): void {
         const utilityOptionIds: string[] = [];
 
         for (const f of visible) {
-            for (const o of f.options ?? []) {
+            for (const { option: o } of walkFieldOptions(f)) {
                 if (!isServiceIdRef(o.service_id)) continue;
 
                 const role: string =
@@ -257,6 +258,9 @@ export function validateVisibility(
             effectfulKeys.add(key);
         }
         for (const key of Object.keys(v.props.excludes_for_buttons ?? {})) {
+            effectfulKeys.add(key);
+        }
+        for (const key of Object.keys(v.props.option_effects_for_buttons ?? {})) {
             effectfulKeys.add(key);
         }
     }

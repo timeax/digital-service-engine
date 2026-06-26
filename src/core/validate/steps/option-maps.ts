@@ -1,33 +1,14 @@
 // src/core/validate/steps/option-maps.ts
 import type { ValidationCtx } from "../shared";
 import { withAffected } from "../shared";
-
-type ParsedFallback = { fieldId: string; optionId: string };
-
-/** Fallback parser for legacy "fieldId::optionId" keys */
-function parseFieldOptionKey(key: string): ParsedFallback | null {
-    const idx = key.indexOf("::");
-    if (idx === -1) return null;
-
-    const fieldId = key.slice(0, idx).trim();
-    const optionId = key.slice(idx + 2).trim();
-
-    if (!fieldId || !optionId) return null;
-    return { fieldId, optionId };
-}
-
-function hasOption(v: ValidationCtx, fid: string, oid: string): boolean {
-    const f = v.fieldById.get(fid);
-    if (!f) return false;
-    return !!(f.options ?? []).find((o) => o.id === oid);
-}
+import { fieldOptionIdSet } from "@/core/options";
 
 export function validateOptionMaps(v: ValidationCtx): void {
     const incMap: Record<string, string[]> = v.props.includes_for_buttons ?? {};
     const excMap: Record<string, string[]> = v.props.excludes_for_buttons ?? {};
 
     const badKeyMessage = (key: string): string =>
-        `Invalid trigger-map key "${key}". Expected a known node id (option or button-field), or "fieldId::optionId" pointing to an existing option.`;
+        `Invalid trigger-map key "${key}". Expected a known option id or button-field id.`;
 
     /**
      * Valid trigger keys:
@@ -35,7 +16,6 @@ export function validateOptionMaps(v: ValidationCtx): void {
      *    - kind:"option" => ok
      *    - kind:"field"  => ok only if field.button === true
      *    - kind:"tag"    => invalid
-     * - else fallback: "fieldId::optionId" must point to an existing option under that field
      */
     const validateTriggerKey = (
         key: string,
@@ -67,22 +47,7 @@ export function validateOptionMaps(v: ValidationCtx): void {
             return { ok: false, nodeId: ref.id, affected: [ref.id] };
         }
 
-        // fallback: fieldId::optionId
-        const p = parseFieldOptionKey(key);
-        if (!p) return { ok: false };
-
-        if (!hasOption(v, p.fieldId, p.optionId))
-            return {
-                ok: false,
-                nodeId: p.fieldId,
-                affected: [p.fieldId, p.optionId],
-            };
-
-        return {
-            ok: true,
-            nodeId: p.fieldId,
-            affected: [p.fieldId, p.optionId],
-        };
+        return { ok: false };
     };
 
     // bad_option_key (keeping the code name for compatibility)
@@ -109,6 +74,64 @@ export function validateOptionMaps(v: ValidationCtx): void {
                 nodeId: r.nodeId,
                 details: withAffected({ key: k }, r.affected),
             });
+        }
+    }
+
+    const effectMap = v.props.option_effects_for_buttons ?? {};
+    for (const [triggerKey, targets] of Object.entries(effectMap)) {
+        const trigger = validateTriggerKey(triggerKey);
+        if (!trigger.ok) {
+            v.errors.push({
+                code: "bad_option_effect_key",
+                severity: "error",
+                message: badKeyMessage(triggerKey),
+                nodeId: trigger.nodeId,
+                details: withAffected({ key: triggerKey }, trigger.affected),
+            });
+        }
+
+        for (const [targetFieldId, effect] of Object.entries(targets ?? {})) {
+            const field = v.fieldById.get(targetFieldId);
+            if (!field) {
+                v.errors.push({
+                    code: "bad_option_effect_target",
+                    severity: "error",
+                    message: `Option effect trigger "${triggerKey}" targets unknown field "${targetFieldId}".`,
+                    details: withAffected(
+                        { key: triggerKey, targetFieldId },
+                        trigger.affected,
+                    ),
+                });
+                continue;
+            }
+
+            const validOptionIds = fieldOptionIdSet(field);
+            const checkTargetOptions = (
+                kind: "include" | "exclude",
+                optionIds: string[] | undefined,
+            ) => {
+                for (const optionId of optionIds ?? []) {
+                    if (validOptionIds.has(optionId)) continue;
+                    v.errors.push({
+                        code: "bad_option_effect_option",
+                        severity: "error",
+                        message: `Option effect trigger "${triggerKey}" references unknown ${kind} option "${optionId}" for field "${targetFieldId}".`,
+                        nodeId: targetFieldId,
+                        details: withAffected(
+                            {
+                                key: triggerKey,
+                                targetFieldId,
+                                optionId,
+                                kind,
+                            },
+                            [targetFieldId, optionId],
+                        ),
+                    });
+                }
+            };
+
+            checkTargetOptions("include", effect?.include);
+            checkTargetOptions("exclude", effect?.exclude);
         }
     }
 

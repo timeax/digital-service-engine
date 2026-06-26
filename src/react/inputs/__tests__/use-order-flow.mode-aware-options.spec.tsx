@@ -54,6 +54,40 @@ function makeProps(meta?: { multi?: boolean }): ServiceProps {
     };
 }
 
+function makeEffectProps(): ServiceProps {
+    return {
+        schema_version: "1",
+        filters: [{ id: "t:root", label: "Root" }],
+        fields: [
+            {
+                id: "f:package",
+                type: "select",
+                label: "Package",
+                bind_id: "t:root",
+                options: [{ id: "o:premium", label: "Premium" }],
+            },
+            {
+                id: "f:quality",
+                type: "select",
+                label: "Quality",
+                bind_id: "t:root",
+                options: [
+                    { id: "o:low", label: "Low" },
+                    { id: "o:high", label: "High" },
+                ],
+                meta: { multi: true },
+            },
+        ],
+        option_effects_for_buttons: {
+            "o:premium": {
+                "f:quality": {
+                    include: ["o:high"],
+                },
+            },
+        },
+    };
+}
+
 describe("useOrderFlow setFieldOptions mode-aware behavior", () => {
     it("prod + non-multi keeps latest option only", async () => {
         let flow: ReturnType<typeof useOrderFlow> | null = null;
@@ -159,5 +193,44 @@ describe("useOrderFlow setFieldOptions mode-aware behavior", () => {
 
         await app.unmount();
     });
-});
 
+    it("exposes visible option ids and prunes hidden selected options", async () => {
+        let flow: ReturnType<typeof useOrderFlow> | null = null;
+        function Consumer() {
+            flow = useOrderFlow();
+            return null;
+        }
+
+        const app = await mount(
+            <OrderFlowProvider
+                serviceProps={makeEffectProps()}
+                init={{ mode: "prod", services: {} as DgpServiceMap }}
+            >
+                <Consumer />
+            </OrderFlowProvider>,
+        );
+
+        await act(async () => {
+            flow!.setFieldOptions("f:quality", ["o:low"]);
+            await flush();
+        });
+
+        await act(async () => {
+            flow!.setFieldOptions("f:package", ["o:premium"]);
+            await flush();
+        });
+
+        expect(flow!.visibleOptionsByFieldId["f:quality"]).toEqual([
+            "o:high",
+        ]);
+
+        const snap = flow!.buildSnapshot();
+        expect(snap?.inputs.selections["f:quality"]).toBeUndefined();
+        expect(
+            snap?.selection.fields.find((field) => field.id === "f:quality")
+                ?.selectedOptions,
+        ).toBeUndefined();
+
+        await app.unmount();
+    });
+});

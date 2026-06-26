@@ -1,6 +1,6 @@
 // src/core/__tests__/visibility.test.ts
 import { describe, expect, it } from "vitest";
-import { visibleFieldIdsUnder } from "../visibility";
+import { resolveVisibility, visibleFieldIdsUnder } from "../visibility";
 import type { ServiceProps } from "@/schema";
 
 function makeProps(): ServiceProps {
@@ -178,5 +178,113 @@ describe("visibleFieldIdsUnder", () => {
             "f:runs",
             "f:interval",
         ]);
+    });
+});
+
+describe("resolveVisibility option effects", () => {
+    function optionEffectProps(): ServiceProps {
+        return {
+            schema_version: "1.0",
+            filters: [{ id: "t:root", label: "Root" }],
+            fields: [
+                {
+                    id: "f:package",
+                    type: "select",
+                    label: "Package",
+                    bind_id: "t:root",
+                    options: [
+                        { id: "o:basic", label: "Basic" },
+                        {
+                            id: "o:premium",
+                            label: "Premium",
+                            children: [
+                                {
+                                    id: "o:premium-plus",
+                                    label: "Premium Plus",
+                                },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    id: "f:quality",
+                    type: "select",
+                    label: "Quality",
+                    options: [
+                        { id: "o:low", label: "Low" },
+                        { id: "o:high", label: "High" },
+                        { id: "o:ultra", label: "Ultra" },
+                    ],
+                },
+            ],
+            option_effects_for_buttons: {
+                "o:premium": {
+                    "f:quality": {
+                        forceVisible: true,
+                        include: ["o:low", "o:high", "o:ultra"],
+                        exclude: ["o:low"],
+                    },
+                },
+                "o:premium-plus": {
+                    "f:quality": {
+                        forceVisible: true,
+                        include: ["o:ultra"],
+                    },
+                },
+            },
+        };
+    }
+
+    it("filters options when a target field is already visible", () => {
+        const props = optionEffectProps();
+        props.fields[1] = { ...props.fields[1], bind_id: "t:root" };
+
+        const resolved = resolveVisibility(props, "t:root", ["o:premium"]);
+
+        expect(resolved.fieldIds).toEqual(["f:package", "f:quality"]);
+        expect(resolved.forcedFieldIds).toEqual([]);
+        expect(resolved.optionsByFieldId["f:quality"]).toEqual([
+            "o:high",
+            "o:ultra",
+        ]);
+    });
+
+    it("forceVisible reveals a hidden target field and then filters its options", () => {
+        const resolved = resolveVisibility(optionEffectProps(), "t:root", [
+            "o:premium",
+        ]);
+
+        expect(resolved.fieldIds).toEqual(["f:package", "f:quality"]);
+        expect(resolved.forcedFieldIds).toEqual(["f:quality"]);
+        expect(resolved.optionsByFieldId["f:quality"]).toEqual([
+            "o:high",
+            "o:ultra",
+        ]);
+    });
+
+    it("does not reveal hidden target fields without forceVisible", () => {
+        const props = optionEffectProps();
+        props.option_effects_for_buttons = {
+            "o:premium": {
+                "f:quality": {
+                    include: ["o:high"],
+                },
+            },
+        };
+
+        const resolved = resolveVisibility(props, "t:root", ["o:premium"]);
+
+        expect(resolved.fieldIds).toEqual(["f:package"]);
+        expect(resolved.optionsByFieldId["f:quality"]).toBeUndefined();
+    });
+
+    it("supports nested child option ids as triggers", () => {
+        const resolved = resolveVisibility(optionEffectProps(), "t:root", [
+            "o:premium-plus",
+        ]);
+
+        expect(resolved.fieldIds).toEqual(["f:package", "f:quality"]);
+        expect(resolved.forcedFieldIds).toEqual(["f:quality"]);
+        expect(resolved.optionsByFieldId["f:quality"]).toEqual(["o:ultra"]);
     });
 });

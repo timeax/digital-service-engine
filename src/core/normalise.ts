@@ -41,6 +41,9 @@ export function normalise(
     const excludes_for_buttons = toStringArrayMap(
         (obj as any).excludes_for_buttons,
     );
+    const option_effects_for_buttons = toOptionEffectMap(
+        (obj as any).option_effects_for_buttons,
+    );
     const orderKinds = toStringMap((obj as any).orderKinds);
     const notices = toNoticeArray((obj as any).notices);
 
@@ -63,6 +66,9 @@ export function normalise(
         ...(isNonEmpty(orderKinds) && { orderKinds }),
         ...(isNonEmpty(includes_for_buttons) && { includes_for_buttons }),
         ...(isNonEmpty(excludes_for_buttons) && { excludes_for_buttons }),
+        ...(isNonEmpty(option_effects_for_buttons) && {
+            option_effects_for_buttons,
+        }),
         ...(fallbacks &&
             (isNonEmpty(fallbacks.nodes) || isNonEmpty(fallbacks.global)) && {
                 fallbacks,
@@ -318,6 +324,11 @@ function coerceOption(src: any, inheritRole: PricingRole): FieldOption {
             ? (src.meta as Record<string, unknown>)
             : undefined;
 
+    const children = Array.isArray(src.children)
+        ? (src.children as any[])
+              .map((child) => coerceOption(child, pricing_role))
+        : undefined;
+
     const option: FieldOption = {
         id: "",
         label: "",
@@ -327,6 +338,7 @@ function coerceOption(src: any, inheritRole: PricingRole): FieldOption {
         ...(service_id !== undefined && { service_id }),
         pricing_role,
         ...(meta && { meta }),
+        ...(children && children.length && { children }),
     };
     return option;
 }
@@ -402,6 +414,57 @@ function toStringArrayMap(src: any): Record<string, string[]> | undefined {
         const arr = toStringArray(v);
         if (arr.length) out[k] = dedupe(arr);
     }
+    return Object.keys(out).length ? out : undefined;
+}
+
+function toOptionEffectMap(
+    src: any,
+): ServiceProps["option_effects_for_buttons"] | undefined {
+    if (!src || typeof src !== "object") return undefined;
+
+    const out: NonNullable<ServiceProps["option_effects_for_buttons"]> = {};
+    for (const [triggerId, rawTargets] of Object.entries(src)) {
+        if (!triggerId || !rawTargets || typeof rawTargets !== "object") {
+            continue;
+        }
+
+        const targets: Record<
+            string,
+            NonNullable<
+                ServiceProps["option_effects_for_buttons"]
+            >[string][string]
+        > = {};
+
+        for (const [fieldId, rawEffect] of Object.entries(rawTargets as any)) {
+            if (!fieldId || !rawEffect || typeof rawEffect !== "object") {
+                continue;
+            }
+
+            const effect = rawEffect as any;
+            const include = toStringArray(effect.include);
+            const exclude = toStringArray(effect.exclude);
+            const next: NonNullable<
+                ServiceProps["option_effects_for_buttons"]
+            >[string][string] = {
+                ...(effect.forceVisible === true
+                    ? { forceVisible: true }
+                    : {}),
+                ...(include.length ? { include: dedupe(include) } : {}),
+                ...(exclude.length ? { exclude: dedupe(exclude) } : {}),
+            };
+
+            if (
+                next.forceVisible === true ||
+                next.include?.length ||
+                next.exclude?.length
+            ) {
+                targets[fieldId] = next;
+            }
+        }
+
+        if (Object.keys(targets).length) out[triggerId] = targets;
+    }
+
     return Object.keys(out).length ? out : undefined;
 }
 

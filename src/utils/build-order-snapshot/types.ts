@@ -14,7 +14,7 @@ export type BuildOrderSelection = {
     formValuesByFieldId: Record<string, Scalar | Scalar[]>;
     optionSelectionsByFieldId: Record<string, string[]>;
     selectedKeys?: string[];
-    optionTraversalOrder?: Array<{ fieldId: string; optionId: string }>;
+    optionTraversalOrder?: string[];
 };
 
 export type SelectedNodeVisit =

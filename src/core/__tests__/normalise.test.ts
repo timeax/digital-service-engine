@@ -187,4 +187,49 @@ describe("normalise()", () => {
         expect(out.notices).toHaveLength(1);
         expect(out.notices?.[0].id).toBe("n:1");
     });
+
+    it("preserves option effects and recursive child options", () => {
+        const out = normalise({
+            filters: [{ id: "root", label: "Root" }],
+            fields: [
+                {
+                    id: "f:package",
+                    label: "Package",
+                    type: "select",
+                    options: [
+                        {
+                            id: "o:premium",
+                            label: "Premium",
+                            children: [
+                                { id: "o:premium-plus", label: "Plus" },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    id: "f:quality",
+                    label: "Quality",
+                    type: "select",
+                    options: [{ id: "o:high", label: "High" }],
+                },
+            ],
+            option_effects_for_buttons: {
+                "o:premium-plus": {
+                    "f:quality": {
+                        forceVisible: true,
+                        include: ["o:high", "o:high"],
+                    },
+                },
+            },
+        });
+
+        expect(out.fields[0].options?.[0].children?.[0].id).toBe(
+            "o:premium-plus",
+        );
+        expect(
+            out.option_effects_for_buttons?.["o:premium-plus"]?.[
+                "f:quality"
+            ],
+        ).toEqual({ forceVisible: true, include: ["o:high"] });
+    });
 });

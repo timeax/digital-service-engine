@@ -2,6 +2,7 @@ import type { Field, Tag } from "@/schema";
 import type { OrderSnapshot, QuantityRule, Scalar } from "@/schema/order";
 import type { BuildOrderSelection } from "./types";
 import { buildSelectedNodeVisitOrder } from "./selection";
+import { findFieldOption } from "@/core/options";
 
 export function resolveQuantity(
     visibleFieldIds: string[],
@@ -54,8 +55,7 @@ export function resolveNodeDefaultQuantity(
         if (visit.kind !== "option") continue;
         if (!visible.has(visit.fieldId)) continue;
         const field = fieldById.get(visit.fieldId);
-        if (!field?.options?.length) continue;
-        const option = field.options.find((item) => item.id === visit.optionId);
+        const option = findFieldOption(field, visit.optionId);
         const quantity = readPositiveFiniteNumber((option?.meta as any)?.quantityDefault);
         if (quantity !== undefined) {
             return { quantity, source: { kind: "option", id: option!.id } };

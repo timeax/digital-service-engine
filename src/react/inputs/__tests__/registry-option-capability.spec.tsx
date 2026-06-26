@@ -9,6 +9,7 @@ import {
     resolveInputDescriptor,
     useInputsMaybe,
 } from "@/react";
+import type { Field, ServiceProps } from "@/schema";
 
 describe("input registry option capability", () => {
     it("stores option capability metadata on descriptors", () => {
@@ -20,12 +21,20 @@ describe("input registry option capability", () => {
                 autoCreate: true,
                 defaultLabel: "Option label",
                 defaultValue: "option",
+                children: {
+                    supported: true,
+                    autoCreate: true,
+                    defaultLabel: "Child option label",
+                    defaultValue: "child-option",
+                },
             },
         });
 
         const descriptor = resolveInputDescriptor(registry, "custom:option");
         expect(descriptor?.options?.supported).toBe(true);
         expect(descriptor?.options?.autoCreate).toBe(true);
+        expect(descriptor?.options?.children?.supported).toBe(true);
+        expect(descriptor?.options?.children?.autoCreate).toBe(true);
     });
 
     it("stores multi capability metadata on descriptors", () => {
@@ -50,6 +59,8 @@ describe("input registry option capability", () => {
         const single = resolveInputDescriptor(registry, "checkbox");
         const group = resolveInputDescriptor(registry, "checkbox", "options");
         const chips = resolveInputDescriptor(registry, "chips");
+        const treeselect = resolveInputDescriptor(registry, "treeselect");
+        const select = resolveInputDescriptor(registry, "select");
 
         expect(single?.defaultProps?.single).toBe(true);
         expect(single?.options?.supported).toBe(false);
@@ -59,6 +70,63 @@ describe("input registry option capability", () => {
         expect(group?.multi?.autoEnable).toBe(true);
         expect(chips?.options?.supported).toBe(false);
         expect(chips?.multi).toBeUndefined();
+        expect(treeselect?.options?.children?.supported).toBe(true);
+        expect(select?.options?.children?.supported).toBeUndefined();
+    });
+
+    it("maps nested child options recursively for InputField props", () => {
+        const registry = createInputRegistry();
+        registerEntries(registry);
+
+        const treeselect = resolveInputDescriptor(registry, "treeselect");
+        const field: Field = {
+            id: "f:category",
+            type: "treeselect",
+            label: "Category",
+            options: [
+                {
+                    id: "o:social",
+                    label: "Social",
+                    children: [
+                        {
+                            id: "o:instagram",
+                            label: "Instagram",
+                        },
+                    ],
+                },
+            ],
+        };
+        const props: ServiceProps = {
+            schema_version: "1",
+            filters: [],
+            fields: [field],
+            notices: [
+                {
+                    id: "n:instagram",
+                    type: "public",
+                    kind: "label",
+                    severity: "info",
+                    target: {
+                        scope: "node",
+                        node_kind: "option",
+                        node_id: "o:instagram",
+                    },
+                    title: "Recommended",
+                },
+            ],
+        };
+
+        const inputProps = treeselect?.adapter?.getInputPropsFromField?.({
+            field,
+            props,
+        }) as any;
+
+        expect(inputProps.options?.[0]?.children?.[0]?.id).toBe(
+            "o:instagram",
+        );
+        expect(inputProps.options?.[0]?.children?.[0]?.tags?.[0]?.label).toBe(
+            "Recommended",
+        );
     });
 });
 

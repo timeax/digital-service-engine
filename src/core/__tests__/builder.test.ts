@@ -231,6 +231,70 @@ describe("Builder", () => {
         expect(cleaned.excludes_for_buttons?.["o2"]).toBeUndefined(); // entire entry removed (all ghost)
     });
 
+    it("cleanedProps prunes option effects using recursive target option ids", () => {
+        const b = createBuilder();
+        b.load({
+            filters: [{ id: "root", label: "Root" }],
+            fields: [
+                {
+                    id: "f:trigger",
+                    label: "Trigger",
+                    type: "select",
+                    bind_id: "root",
+                    options: [
+                        {
+                            id: "o:parent",
+                            label: "Parent",
+                            children: [{ id: "o:child", label: "Child" }],
+                        },
+                    ],
+                },
+                {
+                    id: "f:target",
+                    label: "Target",
+                    type: "select",
+                    options: [
+                        { id: "o:keep", label: "Keep" },
+                        {
+                            id: "o:group",
+                            label: "Group",
+                            children: [{ id: "o:nested", label: "Nested" }],
+                        },
+                    ],
+                },
+            ],
+            option_effects_for_buttons: {
+                "o:child": {
+                    "f:target": {
+                        forceVisible: true,
+                        include: ["o:keep", "o:nested", "ghost"],
+                        exclude: ["o:keep", "ghost"],
+                    },
+                    ghostField: {
+                        include: ["o:keep"],
+                    },
+                },
+                ghostTrigger: {
+                    "f:target": {
+                        include: ["o:keep"],
+                    },
+                },
+            },
+        });
+
+        const cleaned = b.cleanedProps();
+
+        expect(cleaned.option_effects_for_buttons).toEqual({
+            "o:child": {
+                "f:target": {
+                    forceVisible: true,
+                    include: ["o:keep", "o:nested"],
+                    exclude: ["o:keep"],
+                },
+            },
+        });
+    });
+
     it("load() simply replaces props snapshots without local history semantics", () => {
         const b = createBuilder();
 

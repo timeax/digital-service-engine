@@ -14,6 +14,7 @@ import {
     passesRatePolicy,
 } from "@/utils/util";
 import { isMultiField } from "@/utils";
+import { walkFieldOptions } from "@/core/options";
 
 type BaseMember = {
     kind: "field" | "option";
@@ -287,8 +288,9 @@ function collectAnchors(fields: Field[]): Anchor[] {
     for (const field of fields) {
         if (!isButton(field)) continue;
 
-        if (Array.isArray(field.options) && field.options.length > 0) {
-            for (const option of field.options) {
+        const optionVisits = walkFieldOptions(field);
+        if (optionVisits.length > 0) {
+            for (const { option } of optionVisits) {
                 anchors.push({
                     kind: "option",
                     id: option.id,
@@ -350,8 +352,9 @@ function collectBaseMembers(
 ): BaseMember[] {
     const members: BaseMember[] = [];
 
-    if (Array.isArray(field.options) && field.options.length > 0) {
-        for (const option of field.options) {
+    const optionVisits = walkFieldOptions(field);
+    if (optionVisits.length > 0) {
+        for (const { option } of optionVisits) {
             const role = normalizeRole(option.pricing_role ?? field.pricing_role, "base");
             if (role !== "base") continue;
             if (option.service_id === undefined || option.service_id === null) {

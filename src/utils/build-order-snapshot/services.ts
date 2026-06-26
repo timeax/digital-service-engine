@@ -7,6 +7,7 @@ import type {
 import type { DgpServiceMap } from "@/schema/provider";
 import type { BuildOrderSelection } from "./types";
 import { buildSelectedNodeVisitOrder } from "./selection";
+import { findFieldOption, walkFieldOptions } from "@/core/options";
 
 type ResolvedBaseService = {
     origin: string;
@@ -17,8 +18,9 @@ type ResolvedBaseService = {
 
 export function isServiceBased(field: Field): boolean {
     if (field.service_id !== undefined && field.service_id !== null) return true;
-    return !!field.options?.some(
-        (item) => item.service_id !== undefined && item.service_id !== null,
+    return walkFieldOptions(field).some(
+        ({ option }) =>
+            option.service_id !== undefined && option.service_id !== null,
     );
 }
 
@@ -65,7 +67,7 @@ export function resolveServices(
             continue;
         }
 
-        const option = field.options?.find((item) => item.id === visit.optionId);
+        const option = findFieldOption(field, visit.optionId);
         if (!option) continue;
 
         const role = (option.pricing_role ?? field.pricing_role ?? "base") as

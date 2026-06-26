@@ -70,6 +70,9 @@ describe('InputRegistry variant resolution', () => {
                 autoCreate: true,
                 defaultLabel: "Option label",
                 defaultValue: "option",
+                children: {
+                    supported: true,
+                },
             },
         };
 
@@ -77,6 +80,7 @@ describe('InputRegistry variant resolution', () => {
         const resolved = resolveInputDescriptor(registry, "custom:Choice");
         expect(resolved?.options?.supported).toBe(true);
         expect(resolved?.options?.autoCreate).toBe(true);
+        expect(resolved?.options?.children?.supported).toBe(true);
     });
 
     it("supports descriptor multi metadata", () => {
@@ -101,11 +105,15 @@ describe('InputRegistry variant resolution', () => {
 
         const single = resolveInputDescriptor(registry, "checkbox");
         const group = resolveInputDescriptor(registry, "checkbox", "options");
+        const treeselect = resolveInputDescriptor(registry, "treeselect");
+        const select = resolveInputDescriptor(registry, "select");
 
         expect(single?.defaultProps?.single).toBe(true);
         expect(single?.options?.supported).toBe(false);
         expect(group?.defaultProps?.single).toBe(false);
         expect(group?.options?.supported).toBe(true);
+        expect(treeselect?.options?.children?.supported).toBe(true);
+        expect(select?.options?.children?.supported).toBeUndefined();
     });
 });
 

@@ -1,6 +1,7 @@
 // src/core/validate/steps/identity.ts
 import type { ValidationCtx } from "../shared";
 import { hasAnyServiceOption, withAffected } from "../shared";
+import { walkFieldOptions } from "@/core/options";
 
 export function validateIdentity(v: ValidationCtx): void {
     const tags = v.tags;
@@ -119,7 +120,7 @@ export function validateIdentity(v: ValidationCtx): void {
 
     // option labels required
     for (const f of fields) {
-        for (const o of f.options ?? []) {
+        for (const { option: o } of walkFieldOptions(f)) {
             if (!o.label || !o.label.trim()) {
                 v.errors.push({
                     code: "label_missing",

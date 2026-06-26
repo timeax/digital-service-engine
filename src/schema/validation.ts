@@ -14,6 +14,9 @@ export type ValidationCode =
     // visibility & option maps
     | "duplicate_visible_label"
     | "bad_option_key"
+    | "bad_option_effect_key"
+    | "bad_option_effect_target"
+    | "bad_option_effect_option"
     | "option_include_exclude_conflict"
     // service/input
     | "service_field_missing_service_id"

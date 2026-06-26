@@ -6,6 +6,7 @@ import type { DynamicRule, ValidationError } from "@/schema/validation";
 import { getByPath } from "../shared";
 import { collectServiceItems, type ServiceItem } from "./collect-service-items";
 import { evalPolicyOp } from "./ops";
+import { walkFieldOptions } from "@/core/options";
 
 function uniq<T>(arr: readonly T[]): T[] {
     return Array.from(new Set<T>(arr));
@@ -40,7 +41,7 @@ function visibleGroupNodeIds(tag: Tag, fields: readonly Field[]): string[] {
     const ids: string[] = [tag.id];
 
     for (const f of fields) {
-        for (const o of f.options ?? []) {
+        for (const { option: o } of walkFieldOptions(f)) {
             ids.push(o.id);
         }
     }
@@ -68,7 +69,7 @@ function visibleGroupPrimaries(tag: Tag, fields: readonly Field[]): IdType[] {
             prim.push(fsid);
         }
 
-        for (const o of f.options ?? []) {
+        for (const { option: o } of walkFieldOptions(f)) {
             const osid: unknown = (o as any).service_id;
             if (
                 typeof osid === "string" ||

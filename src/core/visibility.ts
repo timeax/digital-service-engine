@@ -1,9 +1,16 @@
 // src/core/visibility.ts
 import type { Field, ServiceProps, Tag } from "@/schema";
 import { buildNodeMap, type NodeMap, resolveTrigger } from "./node-map";
+import { fieldOptionIds } from "@/core/options";
 
 export type VisibilityOptions = {
     selectedKeys?: Set<string>;
+};
+
+export type ResolvedVisibility = {
+    fieldIds: string[];
+    optionsByFieldId: Record<string, string[]>;
+    forcedFieldIds: string[];
 };
 
 /**
@@ -63,13 +70,6 @@ export function visibleFieldIdsUnder(
     ): number | undefined => {
         const t = resolveTrigger(triggerKey, nodeMap);
         if (!t) return undefined;
-
-        // Composite trigger: fieldId::optionId
-        if (t.kind === "composite") {
-            const f = fieldById.get(t.fieldId);
-            if (!f) return undefined;
-            return ownerDepthForField(f);
-        }
 
         // Field trigger (button field id)
         if (t.kind === "field") {
@@ -196,4 +196,100 @@ export function visibleFieldsUnder(
     const ids = visibleFieldIdsUnder(props, tagId, opts);
     const fieldById = new Map((props.fields ?? []).map((f) => [f.id, f]));
     return ids.map((id) => fieldById.get(id)).filter(Boolean) as Field[];
+}
+
+export function resolveVisibility(
+    props: ServiceProps,
+    tagId: string,
+    selectedKeys?: Iterable<string>,
+): ResolvedVisibility {
+    const selected = new Set(selectedKeys ?? []);
+    const baseFieldIds = visibleFieldIdsUnder(props, tagId, { selectedKeys: selected });
+    const fieldById = new Map((props.fields ?? []).map((field) => [field.id, field]));
+    const visible = new Set(baseFieldIds);
+    const forced = new Set<string>();
+    const optionsByFieldId: Record<string, string[]> = {};
+    const optionIdsByFieldId = new Map<string, string[]>();
+
+    const getOptionIds = (field: Field): string[] => {
+        let ids = optionIdsByFieldId.get(field.id);
+        if (!ids) {
+            ids = fieldOptionIds(field);
+            optionIdsByFieldId.set(field.id, ids);
+        }
+        return ids;
+    };
+
+    const ensureOptions = (field: Field): string[] | undefined => {
+        const ids = getOptionIds(field);
+        if (!ids.length) return undefined;
+        if (!optionsByFieldId[field.id]) optionsByFieldId[field.id] = [...ids];
+        return optionsByFieldId[field.id];
+    };
+
+    for (const fieldId of baseFieldIds) {
+        const field = fieldById.get(fieldId);
+        if (field) ensureOptions(field);
+    }
+
+    const effects = props.option_effects_for_buttons ?? {};
+    for (const triggerId of selected) {
+        const targetRules = effects[triggerId];
+        if (!targetRules) continue;
+
+        for (const [targetFieldId, rule] of Object.entries(targetRules)) {
+            const field = fieldById.get(targetFieldId);
+            if (!field) continue;
+
+            const isVisible = visible.has(targetFieldId);
+            if (!isVisible && rule.forceVisible !== true) continue;
+            if (!isVisible && rule.forceVisible === true) {
+                visible.add(targetFieldId);
+                forced.add(targetFieldId);
+            }
+
+            const orderedOptionIds = getOptionIds(field);
+            if (!orderedOptionIds.length) continue;
+
+            const known = new Set(orderedOptionIds);
+            let allowed = optionsByFieldId[targetFieldId] ?? [...orderedOptionIds];
+
+            if (Array.isArray(rule.include) && rule.include.length) {
+                const include = new Set(
+                    rule.include.filter((optionId) => known.has(optionId)),
+                );
+                allowed = orderedOptionIds.filter(
+                    (optionId) => include.has(optionId) && allowed.includes(optionId),
+                );
+            }
+
+            if (Array.isArray(rule.exclude) && rule.exclude.length) {
+                const exclude = new Set(
+                    rule.exclude.filter((optionId) => known.has(optionId)),
+                );
+                allowed = allowed.filter((optionId) => !exclude.has(optionId));
+            }
+
+            optionsByFieldId[targetFieldId] = allowed;
+        }
+    }
+
+    const visibleFieldIds = baseFieldIds.filter((fieldId) => visible.has(fieldId));
+    const seen = new Set(visibleFieldIds);
+    for (const field of props.fields ?? []) {
+        if (!visible.has(field.id) || seen.has(field.id)) continue;
+        seen.add(field.id);
+        visibleFieldIds.push(field.id);
+        ensureOptions(field);
+    }
+
+    for (const fieldId of Object.keys(optionsByFieldId)) {
+        if (!visible.has(fieldId)) delete optionsByFieldId[fieldId];
+    }
+
+    return {
+        fieldIds: visibleFieldIds,
+        optionsByFieldId,
+        forcedFieldIds: visibleFieldIds.filter((fieldId) => forced.has(fieldId)),
+    };
 }

@@ -11,7 +11,7 @@ function mkBuilder(props: any) {
 }
 
 describe("Selection button helpers", () => {
-    it("selectedButtons(): returns only trigger keys (button-fields + options + composites), excluding tags/non-button fields", () => {
+    it("selectedButtons(): returns only trigger keys (button-fields + options), excluding tags/non-button fields", () => {
         const props = {
             filters: [{ id: "t:root", label: "Root" }],
             fields: [
@@ -50,16 +50,16 @@ describe("Selection button helpers", () => {
         // triggers
         sel.add("f:dripfeed"); // button-field trigger
         sel.add("o:fast"); // option trigger
-        sel.add("f:mode::o:slow"); // composite trigger
+        sel.add("o:slow"); // option trigger
 
         expect(sel.selectedButtons()).toEqual([
             "f:dripfeed",
             "o:fast",
-            "f:mode::o:slow",
+            "o:slow",
         ]);
     });
 
-    it("buttonSelectionsByFieldId(): groups trigger keys under the owning fieldId (button-field under itself; option/composite under option owner)", () => {
+    it("buttonSelectionsByFieldId(): groups trigger keys under the owning fieldId (button-field under itself; option under option owner)", () => {
         const props = {
             filters: [{ id: "t:root", label: "Root" }],
             fields: [
@@ -97,11 +97,11 @@ describe("Selection button helpers", () => {
         // triggers
         sel.add("f:dripfeed"); // button-field trigger => groups under f:dripfeed
         sel.add("o:fast"); // option trigger => groups under f:mode
-        sel.add("f:mode::o:slow"); // composite => groups under f:mode
+        sel.add("o:slow"); // option trigger => groups under f:mode
 
         expect(sel.buttonSelectionsByFieldId()).toEqual({
             "f:dripfeed": ["f:dripfeed"],
-            "f:mode": ["o:fast", "f:mode::o:slow"],
+            "f:mode": ["o:fast", "o:slow"],
         });
     });
 });

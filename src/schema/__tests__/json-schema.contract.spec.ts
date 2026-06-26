@@ -37,6 +37,23 @@ describe("JSON schema contracts", () => {
         expect(serviceProps?.properties?.orderKinds?.type).toBe("object");
     });
 
+    it("includes option effects and recursive FieldOption children in service props schema", () => {
+        const schemaPath = path.join(
+            process.cwd(),
+            "schema",
+            "service-props.schema.json",
+        );
+        const schema = readJson(schemaPath);
+        const serviceProps = schemaObject(schema, "ServiceProps");
+        const fieldOption = schemaObject(schema, "FieldOption");
+
+        expect(
+            serviceProps?.properties?.option_effects_for_buttons,
+        ).toBeTruthy();
+        expect(schemaObject(schema, "OptionEffectForButton")).toBeTruthy();
+        expect(fieldOption?.properties?.children).toBeTruthy();
+    });
+
     it("includes OrderSnapshot orderKind fields in order snapshot schema", () => {
         const schemaPath = path.join(
             process.cwd(),
