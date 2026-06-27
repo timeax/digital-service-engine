@@ -1,14 +1,72 @@
-import type { EditorOptions, Field, ServiceProps } from "@/schema";
+import type { EditorOptions, Field, FieldOption, ServiceProps } from "@/schema";
 
 export function ownerOfOption(
     props: ServiceProps,
     optionId: string,
 ): { fieldId: string; index: number } | null {
     for (const f of props.fields ?? []) {
-        const idx = (f.options ?? []).findIndex((o) => o.id === optionId);
-        if (idx >= 0) return { fieldId: f.id, index: idx };
+        const found = findOptionLocationInField(f, optionId);
+        if (found) return { fieldId: f.id, index: found.index };
     }
     return null;
+}
+
+export type MutableOptionLocation = {
+    field: Field;
+    option: FieldOption;
+    siblings: FieldOption[];
+    index: number;
+    parent?: FieldOption;
+};
+
+export function findMutableOption(
+    props: ServiceProps,
+    optionId: string,
+): MutableOptionLocation | undefined {
+    for (const field of props.fields ?? []) {
+        const found = findOptionLocationInField(field, optionId);
+        if (found) return { field, ...found };
+    }
+    return undefined;
+}
+
+export function collectFieldOptionIds(field: Field | undefined): string[] {
+    const out: string[] = [];
+    const visit = (options: readonly FieldOption[] | undefined) => {
+        for (const option of options ?? []) {
+            out.push(String(option.id));
+            visit(option.children);
+        }
+    };
+    visit(field?.options);
+    return out;
+}
+
+function findOptionLocationInField(
+    field: Field,
+    optionId: string,
+): Omit<MutableOptionLocation, "field"> | undefined {
+    const visit = (
+        siblings: FieldOption[] | undefined,
+        parent?: FieldOption,
+    ): Omit<MutableOptionLocation, "field"> | undefined => {
+        if (!siblings) return undefined;
+        const index = siblings.findIndex((option) => option.id === optionId);
+        if (index >= 0) {
+            return {
+                option: siblings[index]!,
+                siblings,
+                index,
+                parent,
+            };
+        }
+        for (const option of siblings) {
+            const found = visit(option.children, option);
+            if (found) return found;
+        }
+        return undefined;
+    };
+    return visit(field.options);
 }
 
 export function hasFieldOptions(field: Partial<Field> | undefined): boolean {
@@ -40,6 +98,15 @@ export function clearFieldButtonReceiverMaps(
         Object.keys(props.excludes_for_buttons).length === 0
     ) {
         delete props.excludes_for_buttons;
+    }
+    if (props.option_effects_for_buttons?.[fieldId]) {
+        delete props.option_effects_for_buttons[fieldId];
+    }
+    if (
+        props.option_effects_for_buttons &&
+        Object.keys(props.option_effects_for_buttons).length === 0
+    ) {
+        delete props.option_effects_for_buttons;
     }
 }
 

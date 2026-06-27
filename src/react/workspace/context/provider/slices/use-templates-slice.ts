@@ -54,9 +54,7 @@ export interface UseTemplatesSliceParams {
     readonly runtime: BackendRuntime;
 }
 
-function parseTimestamp(
-    value?: string | number | null,
-): number | undefined {
+function parseTimestamp(value?: string | number | null): number | undefined {
     if (value === undefined || value === null) return undefined;
 
     if (typeof value === "number") {
@@ -76,6 +74,7 @@ function templateTime(template: FieldTemplate): number | undefined {
 function shouldReplaceTemplates(params: {
     requestedSince?: string | number;
     lastUpdatedAt?: string | number;
+    current?: readonly FieldTemplate[] | null;
 }): boolean {
     if (!params.requestedSince) return true;
     if (!params.lastUpdatedAt) return false;
@@ -87,7 +86,12 @@ function shouldReplaceTemplates(params: {
         return false;
     }
 
-    return requested < last;
+    const currentTimes = (params.current ?? [])
+        .map((template) => templateTime(template))
+        .filter((time): time is number => time !== undefined);
+    if (!currentTimes.length) return requested < last;
+
+    return requested < Math.min(...currentTimes);
 }
 
 function pickNewestTemplate(
@@ -101,7 +105,8 @@ function pickNewestTemplate(
         return incomingTime >= currentTime ? incoming : current;
     }
 
-    if (currentTime === undefined && incomingTime !== undefined) return incoming;
+    if (currentTime === undefined && incomingTime !== undefined)
+        return incoming;
     if (currentTime !== undefined && incomingTime === undefined) return current;
 
     return incoming;
@@ -213,6 +218,7 @@ export function useTemplatesSlice(
                     const replace = shouldReplaceTemplates({
                         requestedSince,
                         lastUpdatedAt: current.updatedAt,
+                        current: current.data,
                     });
 
                     return {
@@ -328,8 +334,9 @@ export function useTemplatesSlice(
                 setTemplates((current) => ({
                     ...current,
                     data:
-                        current.data?.filter((template) => template.id !== id) ??
-                        current.data,
+                        current.data?.filter(
+                            (template) => template.id !== id,
+                        ) ?? current.data,
                     updatedAt: deleteRefreshSince,
                 }));
                 await refreshTemplates({

@@ -1,4 +1,4 @@
-import type { ServiceProps, Tag } from "@/schema";
+import type { FieldOption, OptionEffectForButton, ServiceProps, Tag } from "@/schema";
 import type {
     DuplicateManyOptions,
     DuplicateOptions,
@@ -10,6 +10,7 @@ import {
     nextCopyLabel,
     nextCopyName,
 } from "./editor-ids";
+import { findMutableOption } from "./editor-utils";
 
 export function duplicate(
     ctx: EditorModuleContext,
@@ -106,11 +107,83 @@ function ownerFieldOfOption(
     optionId: string,
 ): { fieldId: string } | null {
     for (const field of props.fields ?? []) {
-        if ((field.options ?? []).some((o) => o.id === optionId)) {
+        if (findMutableOption({ ...props, fields: [field] }, optionId)) {
             return { fieldId: field.id };
         }
     }
     return null;
+}
+
+function cloneOptionTree(
+    ctx: EditorModuleContext,
+    fieldId: string,
+    option: FieldOption,
+    opts: DuplicateOptions,
+    optionIdMap: Map<string, string>,
+): FieldOption {
+    const newId = ctx.uniqueOptionId(
+        fieldId,
+        (opts.optionIdStrategy ?? defaultOptionIdStrategy)(option.id),
+    );
+    optionIdMap.set(option.id, newId);
+    const children = option.children?.map((child) =>
+        cloneOptionTree(ctx, fieldId, child, opts, optionIdMap),
+    );
+    return {
+        ...option,
+        id: newId,
+        label: (opts.labelStrategy ?? nextCopyLabel)(option.label ?? option.id),
+        ...(children?.length ? { children } : {}),
+    };
+}
+
+function remapEffect(
+    effect: OptionEffectForButton,
+    optionIdMap: Map<string, string>,
+): OptionEffectForButton {
+    const remapList = (values: string[] | undefined) =>
+        values?.map((value) => optionIdMap.get(value) ?? value);
+    return {
+        ...effect,
+        ...(effect.include ? { include: remapList(effect.include) } : {}),
+        ...(effect.exclude ? { exclude: remapList(effect.exclude) } : {}),
+    };
+}
+
+function copyOptionEffects(
+    props: ServiceProps,
+    args: {
+        triggerIdMap?: Map<string, string>;
+        targetFieldIdMap?: Map<string, string>;
+        optionIdMap?: Map<string, string>;
+    },
+): void {
+    const source = props.option_effects_for_buttons;
+    if (!source) return;
+
+    const next: NonNullable<ServiceProps["option_effects_for_buttons"]> = {
+        ...source,
+    };
+    const triggerIdMap = args.triggerIdMap ?? new Map<string, string>();
+    const targetFieldIdMap = args.targetFieldIdMap ?? new Map<string, string>();
+    const optionIdMap = args.optionIdMap ?? new Map<string, string>();
+
+    for (const [oldTriggerId, targetMap] of Object.entries(source)) {
+        const newTriggerId = triggerIdMap.get(oldTriggerId);
+        if (!newTriggerId) continue;
+
+        const copiedTargets: Record<string, OptionEffectForButton> = {
+            ...(next[newTriggerId] ?? {}),
+        };
+        for (const [oldTargetFieldId, effect] of Object.entries(targetMap ?? {})) {
+            const newTargetFieldId =
+                targetFieldIdMap.get(oldTargetFieldId) ?? oldTargetFieldId;
+            copiedTargets[newTargetFieldId] = remapEffect(effect, optionIdMap);
+        }
+        next[newTriggerId] = copiedTargets;
+    }
+
+    props.option_effects_for_buttons = next;
 }
 
 export function duplicateTag(
@@ -194,17 +267,10 @@ export function duplicateField(
         ? opts.nameStrategy(src.name)
         : nextCopyName(src.name);
 
-    const optId = (old: string) =>
-        ctx.uniqueOptionId(
-            id,
-            (opts.optionIdStrategy ?? defaultOptionIdStrategy)(old),
-        );
-
-    const clonedOptions = (src.options ?? []).map((o) => ({
-        ...o,
-        id: optId(o.id),
-        label: (opts.labelStrategy ?? nextCopyLabel)(o.label ?? o.id),
-    }));
+    const optionIdMap = new Map<string, string>();
+    const clonedOptions = (src.options ?? []).map((o) =>
+        cloneOptionTree(ctx, id, o, opts, optionIdMap),
+    );
 
     const cloned = {
         ...src,
@@ -214,12 +280,6 @@ export function duplicateField(
         bind_id: (opts.copyBindings ?? true) ? src.bind_id : undefined,
         options: clonedOptions,
     } as typeof src;
-
-    const optionIdMap = new Map<string, string>();
-    (src.options ?? []).forEach((o, i) => {
-        const newOptId = clonedOptions[i]?.id ?? o.id;
-        optionIdMap.set(o.id, newOptId);
-    });
 
     ctx.patchProps((p) => {
         const arr = p.fields ?? [];
@@ -271,6 +331,15 @@ export function duplicateField(
 
                 (p as any)[mapKey] = nextMap;
             }
+
+            copyOptionEffects(p, {
+                triggerIdMap: new Map<string, string>([
+                    [fieldId, id],
+                    ...Array.from(optionIdMap.entries()),
+                ]),
+                targetFieldIdMap: new Map([[fieldId, id]]),
+                optionIdMap,
+            });
         }
     });
 
@@ -284,41 +353,38 @@ export function duplicateOption(
     opts: DuplicateOptions,
 ): string {
     const props = ctx.getProps();
-    const fields = props.fields ?? [];
-    const f = fields.find((x) => x.id === fieldId);
-    if (!f) throw new Error(`Field not found: ${fieldId}`);
-    const optIdx = (f.options ?? []).findIndex((o) => o.id === optionId);
-    if (optIdx < 0) {
-        throw new Error(`Option not found: ${fieldId}::${optionId}`);
+    const location = findMutableOption(props, optionId);
+    if (!location || location.field.id !== fieldId) {
+        throw new Error(`Option not found: ${fieldId}/${optionId}`);
     }
-    const src = (f.options ?? [])[optIdx];
-
-    const newId = ctx.uniqueOptionId(
-        fieldId,
-        (opts.optionIdStrategy ?? defaultOptionIdStrategy)(src.id),
-    );
-    const newLabel = (opts.labelStrategy ?? nextCopyLabel)(src.label ?? src.id);
+    const src = location.option;
+    const optionIdMap = new Map<string, string>();
+    const clone = cloneOptionTree(ctx, fieldId, src, opts, optionIdMap);
+    const newId = clone.id;
 
     ctx.patchProps((p) => {
-        const fld = (p.fields ?? []).find((x) => x.id === fieldId)!;
-        const arr = fld.options ?? [];
-        const clone = { ...src, id: newId, label: newLabel };
-        arr.splice(optIdx + 1, 0, clone);
-        fld.options = arr;
+        const current = findMutableOption(p, optionId);
+        if (!current) return;
+        current.siblings.splice(current.index + 1, 0, clone);
 
         if (opts.copyOptionMaps) {
-            const oldKey = `${fieldId}::${optionId}`;
-            const newKey = `${fieldId}::${newId}`;
             for (const mapKey of [
                 "includes_for_buttons",
                 "excludes_for_buttons",
             ] as const) {
                 const m = p[mapKey] ?? {};
-                if (m[oldKey]) {
-                    m[newKey] = Array.from(new Set(m[oldKey]));
-                    p[mapKey] = m as any;
+                for (const [oldKey, newKey] of optionIdMap.entries()) {
+                    if (m[oldKey]) {
+                        m[newKey] = Array.from(new Set(m[oldKey]));
+                        p[mapKey] = m as any;
+                    }
                 }
             }
+
+            copyOptionEffects(p, {
+                triggerIdMap: optionIdMap,
+                optionIdMap,
+            });
         }
     });
 

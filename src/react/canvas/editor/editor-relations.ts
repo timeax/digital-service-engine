@@ -1,6 +1,10 @@
 import type { ServiceProps } from "@/schema";
 import type { EditorModuleContext, WireKind } from "./editor-types";
-import { ensureServiceExists, isActualButtonField } from "./editor-utils";
+import {
+    ensureServiceExists,
+    findMutableOption,
+    isActualButtonField,
+} from "./editor-utils";
 
 export function wouldCreateTagCycle(
     _ctx: EditorModuleContext,
@@ -417,13 +421,10 @@ export function connect(
                     }
 
                     if (toId.startsWith("o:")) {
-                        for (const f of p.fields ?? []) {
-                            const o = f.options?.find((x) => x.id === toId);
-
-                            if (o) {
-                                (o as any).service_id = fromId;
-                                return;
-                            }
+                        const o = findMutableOption(p, toId)?.option;
+                        if (o) {
+                            (o as any).service_id = fromId;
+                            return;
                         }
 
                         return;
@@ -565,13 +566,10 @@ export function disconnect(
                     }
 
                     if (toId.startsWith("o:")) {
-                        for (const f of p.fields ?? []) {
-                            const o = f.options?.find((x) => x.id === toId);
-
-                            if (o) {
-                                delete (o as any).service_id;
-                                return;
-                            }
+                        const o = findMutableOption(p, toId)?.option;
+                        if (o) {
+                            delete (o as any).service_id;
+                            return;
                         }
 
                         return;

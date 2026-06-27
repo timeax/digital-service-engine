@@ -161,3 +161,222 @@ describe("Editor includes/excludes", () => {
         expect(nextProps.excludes_for_buttons?.["f:btn"]).toEqual(["f:1"]);
     });
 });
+
+describe("Editor option effects", () => {
+    const baseProps = () => ({
+        filters: [{ id: "t:root", label: "Root" }],
+        fields: [
+            {
+                id: "f:button",
+                label: "Button",
+                button: true,
+            },
+            {
+                id: "f:trigger",
+                label: "Trigger",
+                type: "select",
+                options: [
+                    {
+                        id: "o:parent",
+                        label: "Parent",
+                        children: [{ id: "o:child", label: "Child" }],
+                    },
+                ],
+            },
+            {
+                id: "f:target",
+                label: "Target",
+                type: "select",
+                options: [
+                    { id: "o:a", label: "A" },
+                    {
+                        id: "o:group",
+                        label: "Group",
+                        children: [{ id: "o:b", label: "B" }],
+                    },
+                ],
+            },
+            {
+                id: "f:regular",
+                label: "Regular",
+                type: "text",
+            },
+        ],
+    });
+
+    it("sets, patches, and clears a target option effect", () => {
+        const editor = mkEditor(baseProps());
+
+        editor.setOptionEffect("o:child", "f:target", {
+            forceVisible: true,
+            include: ["o:a", "o:b", "o:a"],
+            exclude: ["o:a"],
+        });
+
+        expect(editor.getProps().option_effects_for_buttons).toEqual({
+            "o:child": {
+                "f:target": {
+                    forceVisible: true,
+                    include: ["o:b"],
+                    exclude: ["o:a"],
+                },
+            },
+        });
+
+        editor.patchOptionEffect("o:child", "f:target", {
+            include: ["o:a", "o:b"],
+        });
+
+        expect(
+            editor.getProps().option_effects_for_buttons?.["o:child"]?.[
+                "f:target"
+            ],
+        ).toEqual({
+            forceVisible: true,
+            include: ["o:b"],
+            exclude: ["o:a"],
+        });
+
+        editor.clearOptionEffect("o:child", "f:target");
+        expect(editor.getProps().option_effects_for_buttons).toBeUndefined();
+    });
+
+    it("adds/removes include and exclude option ids and toggles forceVisible", () => {
+        const editor = mkEditor(baseProps());
+
+        editor.addOptionEffectOptions("f:button", "f:target", "include", [
+            "o:a",
+            "o:b",
+            "o:a",
+        ]);
+        editor.addOptionEffectOptions("f:button", "f:target", "exclude", [
+            "o:a",
+        ]);
+        editor.setOptionEffectForceVisible("f:button", "f:target", true);
+
+        expect(
+            editor.getProps().option_effects_for_buttons?.["f:button"]?.[
+                "f:target"
+            ],
+        ).toEqual({
+            forceVisible: true,
+            include: ["o:b"],
+            exclude: ["o:a"],
+        });
+
+        editor.removeOptionEffectOptions("f:button", "f:target", "exclude", [
+            "o:a",
+        ]);
+        editor.setOptionEffectForceVisible("f:button", "f:target", false);
+
+        expect(
+            editor.getProps().option_effects_for_buttons?.["f:button"]?.[
+                "f:target"
+            ],
+        ).toEqual({ include: ["o:b"] });
+    });
+
+    it("rejects invalid triggers, targets, target options, and composite ids", () => {
+        const editor = mkEditor(baseProps());
+
+        expect(() =>
+            editor.setOptionEffect("t:root", "f:target", { include: ["o:a"] }),
+        ).toThrow("option effect trigger must be an option id or button field id");
+        expect(() =>
+            editor.setOptionEffect("f:regular", "f:target", {
+                include: ["o:a"],
+            }),
+        ).toThrow("option effect trigger must be an option id or button field id");
+        expect(() =>
+            editor.setOptionEffect("o:child", "f:ghost", { include: ["o:a"] }),
+        ).toThrow("option effect target field not found");
+        expect(() =>
+            editor.setOptionEffect("o:child", "f:target", {
+                include: ["o:ghost"],
+            }),
+        ).toThrow("option effect include option not found");
+        expect(() =>
+            editor.setOptionEffect("f:trigger::o:child", "f:target", {
+                include: ["o:a"],
+            }),
+        ).toThrow("composite/path id");
+    });
+
+    it("cleans option effects when options or target fields are removed", () => {
+        const editor = mkEditor({
+            ...baseProps(),
+            option_effects_for_buttons: {
+                "o:child": {
+                    "f:target": {
+                        forceVisible: true,
+                        include: ["o:a", "o:b"],
+                        exclude: ["o:b"],
+                    },
+                },
+            },
+        });
+
+        editor.removeOption("o:b");
+        expect(
+            editor.getProps().option_effects_for_buttons?.["o:child"]?.[
+                "f:target"
+            ],
+        ).toEqual({ forceVisible: true, include: ["o:a"] });
+
+        editor.removeField("f:target");
+        expect(editor.getProps().option_effects_for_buttons).toBeUndefined();
+    });
+
+    it("cleans option effects when a button field stops qualifying and undo restores them", () => {
+        const editor = mkEditor({
+            ...baseProps(),
+            option_effects_for_buttons: {
+                "f:button": {
+                    "f:target": { include: ["o:a"] },
+                },
+            },
+        });
+
+        editor.updateField("f:button", { button: false });
+        expect(editor.getProps().option_effects_for_buttons).toBeUndefined();
+
+        editor.undo();
+        expect(editor.getProps().option_effects_for_buttons).toEqual({
+            "f:button": {
+                "f:target": { include: ["o:a"] },
+            },
+        });
+    });
+
+    it("duplicates option effects with raw ids when copyOptionMaps is enabled", () => {
+        const editor = mkEditor({
+            ...baseProps(),
+            option_effects_for_buttons: {
+                "o:child": {
+                    "f:target": { include: ["o:b"] },
+                },
+            },
+        });
+
+        const newFieldId = editor.duplicate(
+            { kind: "field", id: "f:trigger" },
+            {
+                copyOptionMaps: true,
+                optionIdStrategy: (old) => `${old}:copy`,
+            },
+        );
+
+        expect(newFieldId).not.toBe("f:trigger");
+        const copiedChild = editor
+            .getProps()
+            .fields.find((field) => field.id === newFieldId)
+            ?.options?.[0]?.children?.[0]?.id;
+
+        expect(copiedChild).toBe("o:child:copy");
+        expect(
+            editor.getProps().option_effects_for_buttons?.[copiedChild!]?.[
+                "f:target"
+            ],
+        ).toEqual({ include: ["o:b"] });
+    });
+});

@@ -1,11 +1,13 @@
 {
-    "version": 5,
+    "version": 4,
     "$schema": "https://raw.githubusercontent.com/emxhive/prodex/main/schema/prodex.schema.json",
     "output": {
         "dir": "prodex",
         "versioned": true,
         "format": "md"
     },
+    "entry": [],
+    "include": [],
     "exclude": [
         "node_modules/**",
         "vendor/**",
@@ -13,12 +15,14 @@
         "@shadcn/**",
         "**/components/ui/**"
     ],
-    "aliases": {
-        "@": "resources/js"
+    "resolve": {
+        "aliases": {
+            "@": "resources/js"
+        },
+        "maxDepth": 10,
+        "maxFiles": 200
     },
-    "depth": 10,
-    "maxFiles": 200,
-    "scopes": {
+    "profiles": {
         "schema": {
             "include": [
                 "src/schema/**"

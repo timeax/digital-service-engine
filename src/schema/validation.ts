@@ -18,6 +18,7 @@ export type ValidationCode =
     | "bad_option_effect_target"
     | "bad_option_effect_option"
     | "option_include_exclude_conflict"
+    | "visibility_dependency_cycle"
     // service/input
     | "service_field_missing_service_id"
     | "user_input_field_has_service_option"
@@ -164,4 +165,3 @@ export type FallbackSettings = {
     /** Validation mode: 'strict' → node-scoped violations reported as ValidationError; 'dev' → only collect diagnostics. Default: 'strict' */
     mode?: "strict" | "dev";
 };
-

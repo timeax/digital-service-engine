@@ -4,7 +4,13 @@ import type {
     EditorModuleContext,
     EditorNodeLookup,
 } from "./editor-types";
-import { clearFieldButtonReceiverMaps, isActualButtonField, ownerOfOption } from "./editor-utils";
+import {
+    clearFieldButtonReceiverMaps,
+    collectFieldOptionIds,
+    findMutableOption,
+    isActualButtonField,
+    ownerOfOption,
+} from "./editor-utils";
 
 const RELATION_MAP_KEYS = [
     "includes_for_buttons",
@@ -80,6 +86,56 @@ function cleanRelationMapsForDeleted(
     }
 }
 
+function cleanOptionEffectsForDeleted(
+    p: ServiceProps,
+    deleted: Set<string>,
+): void {
+    const map = p.option_effects_for_buttons;
+    if (!map) return;
+
+    for (const triggerId of Object.keys(map)) {
+        if (deleted.has(String(triggerId))) {
+            delete map[triggerId];
+            continue;
+        }
+
+        const targets = map[triggerId];
+        for (const targetFieldId of Object.keys(targets ?? {})) {
+            if (deleted.has(String(targetFieldId))) {
+                delete targets[targetFieldId];
+                continue;
+            }
+
+            const effect = targets[targetFieldId];
+            if (!effect) continue;
+
+            if (effect.include) {
+                effect.include = effect.include.filter(
+                    (optionId) => !deleted.has(String(optionId)),
+                );
+                if (!effect.include.length) delete effect.include;
+            }
+            if (effect.exclude) {
+                effect.exclude = effect.exclude.filter(
+                    (optionId) => !deleted.has(String(optionId)),
+                );
+                if (!effect.exclude.length) delete effect.exclude;
+            }
+            if (
+                effect.forceVisible !== true &&
+                !effect.include?.length &&
+                !effect.exclude?.length
+            ) {
+                delete targets[targetFieldId];
+            }
+        }
+
+        if (!Object.keys(targets ?? {}).length) delete map[triggerId];
+    }
+
+    if (!Object.keys(map).length) delete p.option_effects_for_buttons;
+}
+
 function cleanOrderForTagsForDeleted(
     p: ServiceProps,
     deleted: Set<string>,
@@ -120,24 +176,33 @@ function applyDeleteCleanup(p: ServiceProps, deleted: Set<string>): void {
     cleanTagRelationsForDeleted(p, deleted);
     cleanFieldBindsForDeleted(p, deleted);
     cleanRelationMapsForDeleted(p, deleted);
+    cleanOptionEffectsForDeleted(p, deleted);
     cleanOrderForTagsForDeleted(p, deleted);
     cleanNoticesForDeleted(p, deleted);
 }
 
-function removeOptionInPlace(p: ServiceProps, optionId: string): boolean {
-    const owner = ownerOfOption(p, optionId);
-    if (!owner) return false;
-    const f = (p.fields ?? []).find((x) => x.id === owner.fieldId);
-    if (!f?.options) return false;
-    const before = f.options.length;
-    f.options = f.options.filter((o) => o.id !== optionId);
-    return f.options.length !== before;
+function collectOptionSubtreeIds(option: { id: string; children?: any[] }): string[] {
+    return [
+        String(option.id),
+        ...(option.children ?? []).flatMap((child) => collectOptionSubtreeIds(child)),
+    ];
+}
+
+function removeOptionInPlace(p: ServiceProps, optionId: string): string[] {
+    const found = findMutableOption(p, optionId);
+    if (!found) return [];
+    const deleted = collectOptionSubtreeIds(found.option);
+    found.siblings.splice(found.index, 1);
+    if (found.parent && found.parent.children?.length === 0) {
+        delete found.parent.children;
+    }
+    return deleted;
 }
 
 function removeFieldInPlace(p: ServiceProps, fieldId: string): string[] {
     const field = (p.fields ?? []).find((f) => f.id === fieldId);
     if (!field) return [];
-    const deleted = [fieldId, ...(field.options ?? []).map((o) => String(o.id))];
+    const deleted = [fieldId, ...collectFieldOptionIds(field)];
     const before = (p.fields ?? []).length;
     p.fields = (p.fields ?? []).filter((f) => f.id !== fieldId);
     clearFieldButtonReceiverMaps(p, fieldId);
@@ -171,10 +236,7 @@ export function reLabel(
                 }
 
                 if (ctx.isOptionId(id)) {
-                    const own = ownerOfOption(p, id);
-                    if (!own) return;
-                    const f = (p.fields ?? []).find((x) => x.id === own.fieldId);
-                    const o = f?.options?.find((x) => x.id === id);
+                    const o = findMutableOption(p, id)?.option;
                     if (!o) return;
                     if ((o.label ?? "") === label) return;
                     o.label = label;
@@ -316,11 +378,7 @@ export function updateOption(
         name: "updateOption",
         do: () =>
             ctx.patchProps((p) => {
-                const owner = ownerOfOption(p, optionId);
-                if (!owner) return;
-                const f = (p.fields ?? []).find((x) => x.id === owner.fieldId);
-                if (!f?.options) return;
-                const o = f.options.find((x) => x.id === optionId);
+                const o = findMutableOption(p, optionId)?.option;
                 if (o) Object.assign(o, patch);
             }),
         undo: () => ctx.undo(),
@@ -335,9 +393,9 @@ export function removeOption(ctx: EditorModuleContext, optionId: string) {
         name: "removeOption",
         do: () =>
             ctx.patchProps((p) => {
-                const removed = removeOptionInPlace(p, optionId);
-                if (!removed) return;
-                applyDeleteCleanup(p, new Set([optionId]));
+                const removedIds = removeOptionInPlace(p, optionId);
+                if (!removedIds.length) return;
+                applyDeleteCleanup(p, new Set(removedIds));
             }),
         undo: () => ctx.undo(),
     });
@@ -362,10 +420,7 @@ export function editLabel(ctx: EditorModuleContext, id: string, label: string): 
                     return;
                 }
                 if (ctx.isOptionId(id)) {
-                    const own = ownerOfOption(p, id);
-                    if (!own) return;
-                    const f = (p.fields ?? []).find((x) => x.id === own.fieldId);
-                    const o = f?.options?.find((x) => x.id === id);
+                    const o = findMutableOption(p, id)?.option;
                     if (o) o.label = next;
                     return;
                 }
@@ -429,10 +484,7 @@ export function setService(
                 }
 
                 if (ctx.isOptionId(id)) {
-                    const own = ownerOfOption(p, id);
-                    if (!own) return;
-                    const f = (p.fields ?? []).find((x) => x.id === own.fieldId);
-                    const o = f?.options?.find((x) => x.id === id);
+                    const o = findMutableOption(p, id)?.option;
                     if (!o) return;
 
                     const currentRole = (o.pricing_role ?? "base") as
@@ -616,6 +668,9 @@ export function updateField(
     let prev: Field | undefined;
     let prevIncludesForButton: string[] | undefined;
     let prevExcludesForButton: string[] | undefined;
+    let prevOptionEffectsForButton:
+        | NonNullable<ServiceProps["option_effects_for_buttons"]>[string]
+        | undefined;
     ctx.exec({
         name: "updateField",
         do: () =>
@@ -625,6 +680,9 @@ export function updateField(
                     : undefined;
                 prevExcludesForButton = p.excludes_for_buttons?.[id]
                     ? [...(p.excludes_for_buttons?.[id] ?? [])]
+                    : undefined;
+                prevOptionEffectsForButton = p.option_effects_for_buttons?.[id]
+                    ? cloneDeep(p.option_effects_for_buttons[id])
                     : undefined;
 
                 p.fields = (p.fields ?? []).map((f) => {
@@ -654,6 +712,12 @@ export function updateField(
                     p.excludes_for_buttons = {
                         ...(p.excludes_for_buttons ?? {}),
                         [id]: [...prevExcludesForButton],
+                    };
+                }
+                if (prevOptionEffectsForButton) {
+                    p.option_effects_for_buttons = {
+                        ...(p.option_effects_for_buttons ?? {}),
+                        [id]: cloneDeep(prevOptionEffectsForButton),
                     };
                 }
             }),
@@ -710,9 +774,9 @@ export function remove(ctx: EditorModuleContext, id: string) {
             name: "removeOption",
             do: () =>
                 ctx.patchProps((p) => {
-                    const removed = removeOptionInPlace(p, key);
-                    if (!removed) return;
-                    applyDeleteCleanup(p, new Set([key]));
+                    const removedIds = removeOptionInPlace(p, key);
+                    if (!removedIds.length) return;
+                    applyDeleteCleanup(p, new Set(removedIds));
                 }),
             undo: () => ctx.undo(),
         });
@@ -731,7 +795,7 @@ export function removeMany(ctx: EditorModuleContext, ids: readonly string[]): vo
             const existingFieldIds = new Set((p.fields ?? []).map((f) => String(f.id)));
             const existingTagIds = new Set((p.filters ?? []).map((t) => String(t.id)));
             const existingOptionIds = new Set(
-                (p.fields ?? []).flatMap((f) => (f.options ?? []).map((o) => String(o.id))),
+                (p.fields ?? []).flatMap((f) => collectFieldOptionIds(f)),
             );
 
             const fieldIds = ordered.filter((id) => ctx.isFieldId(id) && existingFieldIds.has(id));
@@ -747,7 +811,9 @@ export function removeMany(ctx: EditorModuleContext, ids: readonly string[]): vo
             const deleted = new Set<string>();
 
             for (const optionId of optionIds) {
-                if (removeOptionInPlace(p, optionId)) deleted.add(optionId);
+                for (const removedId of removeOptionInPlace(p, optionId)) {
+                    deleted.add(removedId);
+                }
             }
             for (const fieldId of fieldIds) {
                 const removedIds = removeFieldInPlace(p, fieldId);
@@ -784,8 +850,7 @@ export function getNode(ctx: EditorModuleContext, id: string): EditorNodeLookup 
     }
     if (ctx.isOptionId(id)) {
         const own = ownerOfOption(props, id);
-        const f = own ? (props.fields ?? []).find((x) => x.id === own.fieldId) : undefined;
-        const o = f?.options?.find((x) => x.id === id);
+        const o = findMutableOption(props, id)?.option;
         return {
             kind: "option",
             data: o,

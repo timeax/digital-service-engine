@@ -12,6 +12,7 @@ import type {
     FallbackSettings,
     Field,
     FieldValidationRule,
+    OptionEffectForButton,
     RatePolicy,
     ServiceIdRef,
     ServiceCatalogState,
@@ -87,9 +88,19 @@ import {
     include,
     wouldCreateTagCycle,
 } from "./editor/editor-relations";
+import {
+    addOptionEffectOptions,
+    clearOptionEffect,
+    clearOptionEffectsForTarget,
+    clearOptionEffectsForTrigger,
+    patchOptionEffect,
+    removeOptionEffectOptions,
+    setOptionEffect,
+    setOptionEffectForceVisible,
+} from "./editor/editor-option-effects";
 import { filterServicesForVisibleGroup } from "./editor/editor-service-filter";
 import { genId, uniqueId, uniqueOptionId } from "./editor/editor-ids";
-import { ownerOfOption } from "./editor/editor-utils";
+import { findMutableOption } from "./editor/editor-utils";
 import { placeNode, placeOption } from "./editor/editor-placement";
 import {
     addCatalogGroup,
@@ -427,10 +438,8 @@ export class Editor {
                         continue;
                     }
                     if (this.isOptionId(id)) {
-                        const own = ownerOfOption(p, id);
-                        if (!own) continue;
-                        const f = (p.fields ?? []).find((x) => x.id === own.fieldId);
-                        const o = f?.options?.find((x) => x.id === id);
+                        const found = findMutableOption(p, id);
+                        const o = found?.option;
                         if (o && "service_id" in (o as any)) delete (o as any).service_id;
                     }
                 }
@@ -533,6 +542,55 @@ export class Editor {
                     }
                     if (!Object.keys(map).length) delete (p as any)[k];
                 }
+
+                const effectMap = p.option_effects_for_buttons;
+                if (effectMap) {
+                    for (const triggerId of Object.keys(effectMap)) {
+                        if (clearOwned && selected.has(String(triggerId))) {
+                            delete effectMap[triggerId];
+                            continue;
+                        }
+
+                        const targets = effectMap[triggerId];
+                        if (!targets || !clearIncoming) continue;
+
+                        for (const targetFieldId of Object.keys(targets)) {
+                            if (selected.has(String(targetFieldId))) {
+                                delete targets[targetFieldId];
+                                continue;
+                            }
+
+                            const effect = targets[targetFieldId];
+                            if (!effect) continue;
+
+                            if (effect.include) {
+                                effect.include = effect.include.filter(
+                                    (optionId) => !selected.has(String(optionId)),
+                                );
+                                if (!effect.include.length) delete effect.include;
+                            }
+                            if (effect.exclude) {
+                                effect.exclude = effect.exclude.filter(
+                                    (optionId) => !selected.has(String(optionId)),
+                                );
+                                if (!effect.exclude.length) delete effect.exclude;
+                            }
+                            if (
+                                effect.forceVisible !== true &&
+                                !effect.include?.length &&
+                                !effect.exclude?.length
+                            ) {
+                                delete targets[targetFieldId];
+                            }
+                        }
+
+                        if (!Object.keys(targets).length) delete effectMap[triggerId];
+                    }
+
+                    if (!Object.keys(effectMap).length) {
+                        delete p.option_effects_for_buttons;
+                    }
+                }
             });
         });
     }
@@ -559,10 +617,7 @@ export class Editor {
                         continue;
                     }
                     if (this.isOptionId(id)) {
-                        const own = ownerOfOption(p, id);
-                        if (!own) continue;
-                        const f = (p.fields ?? []).find((x) => x.id === own.fieldId);
-                        const o = f?.options?.find((x) => x.id === id);
+                        const o = findMutableOption(p, id)?.option;
                         if (o) o.label = `${prefix}${o.label ?? ""}${suffix}`.trim();
                     }
                 }
@@ -735,6 +790,87 @@ export class Editor {
 
     exclude(receiverId: string, idOrIds: string | string[]) {
         return exclude(this.moduleCtx(), receiverId, idOrIds);
+    }
+
+    setOptionEffect(
+        triggerId: string,
+        targetFieldId: string,
+        effect: OptionEffectForButton | undefined | null,
+    ): void {
+        return setOptionEffect(
+            this.moduleCtx(),
+            triggerId,
+            targetFieldId,
+            effect as any,
+        );
+    }
+
+    patchOptionEffect(
+        triggerId: string,
+        targetFieldId: string,
+        patch: OptionEffectForButton,
+    ): void {
+        return patchOptionEffect(
+            this.moduleCtx(),
+            triggerId,
+            targetFieldId,
+            patch as any,
+        );
+    }
+
+    clearOptionEffect(triggerId: string, targetFieldId: string): void {
+        return clearOptionEffect(this.moduleCtx(), triggerId, targetFieldId);
+    }
+
+    clearOptionEffectsForTrigger(triggerId: string): void {
+        return clearOptionEffectsForTrigger(this.moduleCtx(), triggerId);
+    }
+
+    clearOptionEffectsForTarget(targetFieldId: string): void {
+        return clearOptionEffectsForTarget(this.moduleCtx(), targetFieldId);
+    }
+
+    addOptionEffectOptions(
+        triggerId: string,
+        targetFieldId: string,
+        kind: "include" | "exclude",
+        optionIds: readonly string[],
+    ): void {
+        return addOptionEffectOptions(
+            this.moduleCtx(),
+            triggerId,
+            targetFieldId,
+            kind,
+            optionIds,
+        );
+    }
+
+    removeOptionEffectOptions(
+        triggerId: string,
+        targetFieldId: string,
+        kind: "include" | "exclude",
+        optionIds: readonly string[],
+    ): void {
+        return removeOptionEffectOptions(
+            this.moduleCtx(),
+            triggerId,
+            targetFieldId,
+            kind,
+            optionIds,
+        );
+    }
+
+    setOptionEffectForceVisible(
+        triggerId: string,
+        targetFieldId: string,
+        forceVisible: boolean | undefined,
+    ): void {
+        return setOptionEffectForceVisible(
+            this.moduleCtx(),
+            triggerId,
+            targetFieldId,
+            forceVisible,
+        );
     }
 
     connect(kind: WireKind, fromId: string, toId: string): void {
