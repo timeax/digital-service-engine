@@ -73,7 +73,9 @@ export function hasFieldOptions(field: Partial<Field> | undefined): boolean {
     return Array.isArray(field?.options) && field.options.length > 0;
 }
 
-export function isActualButtonField(field: Partial<Field> | undefined): boolean {
+export function isActualButtonField(
+    field: Partial<Field> | undefined,
+): boolean {
     return field?.button === true && !hasFieldOptions(field);
 }
 
@@ -107,6 +109,15 @@ export function clearFieldButtonReceiverMaps(
         Object.keys(props.option_effects_for_buttons).length === 0
     ) {
         delete props.option_effects_for_buttons;
+    }
+    if (props.value_effects_for_triggers?.[fieldId]) {
+        delete props.value_effects_for_triggers[fieldId];
+    }
+    if (
+        props.value_effects_for_triggers &&
+        Object.keys(props.value_effects_for_triggers).length === 0
+    ) {
+        delete props.value_effects_for_triggers;
     }
 }
 

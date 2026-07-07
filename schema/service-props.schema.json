@@ -14,12 +14,6 @@
             }
           }
         },
-        "orderKinds": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "string"
-          }
-        },
         "filters": {
           "type": "array",
           "items": {
@@ -56,6 +50,15 @@
             "type": "object",
             "additionalProperties": {
               "$ref": "#/definitions/OptionEffectForButton"
+            }
+          }
+        },
+        "value_effects_for_triggers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/definitions/FieldValueEffect"
             }
           }
         },
@@ -311,6 +314,20 @@
             "required": {
               "type": "boolean"
             },
+            "defaultValue": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Scalar"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Scalar"
+                  }
+                }
+              ],
+              "description": "Initial form value for fresh order flows."
+            },
             "defaults": {
               "type": "object",
               "additionalProperties": {},
@@ -467,6 +484,20 @@
             },
             "required": {
               "type": "boolean"
+            },
+            "defaultValue": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Scalar"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/definitions/Scalar"
+                  }
+                }
+              ],
+              "description": "Initial form value for fresh order flows."
             },
             "defaults": {
               "type": "object",
@@ -635,6 +666,100 @@
         "match"
       ]
     },
+    "Scalar": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "$ref": "#/definitions/ButtonValue"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ButtonValue": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "value": {
+          "type": [
+            "string",
+            "number"
+          ]
+        },
+        "service_id": {
+          "$ref": "#/definitions/ServiceIdRef"
+        },
+        "pricing_role": {
+          "type": "string",
+          "enum": [
+            "base",
+            "utility"
+          ]
+        },
+        "meta": {
+          "type": "object",
+          "properties": {
+            "quantityDefault": {
+              "type": "number"
+            },
+            "utility": {
+              "type": "object",
+              "properties": {
+                "rate": {
+                  "type": "number"
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "flat",
+                    "per_quantity",
+                    "per_value",
+                    "percent"
+                  ]
+                },
+                "valueBy": {
+                  "type": "string",
+                  "enum": [
+                    "value",
+                    "length"
+                  ]
+                },
+                "percentBase": {
+                  "type": "string",
+                  "enum": [
+                    "service_total",
+                    "base_service",
+                    "all"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "rate",
+                "mode"
+              ]
+            }
+          }
+        }
+      },
+      "required": [
+        "id",
+        "value"
+      ]
+    },
     "OptionEffectForButton": {
       "type": "object",
       "properties": {
@@ -657,6 +782,40 @@
           "description": "Removed after include is applied."
         }
       }
+    },
+    "FieldValueEffect": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Scalar"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/Scalar"
+              }
+            }
+          ],
+          "description": "Value assigned to the target field while the trigger is active."
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "always",
+            "if_empty"
+          ],
+          "description": "Default: \"always\"."
+        },
+        "clearOnDeactivate": {
+          "type": "boolean",
+          "description": "Default: false."
+        }
+      },
+      "required": [
+        "value"
+      ]
     },
     "ServiceFallback": {
       "type": "object",

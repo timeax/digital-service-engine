@@ -125,16 +125,17 @@ export function FormProvider({ children, schema, initial }: FormProviderProps) {
 
             set(fieldId, value) {
                 const core = coreRef.current;
+                setBag((prev) => ({ ...prev, [fieldId]: value }));
 
                 // Programmatic sets should go through core when possible
                 // (core.setValue also persists to bucket when field isn't mounted).
                 if (core) {
                     core.setValue(fieldId, value);
+                    publish();
                     return;
                 }
 
                 // Fallback if core isn't mounted yet
-                setBag((prev) => ({ ...prev, [fieldId]: value }));
                 publish();
             },
 
@@ -175,7 +176,7 @@ export function FormProvider({ children, schema, initial }: FormProviderProps) {
                 const core = coreRef.current;
                 const live = (core?.values?.() as Dict | undefined) ?? {};
 
-                return live;
+                return { ...bag, ...live };
             },
 
             submit() {
@@ -183,7 +184,14 @@ export function FormProvider({ children, schema, initial }: FormProviderProps) {
                 if (!core) return { values: {}, valid: false };
 
                 // palette submit validates & returns mounted/visible values
-                return core.submit() as { values: Dict; valid: boolean };
+                const submitted = core.submit() as {
+                    values: Dict;
+                    valid: boolean;
+                };
+                return {
+                    ...submitted,
+                    values: { ...bag, ...submitted.values },
+                };
             },
 
             setFieldError(id: any, message: string) {

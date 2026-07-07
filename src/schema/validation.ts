@@ -19,6 +19,12 @@ export type ValidationCode =
     | "bad_option_effect_option"
     | "option_include_exclude_conflict"
     | "visibility_dependency_cycle"
+    | "value_effect_trigger_missing"
+    | "value_effect_target_missing"
+    | "value_effect_invalid_option"
+    | "value_effect_multiple_values_for_single_field"
+    | "value_effect_target_never_visible"
+    | "value_effect_cycle"
     // service/input
     | "service_field_missing_service_id"
     | "user_input_field_has_service_option"
@@ -53,8 +59,7 @@ export type ValidationCode =
     | "field_validation_invalid_op"
     | "field_validation_eval_missing_code"
     | "field_validation_between_missing_bounds"
-    | "field_validation_match_missing_pattern"
-    | "multiple_order_kinds_selected";
+    | "field_validation_match_missing_pattern";
 
 export type ValidationError = {
     code: ValidationCode;

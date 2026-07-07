@@ -44,7 +44,9 @@ export function normalise(
     const option_effects_for_buttons = toOptionEffectMap(
         (obj as any).option_effects_for_buttons,
     );
-    const orderKinds = toStringMap((obj as any).orderKinds);
+    const value_effects_for_triggers = toValueEffectMap(
+        (obj as any).value_effects_for_triggers,
+    );
     const notices = toNoticeArray((obj as any).notices);
 
     // Tags & fields
@@ -63,11 +65,13 @@ export function normalise(
         filters,
         fields,
         order_for_tags: (obj as any).order_for_tags,
-        ...(isNonEmpty(orderKinds) && { orderKinds }),
         ...(isNonEmpty(includes_for_buttons) && { includes_for_buttons }),
         ...(isNonEmpty(excludes_for_buttons) && { excludes_for_buttons }),
         ...(isNonEmpty(option_effects_for_buttons) && {
             option_effects_for_buttons,
+        }),
+        ...(isNonEmpty(value_effects_for_triggers) && {
+            value_effects_for_triggers,
         }),
         ...(fallbacks &&
             (isNonEmpty(fallbacks.nodes) || isNonEmpty(fallbacks.global)) && {
@@ -158,8 +162,12 @@ function propagateConstraints(props: ServiceProps, flagKeys: string[]): void {
         }
 
         tag.constraints = Object.keys(next).length ? next : undefined;
-        tag.constraints_origin = Object.keys(origin).length ? origin : undefined;
-        tag.constraints_overrides = Object.keys(overrides).length ? overrides : undefined;
+        tag.constraints_origin = Object.keys(origin).length
+            ? origin
+            : undefined;
+        tag.constraints_overrides = Object.keys(overrides).length
+            ? overrides
+            : undefined;
 
         const passDown: Inherited = { ...inherited };
         for (const k of flagKeys) {
@@ -200,7 +208,8 @@ function coerceTag(src: any, flagKeys: string[]): Tag {
     }
 
     const constraints_overrides =
-        src.constraints_overrides && typeof src.constraints_overrides === "object"
+        src.constraints_overrides &&
+        typeof src.constraints_overrides === "object"
             ? (src.constraints_overrides as Tag["constraints_overrides"])
             : undefined;
 
@@ -245,6 +254,7 @@ function coerceField(src: any, defRole: PricingRole): Field {
         src.defaults && typeof src.defaults === "object"
             ? (src.defaults as Record<string, unknown>)
             : undefined;
+    const defaultValue = normalizeValue(src.defaultValue);
 
     // field-level role (used as default for options)
     const pricing_role: PricingRole =
@@ -294,6 +304,7 @@ function coerceField(src: any, defRole: PricingRole): Field {
         label,
         required,
         ...(ui && { ui: ui as any }),
+        ...(defaultValue !== undefined && { defaultValue }),
         ...(defaults && { defaults }),
         ...(meta && { meta }),
         ...(validation && { validation }),
@@ -325,8 +336,9 @@ function coerceOption(src: any, inheritRole: PricingRole): FieldOption {
             : undefined;
 
     const children = Array.isArray(src.children)
-        ? (src.children as any[])
-              .map((child) => coerceOption(child, pricing_role))
+        ? (src.children as any[]).map((child) =>
+              coerceOption(child, pricing_role),
+          )
         : undefined;
 
     const option: FieldOption = {
@@ -396,16 +408,6 @@ function normaliseBindId(bind: unknown): string | string[] | undefined {
     return undefined;
 }
 
-function toStringMap(src: any): Record<string, string> | undefined {
-    if (!src || typeof src !== "object") return undefined;
-    const out: Record<string, string> = {};
-    for (const [k, v] of Object.entries(src)) {
-        if (!k || typeof v !== "string") continue;
-        out[k] = v;
-    }
-    return Object.keys(out).length ? out : undefined;
-}
-
 function toStringArrayMap(src: any): Record<string, string[]> | undefined {
     if (!src || typeof src !== "object") return undefined;
     const out: Record<string, string[]> = {};
@@ -446,9 +448,7 @@ function toOptionEffectMap(
             const next: NonNullable<
                 ServiceProps["option_effects_for_buttons"]
             >[string][string] = {
-                ...(effect.forceVisible === true
-                    ? { forceVisible: true }
-                    : {}),
+                ...(effect.forceVisible === true ? { forceVisible: true } : {}),
                 ...(include.length ? { include: dedupe(include) } : {}),
                 ...(exclude.length ? { exclude: dedupe(exclude) } : {}),
             };
@@ -466,6 +466,67 @@ function toOptionEffectMap(
     }
 
     return Object.keys(out).length ? out : undefined;
+}
+
+function toValueEffectMap(
+    src: any,
+): ServiceProps["value_effects_for_triggers"] | undefined {
+    if (!src || typeof src !== "object") return undefined;
+
+    const out: NonNullable<ServiceProps["value_effects_for_triggers"]> = {};
+    for (const [triggerId, rawTargets] of Object.entries(src)) {
+        if (!triggerId || !rawTargets || typeof rawTargets !== "object") {
+            continue;
+        }
+
+        const targets: NonNullable<
+            ServiceProps["value_effects_for_triggers"]
+        >[string] = {};
+
+        for (const [fieldId, rawEffect] of Object.entries(rawTargets as any)) {
+            if (!fieldId || !rawEffect || typeof rawEffect !== "object") {
+                continue;
+            }
+
+            const effect = rawEffect as any;
+            const value = normalizeValue(effect.value);
+            if (value === undefined) continue;
+
+            const mode =
+                effect.mode === "if_empty" || effect.mode === "always"
+                    ? effect.mode
+                    : undefined;
+
+            targets[fieldId] = {
+                value,
+                ...(mode ? { mode } : {}),
+                ...(effect.clearOnDeactivate === true
+                    ? { clearOnDeactivate: true }
+                    : {}),
+            };
+        }
+
+        if (Object.keys(targets).length) out[triggerId] = targets;
+    }
+
+    return Object.keys(out).length ? out : undefined;
+}
+
+function normalizeValue(
+    v: unknown,
+): import("@/schema").Scalar | import("@/schema").Scalar[] | undefined {
+    if (isScalar(v)) return v;
+    if (Array.isArray(v)) {
+        const out = v.filter(isScalar);
+        return out.length ? out : undefined;
+    }
+    return undefined;
+}
+
+function isScalar(v: unknown): v is import("@/schema").Scalar {
+    if (v === null) return true;
+    const t = typeof v;
+    return t === "string" || t === "number" || t === "boolean";
 }
 
 function toStringArray(v: any): string[] {
@@ -523,7 +584,6 @@ function toServiceIdArray(v: any): ServiceIdRef[] {
         ) as ServiceIdRef[];
 }
 
-
 function normalizeFieldValidationRule(
     input: unknown,
 ): FieldValidationRule | undefined {
@@ -562,9 +622,11 @@ function normalizeFieldValidationRule(
     if (typeof v.min === "number" && Number.isFinite(v.min)) out.min = v.min;
     if (typeof v.max === "number" && Number.isFinite(v.max)) out.max = v.max;
     if (Array.isArray(v.values)) out.values = [...v.values];
-    if (typeof v.pattern === "string" && v.pattern.trim()) out.pattern = v.pattern;
+    if (typeof v.pattern === "string" && v.pattern.trim())
+        out.pattern = v.pattern;
     if (typeof v.flags === "string") out.flags = v.flags;
-    if (typeof v.message === "string" && v.message.trim()) out.message = v.message;
+    if (typeof v.message === "string" && v.message.trim())
+        out.message = v.message;
 
     if (valueBy === "eval" && typeof v.code === "string" && v.code.trim()) {
         out.code = v.code;

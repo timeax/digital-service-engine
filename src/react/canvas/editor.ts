@@ -11,6 +11,7 @@ import type {
     EditorSnapshot,
     FallbackSettings,
     Field,
+    FieldValueEffect,
     FieldValidationRule,
     OptionEffectForButton,
     RatePolicy,
@@ -70,17 +71,17 @@ import {
 } from "./editor/editor-constraints";
 import {
     clearFieldQuantityRule,
+    clearFieldDefaultValue,
+    clearFieldDefaultValuesMany,
     clearFieldValidation,
+    getFieldDefaultValue,
     getFieldQuantityRule,
     getFieldValidation,
+    setFieldDefaultValue,
     setFieldQuantityRule,
     setFieldValidation,
+    type FieldDefaultValue,
 } from "./editor/editor-field-rules";
-import {
-    deleteOrderKind,
-    pruneOrderKind,
-    setOrderKind,
-} from "./editor/editor-order-kinds";
 import {
     connect,
     disconnect,
@@ -98,6 +99,13 @@ import {
     setOptionEffect,
     setOptionEffectForceVisible,
 } from "./editor/editor-option-effects";
+import {
+    clearValueEffect,
+    clearValueEffectsForTarget,
+    clearValueEffectsForTrigger,
+    patchValueEffect,
+    setValueEffect,
+} from "./editor/editor-value-effects";
 import { filterServicesForVisibleGroup } from "./editor/editor-service-filter";
 import { genId, uniqueId, uniqueOptionId } from "./editor/editor-ids";
 import { findMutableOption } from "./editor/editor-utils";
@@ -591,6 +599,52 @@ export class Editor {
                         delete p.option_effects_for_buttons;
                     }
                 }
+
+                const valueEffectMap = p.value_effects_for_triggers;
+                if (valueEffectMap) {
+                    for (const triggerId of Object.keys(valueEffectMap)) {
+                        if (clearOwned && selected.has(String(triggerId))) {
+                            delete valueEffectMap[triggerId];
+                            continue;
+                        }
+
+                        const targets = valueEffectMap[triggerId];
+                        if (!targets || !clearIncoming) continue;
+
+                        for (const targetFieldId of Object.keys(targets)) {
+                            if (selected.has(String(targetFieldId))) {
+                                delete targets[targetFieldId];
+                                continue;
+                            }
+
+                            const effect = targets[targetFieldId];
+                            const value = effect?.value;
+                            if (Array.isArray(value)) {
+                                const next = value.filter(
+                                    (item) => !selected.has(String(item)),
+                                );
+                                if (next.length) effect.value = next;
+                                else delete targets[targetFieldId];
+                                continue;
+                            }
+
+                            if (
+                                value !== undefined &&
+                                selected.has(String(value))
+                            ) {
+                                delete targets[targetFieldId];
+                            }
+                        }
+
+                        if (!Object.keys(targets).length) {
+                            delete valueEffectMap[triggerId];
+                        }
+                    }
+
+                    if (!Object.keys(valueEffectMap).length) {
+                        delete p.value_effects_for_triggers;
+                    }
+                }
             });
         });
     }
@@ -776,6 +830,22 @@ export class Editor {
         return getFieldQuantityRule(this.moduleCtx(), id);
     }
 
+    getFieldDefaultValue(id: string): FieldDefaultValue | undefined {
+        return getFieldDefaultValue(this.moduleCtx(), id);
+    }
+
+    setFieldDefaultValue(id: string, value: unknown): void {
+        return setFieldDefaultValue(this.moduleCtx(), id, value);
+    }
+
+    clearFieldDefaultValue(id: string): void {
+        return clearFieldDefaultValue(this.moduleCtx(), id);
+    }
+
+    clearFieldDefaultValuesMany(ids: readonly string[]): void {
+        return clearFieldDefaultValuesMany(this.moduleCtx(), ids);
+    }
+
     setFieldQuantityRule(id: string, rule: unknown): void {
         return setFieldQuantityRule(this.moduleCtx(), id, rule);
     }
@@ -873,6 +943,44 @@ export class Editor {
         );
     }
 
+    setValueEffect(
+        triggerId: string,
+        targetFieldId: string,
+        effect: FieldValueEffect | undefined | null,
+    ): void {
+        return setValueEffect(
+            this.moduleCtx(),
+            triggerId,
+            targetFieldId,
+            effect,
+        );
+    }
+
+    patchValueEffect(
+        triggerId: string,
+        targetFieldId: string,
+        patch: Partial<FieldValueEffect>,
+    ): void {
+        return patchValueEffect(
+            this.moduleCtx(),
+            triggerId,
+            targetFieldId,
+            patch,
+        );
+    }
+
+    clearValueEffect(triggerId: string, targetFieldId: string): void {
+        return clearValueEffect(this.moduleCtx(), triggerId, targetFieldId);
+    }
+
+    clearValueEffectsForTrigger(triggerId: string): void {
+        return clearValueEffectsForTrigger(this.moduleCtx(), triggerId);
+    }
+
+    clearValueEffectsForTarget(targetFieldId: string): void {
+        return clearValueEffectsForTarget(this.moduleCtx(), targetFieldId);
+    }
+
     connect(kind: WireKind, fromId: string, toId: string): void {
         return connect(this.moduleCtx(), kind, fromId, toId);
     }
@@ -903,18 +1011,6 @@ export class Editor {
 
     clearFieldValidation(id: string): void {
         return clearFieldValidation(this.moduleCtx(), id);
-    }
-
-    setOrderKind(nodeId: string, kind: string): void {
-        return setOrderKind(this.moduleCtx(), nodeId, kind);
-    }
-
-    deleteOrderKind(nodeId: string): void {
-        return deleteOrderKind(this.moduleCtx(), nodeId);
-    }
-
-    pruneKind(kind: string): number {
-        return pruneOrderKind(this.moduleCtx(), kind);
     }
 
     getCatalog(): ServiceCatalogState | undefined {

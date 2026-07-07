@@ -1,6 +1,6 @@
 // src/core/builder.ts
-import {normalise} from "./normalise";
-import {validate} from "./validate";
+import { normalise } from "./normalise";
+import { validate } from "./validate";
 import { mergeValidatorOptions } from "@/core/governance";
 
 import type {
@@ -16,10 +16,14 @@ import type {
     ValidationError,
     ValidatorOptions,
 } from "@/schema";
-import {resolveVisibility, type ResolvedVisibility} from "@/core/visibility";
-import {buildNodeMap, NodeMap} from "@/core/node-map";
-import {cloneDeep} from "lodash-es";
-import { fieldOptionIdSet, optionOwnerMap, walkFieldOptions } from "@/core/options";
+import { resolveVisibility, type ResolvedVisibility } from "@/core/visibility";
+import { buildNodeMap, NodeMap } from "@/core/node-map";
+import { cloneDeep } from "lodash-es";
+import {
+    fieldOptionIdSet,
+    optionOwnerMap,
+    walkFieldOptions,
+} from "@/core/options";
 
 /** Options you can set on the builder (used for validation/visibility) */
 export type BuilderOptions = Omit<ValidatorOptions, "serviceMap"> & {
@@ -321,6 +325,7 @@ class BuilderImpl implements Builder {
         const incMap = this.props.includes_for_buttons ?? {};
         const excMap = this.props.excludes_for_buttons ?? {};
         const effectMap = this.props.option_effects_for_buttons ?? {};
+        const valueEffectMap = this.props.value_effects_for_triggers ?? {};
         const includedByButtons = new Set<string>(); // field ids that might be pulled in
         const referencedKeys = new Set<string>(); // keys in maps (field button or option id)
         const referencedOwnerFields = new Set<string>();
@@ -350,6 +355,14 @@ class BuilderImpl implements Builder {
             if (owner) referencedOwnerFields.add(owner.fieldId);
             for (const [fid, effect] of Object.entries(targets ?? {})) {
                 if (effect?.forceVisible === true) includedByButtons.add(fid);
+            }
+        }
+        for (const [key, targets] of Object.entries(valueEffectMap)) {
+            referencedKeys.add(key);
+            const owner = this.optionOwnerById.get(key);
+            if (owner) referencedOwnerFields.add(owner.fieldId);
+            for (const fid of Object.keys(targets ?? {})) {
+                void fid;
             }
         }
 
@@ -406,7 +419,8 @@ class BuilderImpl implements Builder {
             src?: ServiceProps["option_effects_for_buttons"],
         ): ServiceProps["option_effects_for_buttons"] | undefined => {
             if (!src) return undefined;
-            const out: NonNullable<ServiceProps["option_effects_for_buttons"]> = {};
+            const out: NonNullable<ServiceProps["option_effects_for_buttons"]> =
+                {};
             for (const [key, targets] of Object.entries(src)) {
                 const keyIsValid = optionIds.has(key) || fieldIds.has(key);
                 if (!keyIsValid) continue;
@@ -457,14 +471,89 @@ class BuilderImpl implements Builder {
             this.props.option_effects_for_buttons,
         );
 
+        const pruneValueEffects = (
+            src?: ServiceProps["value_effects_for_triggers"],
+        ): ServiceProps["value_effects_for_triggers"] | undefined => {
+            if (!src) return undefined;
+            const out: NonNullable<ServiceProps["value_effects_for_triggers"]> =
+                {};
+            const tagIds = new Set(this.props.filters.map((tag) => tag.id));
+
+            const isTriggerValid = (key: string): boolean => {
+                if (tagIds.has(key)) return true;
+                if (optionIds.has(key)) return true;
+                const field = allowedFieldById.get(key);
+                return field?.button === true;
+            };
+
+            const cleanValue = (
+                field: Field,
+                value: import("@/schema").Scalar | import("@/schema").Scalar[],
+            ):
+                | import("@/schema").Scalar
+                | import("@/schema").Scalar[]
+                | undefined => {
+                const validOptionIds = fieldOptionIdSet(field);
+                if (!validOptionIds.size) return value;
+
+                if (Array.isArray(value)) {
+                    const next = value.filter((item) =>
+                        validOptionIds.has(String(item)),
+                    );
+                    return next.length ? next : undefined;
+                }
+
+                return validOptionIds.has(String(value)) ? value : undefined;
+            };
+
+            for (const [key, targets] of Object.entries(src)) {
+                if (!isTriggerValid(key)) continue;
+
+                const cleanedTargets: NonNullable<
+                    ServiceProps["value_effects_for_triggers"]
+                >[string] = {};
+
+                for (const [targetFieldId, effect] of Object.entries(
+                    targets ?? {},
+                )) {
+                    const field = allowedFieldById.get(targetFieldId);
+                    if (!field || !effect) continue;
+
+                    const value = cleanValue(field, effect.value);
+                    if (value === undefined) continue;
+
+                    cleanedTargets[targetFieldId] = {
+                        value,
+                        ...(effect.mode === "if_empty" ||
+                        effect.mode === "always"
+                            ? { mode: effect.mode }
+                            : {}),
+                        ...(effect.clearOnDeactivate === true
+                            ? { clearOnDeactivate: true }
+                            : {}),
+                    };
+                }
+
+                if (Object.keys(cleanedTargets).length) {
+                    out[key] = cleanedTargets;
+                }
+            }
+
+            return Object.keys(out).length ? out : undefined;
+        };
+
+        const value_effects_for_triggers = pruneValueEffects(
+            this.props.value_effects_for_triggers,
+        );
+
         // 3) return canonical object
         const out: ServiceProps = {
             filters: this.props.filters.slice(),
             fields,
-            ...(this.props.orderKinds ? { orderKinds: this.props.orderKinds } : {}),
             ...(includes_for_buttons && { includes_for_buttons }),
             ...(excludes_for_buttons && { excludes_for_buttons }),
             ...(option_effects_for_buttons && { option_effects_for_buttons }),
+            ...(value_effects_for_triggers && { value_effects_for_triggers }),
             schema_version: this.props.schema_version ?? "1.0",
             // keep fallbacks & other maps as-is
             ...(this.props.fallbacks
@@ -486,7 +575,10 @@ class BuilderImpl implements Builder {
         return this.resolveVisibility(tagId, selectedKeys).fieldIds;
     }
 
-    resolveVisibility(tagId: string, selectedKeys?: string[]): ResolvedVisibility {
+    resolveVisibility(
+        tagId: string,
+        selectedKeys?: string[],
+    ): ResolvedVisibility {
         return resolveVisibility(
             this.props,
             tagId,

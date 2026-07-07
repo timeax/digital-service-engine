@@ -131,22 +131,6 @@
         "max": {
           "type": "number"
         },
-        "orderKind": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "orderKindSource": {
-          "anyOf": [
-            {
-              "$ref": "#/definitions/OrderKindSource"
-            },
-            {
-              "type": "null"
-            }
-          ]
-        },
         "services": {
           "type": "array",
           "items": {
@@ -380,26 +364,6 @@
       },
       "required": [
         "valueBy"
-      ]
-    },
-    "OrderKindSource": {
-      "type": "object",
-      "properties": {
-        "nodeId": {
-          "type": "string"
-        },
-        "nodeKind": {
-          "type": "string",
-          "enum": [
-            "tag",
-            "field",
-            "option"
-          ]
-        }
-      },
-      "required": [
-        "nodeId",
-        "nodeKind"
       ]
     },
     "ServiceFallbacks": {

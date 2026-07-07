@@ -136,6 +136,46 @@ function cleanOptionEffectsForDeleted(
     if (!Object.keys(map).length) delete p.option_effects_for_buttons;
 }
 
+function cleanValueEffectsForDeleted(
+    p: ServiceProps,
+    deleted: Set<string>,
+): void {
+    const map = p.value_effects_for_triggers;
+    if (!map) return;
+
+    for (const triggerId of Object.keys(map)) {
+        if (deleted.has(String(triggerId))) {
+            delete map[triggerId];
+            continue;
+        }
+
+        const targets = map[triggerId];
+        for (const targetFieldId of Object.keys(targets ?? {})) {
+            if (deleted.has(String(targetFieldId))) {
+                delete targets[targetFieldId];
+                continue;
+            }
+
+            const effect = targets[targetFieldId];
+            const value = effect?.value;
+            if (Array.isArray(value)) {
+                const next = value.filter((item) => !deleted.has(String(item)));
+                if (next.length) effect.value = next;
+                else delete targets[targetFieldId];
+                continue;
+            }
+
+            if (value !== undefined && deleted.has(String(value))) {
+                delete targets[targetFieldId];
+            }
+        }
+
+        if (!Object.keys(targets ?? {}).length) delete map[triggerId];
+    }
+
+    if (!Object.keys(map).length) delete p.value_effects_for_triggers;
+}
+
 function cleanOrderForTagsForDeleted(
     p: ServiceProps,
     deleted: Set<string>,
@@ -177,6 +217,7 @@ function applyDeleteCleanup(p: ServiceProps, deleted: Set<string>): void {
     cleanFieldBindsForDeleted(p, deleted);
     cleanRelationMapsForDeleted(p, deleted);
     cleanOptionEffectsForDeleted(p, deleted);
+    cleanValueEffectsForDeleted(p, deleted);
     cleanOrderForTagsForDeleted(p, deleted);
     cleanNoticesForDeleted(p, deleted);
 }
@@ -671,6 +712,9 @@ export function updateField(
     let prevOptionEffectsForButton:
         | NonNullable<ServiceProps["option_effects_for_buttons"]>[string]
         | undefined;
+    let prevValueEffectsForTrigger:
+        | NonNullable<ServiceProps["value_effects_for_triggers"]>[string]
+        | undefined;
     ctx.exec({
         name: "updateField",
         do: () =>
@@ -683,6 +727,9 @@ export function updateField(
                     : undefined;
                 prevOptionEffectsForButton = p.option_effects_for_buttons?.[id]
                     ? cloneDeep(p.option_effects_for_buttons[id])
+                    : undefined;
+                prevValueEffectsForTrigger = p.value_effects_for_triggers?.[id]
+                    ? cloneDeep(p.value_effects_for_triggers[id])
                     : undefined;
 
                 p.fields = (p.fields ?? []).map((f) => {
@@ -718,6 +765,12 @@ export function updateField(
                     p.option_effects_for_buttons = {
                         ...(p.option_effects_for_buttons ?? {}),
                         [id]: cloneDeep(prevOptionEffectsForButton),
+                    };
+                }
+                if (prevValueEffectsForTrigger) {
+                    p.value_effects_for_triggers = {
+                        ...(p.value_effects_for_triggers ?? {}),
+                        [id]: cloneDeep(prevValueEffectsForTrigger),
                     };
                 }
             }),

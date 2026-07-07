@@ -1,6 +1,7 @@
 // persisted schema + shared types
 import type { ServiceFallback } from "@/schema/fallback-editor";
 import type { IdType } from "./provider";
+import type { Scalar } from "./order";
 
 export type ServiceIdRef = IdType;
 
@@ -36,6 +37,8 @@ export interface BaseFieldUI {
     name?: string;
     label: string;
     required?: boolean;
+    /** Initial form value for fresh order flows. */
+    defaultValue?: Scalar | Scalar[];
     /** Host-defined prop names → runtime default values (untyped base) */
     defaults?: Record<string, unknown>;
 }
@@ -226,6 +229,15 @@ export type OptionEffectForButton = {
     exclude?: string[];
 };
 
+export type FieldValueEffect = {
+    /** Value assigned to the target field while the trigger is active. */
+    value: Scalar | Scalar[];
+    /** Default: "always". */
+    mode?: "always" | "if_empty";
+    /** Default: false. */
+    clearOnDeactivate?: boolean;
+};
+
 export type Field = BaseFieldUI & {
     id: string;
     type: FieldType; // only 'custom' is reserved
@@ -289,7 +301,6 @@ export type Tag = {
 
 export type ServiceProps = {
     order_for_tags?: Record<string, string[]>;
-    orderKinds?: Record<string, string>;
     filters: Tag[];
     fields: Field[];
     includes_for_buttons?: Record<string, string[]>;
@@ -297,6 +308,10 @@ export type ServiceProps = {
     option_effects_for_buttons?: Record<
         string,
         Record<string, OptionEffectForButton>
+    >;
+    value_effects_for_triggers?: Record<
+        string,
+        Record<string, FieldValueEffect>
     >;
     schema_version?: string;
     fallbacks?: ServiceFallback;

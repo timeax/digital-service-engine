@@ -9,7 +9,10 @@ function readJson(filePath: string): any {
 function schemaObject(schema: any, defName: string): any {
     if (schema?.$defs?.[defName]) return schema.$defs[defName];
     if (schema?.definitions?.[defName]) return schema.definitions[defName];
-    if (typeof schema?.$ref === "string" && schema.$ref.startsWith("#/$defs/")) {
+    if (
+        typeof schema?.$ref === "string" &&
+        schema.$ref.startsWith("#/$defs/")
+    ) {
         const name = schema.$ref.replace("#/$defs/", "");
         if (schema?.$defs?.[name]) return schema.$defs[name];
     }
@@ -24,7 +27,7 @@ function schemaObject(schema: any, defName: string): any {
 }
 
 describe("JSON schema contracts", () => {
-    it("includes ServiceProps.orderKinds in service props schema", () => {
+    it("does not include the removed ServiceProps.orderKinds map", () => {
         const schemaPath = path.join(
             process.cwd(),
             "schema",
@@ -33,8 +36,7 @@ describe("JSON schema contracts", () => {
         const schema = readJson(schemaPath);
         const serviceProps = schemaObject(schema, "ServiceProps");
 
-        expect(serviceProps?.properties?.orderKinds).toBeTruthy();
-        expect(serviceProps?.properties?.orderKinds?.type).toBe("object");
+        expect(serviceProps?.properties?.orderKinds).toBeUndefined();
     });
 
     it("includes option effects and recursive FieldOption children in service props schema", () => {
@@ -54,17 +56,21 @@ describe("JSON schema contracts", () => {
         expect(fieldOption?.properties?.children).toBeTruthy();
     });
 
-    it("includes OrderSnapshot orderKind fields in order snapshot schema", () => {
+    it("includes field default values and trigger value effects in service props schema", () => {
         const schemaPath = path.join(
             process.cwd(),
             "schema",
-            "order-snapshot.schema.json",
+            "service-props.schema.json",
         );
         const schema = readJson(schemaPath);
-        const orderSnapshot = schemaObject(schema, "OrderSnapshot");
+        const serviceProps = schemaObject(schema, "ServiceProps");
+        const field = schemaObject(schema, "Field");
 
-        expect(orderSnapshot?.properties?.orderKind).toBeTruthy();
-        expect(orderSnapshot?.properties?.orderKindSource).toBeTruthy();
+        expect(JSON.stringify(field)).toContain("defaultValue");
+        expect(
+            serviceProps?.properties?.value_effects_for_triggers,
+        ).toBeTruthy();
+        expect(schemaObject(schema, "FieldValueEffect")).toBeTruthy();
     });
 
     it("exports order snapshot schema from package exports", () => {

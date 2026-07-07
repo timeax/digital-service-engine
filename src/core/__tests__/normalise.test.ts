@@ -200,9 +200,7 @@ describe("normalise()", () => {
                         {
                             id: "o:premium",
                             label: "Premium",
-                            children: [
-                                { id: "o:premium-plus", label: "Plus" },
-                            ],
+                            children: [{ id: "o:premium-plus", label: "Plus" }],
                         },
                     ],
                 },
@@ -227,9 +225,49 @@ describe("normalise()", () => {
             "o:premium-plus",
         );
         expect(
-            out.option_effects_for_buttons?.["o:premium-plus"]?.[
-                "f:quality"
-            ],
+            out.option_effects_for_buttons?.["o:premium-plus"]?.["f:quality"],
         ).toEqual({ forceVisible: true, include: ["o:high"] });
+    });
+
+    it("preserves field default values and trigger value effects", () => {
+        const out = normalise({
+            filters: [{ id: "root", label: "Root" }],
+            fields: [
+                {
+                    id: "f:quantity",
+                    label: "Quantity",
+                    type: "number",
+                    defaultValue: 100,
+                },
+                {
+                    id: "f:quality",
+                    label: "Quality",
+                    type: "select",
+                    defaultValue: ["o:high"],
+                    options: [{ id: "o:high", label: "High" }],
+                },
+            ],
+            value_effects_for_triggers: {
+                root: {
+                    "f:quantity": {
+                        value: 200,
+                        mode: "if_empty",
+                        clearOnDeactivate: true,
+                    },
+                },
+            },
+        });
+
+        expect(
+            out.fields.find((field) => field.id === "f:quantity")?.defaultValue,
+        ).toBe(100);
+        expect(
+            out.fields.find((field) => field.id === "f:quality")?.defaultValue,
+        ).toEqual(["o:high"]);
+        expect(out.value_effects_for_triggers?.root?.["f:quantity"]).toEqual({
+            value: 200,
+            mode: "if_empty",
+            clearOnDeactivate: true,
+        });
     });
 });

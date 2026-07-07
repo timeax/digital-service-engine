@@ -1,5 +1,4 @@
 import type { Builder } from "@/core";
-import { resolveOrderKind } from "../order-kind";
 import type {
     Field,
     ServiceProps,
@@ -128,18 +127,6 @@ export function buildOrderSnapshot(
     );
 
     const { min, max } = resolveMinMax(servicesList, services);
-    const maybeNodeMap =
-        typeof (builder as Partial<Builder> & { getNodeMap?: () => any }).getNodeMap ===
-        "function"
-            ? (builder as Partial<Builder> & { getNodeMap?: () => any }).getNodeMap!()
-            : undefined;
-    const resolvedOrderKind = resolveOrderKind({
-        props,
-        activeTagId: tagId,
-        selectedTriggerKeys: selectedButtonKeys,
-        nodeMap: maybeNodeMap,
-    });
-
     const prunedFallbacks = pruneFallbacksConservative(
         props.fallbacks as any,
         { tagId, constraints: tagConstraints, serviceMap, servicesList },
@@ -200,8 +187,6 @@ export function buildOrderSnapshot(
         inputs: { form: formValues, selections },
         min,
         max: max ?? min,
-        orderKind: resolvedOrderKind.kind,
-        orderKindSource: resolvedOrderKind.source,
         quantity: qtyRes.quantity,
         quantitySource: qtyRes.source,
         services: servicesList,

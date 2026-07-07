@@ -17,12 +17,13 @@ import type { Registry as InputRegistryConfig } from "../inputs/registry";
 
 import { type Builder, type BuilderOptions, createBuilder } from "@/core";
 
-import type { ServiceProps, Tag } from "@/schema";
+import type { Field, ServiceProps, Tag } from "@/schema";
 import type { DgpServiceCapability, DgpServiceMap } from "@/schema/provider";
 import type { OrderSnapshot, Scalar } from "@/schema/order";
 import type { FallbackSettings } from "@/schema/validation";
 
 import { Selection } from "../canvas/selection";
+import { fieldOptionIdSet } from "@/core/options";
 
 const ROOT_TAG_ID = "t:root";
 
@@ -217,6 +218,86 @@ function normalizeInit(init: OrderFlowInit): NormalizedInit {
         ? Number(init.hostDefaultQuantity ?? 1)
         : 1;
     return { ...init, mode, hostDefaultQuantity };
+}
+
+function scalarArray(value: Scalar | Scalar[] | undefined): Scalar[] {
+    if (value === undefined) return [];
+    return Array.isArray(value) ? value : [value];
+}
+
+function defaultOptionIdsForField(
+    field: Field,
+    value: Scalar | Scalar[] | undefined,
+    mode: "prod" | "dev",
+): string[] {
+    const valid = fieldOptionIdSet(field);
+    if (!valid.size) return [];
+
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const item of scalarArray(value)) {
+        const optionId = String(item);
+        if (!valid.has(optionId) || seen.has(optionId)) continue;
+        seen.add(optionId);
+        out.push(optionId);
+    }
+
+    if (mode === "prod" && field.meta?.multi !== true) {
+        return out.length ? [out[out.length - 1]!] : [];
+    }
+
+    return out;
+}
+
+function applyFreshFieldDefaults(args: {
+    builder: Builder;
+    selection: Selection;
+    formApi: ReturnType<typeof useFormApi> | null;
+    mode: "prod" | "dev";
+}): void {
+    const { builder, selection, formApi, mode } = args;
+    if (!formApi) return;
+
+    const tagId = selection.currentTag();
+    if (!tagId) return;
+
+    const props = builder.getProps();
+    const fieldById = new Map(props.fields.map((field) => [field.id, field]));
+    const visibility = builder.resolveVisibility(
+        tagId,
+        selection.selectedButtons(),
+    );
+    const visibleFieldIds = new Set(visibility.fieldIds);
+    const retained = Array.from(selection.all());
+    let selectionChanged = false;
+
+    for (const fieldId of visibility.fieldIds) {
+        const field = fieldById.get(fieldId);
+        if (!field || field.defaultValue === undefined) continue;
+        if (!visibleFieldIds.has(field.id)) continue;
+
+        if (field.options?.length) {
+            const optionIds = defaultOptionIdsForField(
+                field,
+                field.defaultValue,
+                mode,
+            );
+            if (!optionIds.length) continue;
+
+            for (const optionId of optionIds) {
+                if (retained.includes(optionId)) continue;
+                retained.push(optionId);
+                selectionChanged = true;
+            }
+            continue;
+        }
+
+        formApi.set(field.id, field.defaultValue);
+    }
+
+    if (selectionChanged) {
+        selection.many(retained, retained[retained.length - 1]);
+    }
 }
 
 function sameNormalizedInit(
@@ -447,6 +528,14 @@ export const OrderFlowProvider = forwardRef<
                 const selMap = nInit.hydrateFrom.inputs?.selections ?? {};
                 for (const [fid, oids] of Object.entries(selMap)) {
                     api.setSelections(fid, oids ?? []);
+                    const retained = Array.from(sel.all()).filter(
+                        (token) => !((oids ?? []) as string[]).includes(token),
+                    );
+                    const nextSelection = [...retained, ...(oids ?? [])];
+                    sel.many(
+                        nextSelection,
+                        nextSelection[nextSelection.length - 1],
+                    );
                 }
 
                 // form is keyed by field.name -> map to fieldId(s)
@@ -457,6 +546,13 @@ export const OrderFlowProvider = forwardRef<
                 for (const [fid, v] of Object.entries(valuesByFieldId)) {
                     api.set(fid, v as Scalar | Scalar[]);
                 }
+            } else if (api) {
+                applyFreshFieldDefaults({
+                    builder: b,
+                    selection: sel,
+                    formApi: api,
+                    mode: nInit.mode,
+                });
             }
 
             bump();
@@ -571,8 +667,21 @@ export const OrderFlowProvider = forwardRef<
             if (clearFirst) clearAllFields();
 
             const sel = snap.inputs?.selections ?? {};
-            for (const [fid, oids] of Object.entries(sel))
+            const retainedSelection = Array.from(selection.all());
+            for (const [fid, oids] of Object.entries(sel)) {
                 api.setSelections(fid, oids ?? []);
+                for (const optionId of oids ?? []) {
+                    if (!retainedSelection.includes(optionId)) {
+                        retainedSelection.push(optionId);
+                    }
+                }
+            }
+            if (retainedSelection.length) {
+                selection.many(
+                    retainedSelection,
+                    retainedSelection[retainedSelection.length - 1],
+                );
+            }
 
             const valuesByFieldId = mapSnapshotFormToFieldIds(builder, snap);
             for (const [fid, v] of Object.entries(valuesByFieldId))
@@ -594,6 +703,12 @@ export const OrderFlowProvider = forwardRef<
             }
 
             clearAllFields();
+            applyFreshFieldDefaults({
+                builder,
+                selection,
+                formApi: formApiRef.current,
+                mode: initRef.current?.mode ?? "prod",
+            });
         },
         [clearAllFields, ensureReady],
     );

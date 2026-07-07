@@ -1,7 +1,12 @@
 // src/react/hooks/use-order-flow.ts
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { ServiceProps, ServicePropsNotice } from "@/schema";
+import type {
+    Field,
+    FieldValueEffect,
+    ServiceProps,
+    ServicePropsNotice,
+} from "@/schema";
 import type { OrderSnapshot, Scalar } from "@/schema/order";
 import type { FallbackSettings } from "@/schema/validation";
 
@@ -19,8 +24,15 @@ import { validateVisibleFields } from "@/react/hooks/evalute-field-validation";
 import { fieldOptionIdSet, findOptionOwnerField } from "@/core/options";
 
 const ROOT_TAG_ID = "t:root";
+const MAX_VALUE_EFFECT_PASSES = 8;
 
 type NormalizeRateFn = (service: unknown) => number;
+
+type AppliedValueEffect = {
+    triggerId: string;
+    targetFieldId: string;
+    appliedValue: Scalar | Scalar[];
+};
 
 export type PricingPreview = {
     serviceId?: string | number;
@@ -259,6 +271,10 @@ export function useOrderFlow(): UseOrderFlowReturn {
         [],
     );
 
+    const appliedValueEffectsRef = useRef<Map<string, AppliedValueEffect>>(
+        new Map(),
+    );
+
     /**
      * Preview snapshot uses form.values() (no validation) + Selection context.
      */
@@ -437,9 +453,8 @@ export function useOrderFlow(): UseOrderFlowReturn {
 
     const setFieldOptions = useCallback(
         (fieldId: string, optionIds: string[]) => {
-            const { builder, selection, init } = ctx.ensureReady(
-                "setFieldOptions",
-            );
+            const { builder, selection, init } =
+                ctx.ensureReady("setFieldOptions");
 
             const fields = builder.getProps().fields ?? [];
             const field = fields.find((f) => f.id === fieldId);
@@ -502,6 +517,203 @@ export function useOrderFlow(): UseOrderFlowReturn {
         },
         [ctx],
     );
+
+    useEffect(() => {
+        if (!ready || !ctx.selection || !activeTagId) return;
+
+        const { builder, selection, init } = ctx.ensureReady("valueEffects");
+        const props = builder.getProps();
+        const effectMap = props.value_effects_for_triggers ?? {};
+        if (!Object.keys(effectMap).length) {
+            appliedValueEffectsRef.current.clear();
+            return;
+        }
+
+        const fields = props.fields ?? [];
+        const fieldById = new Map(fields.map((field) => [field.id, field]));
+        const optionOwnerFieldId = (optionId: string): string | undefined =>
+            findOptionOwnerField(fields, optionId)?.id;
+
+        const selectedOptionIdsForField = (fieldId: string): string[] => {
+            const out: string[] = [];
+            for (const token of selection.all()) {
+                if (optionOwnerFieldId(token) === fieldId) out.push(token);
+            }
+            return out;
+        };
+
+        const normalizeForTarget = (
+            field: Field,
+            effect: FieldValueEffect,
+        ): Scalar | Scalar[] | undefined => {
+            if (!field.options?.length) return effect.value;
+
+            const valid = fieldOptionIdSet(field);
+            const rawValues = Array.isArray(effect.value)
+                ? effect.value
+                : [effect.value];
+            const next: string[] = [];
+            const seen = new Set<string>();
+            for (const rawValue of rawValues) {
+                const optionId = String(rawValue);
+                if (!valid.has(optionId) || seen.has(optionId)) continue;
+                seen.add(optionId);
+                next.push(optionId);
+            }
+
+            if (
+                (init.mode ?? "prod") === "prod" &&
+                field.meta?.multi !== true
+            ) {
+                return next.length ? [next[next.length - 1]!] : undefined;
+            }
+
+            return next.length ? next : undefined;
+        };
+
+        const currentValueForField = (
+            field: Field,
+        ): Scalar | Scalar[] | undefined => {
+            if (field.options?.length) {
+                const selected = selectedOptionIdsForField(field.id);
+                return selected.length ? selected : undefined;
+            }
+            return ctx.formApi.get(field.id) as Scalar | Scalar[] | undefined;
+        };
+
+        const isEmpty = (value: unknown): boolean =>
+            value === undefined ||
+            value === null ||
+            value === "" ||
+            (Array.isArray(value) && value.length === 0);
+
+        const sameValue = (a: unknown, b: unknown): boolean => {
+            if (Object.is(a, b)) return true;
+            return JSON.stringify(a) === JSON.stringify(b);
+        };
+
+        const writeValue = (
+            field: Field,
+            value: Scalar | Scalar[] | undefined,
+        ): boolean => {
+            const current = currentValueForField(field);
+            if (sameValue(current, value)) return false;
+
+            if (field.options?.length) {
+                const optionIds = Array.isArray(value)
+                    ? value.map(String)
+                    : value === undefined
+                      ? []
+                      : [String(value)];
+                setFieldOptions(field.id, optionIds);
+                return true;
+            }
+
+            ctx.formApi.set(field.id, value);
+            return true;
+        };
+
+        let changed = false;
+        const activeTriggers = [
+            activeTagId,
+            ...selection.selectedButtons(),
+        ].filter(Boolean);
+        const activeSet = new Set(activeTriggers);
+        let visibility = builder.resolveVisibility(
+            activeTagId,
+            selection.selectedButtons(),
+        );
+        const visibleFieldIds = new Set(visibility.fieldIds);
+
+        for (const [key, applied] of Array.from(
+            appliedValueEffectsRef.current.entries(),
+        )) {
+            if (activeSet.has(applied.triggerId)) continue;
+
+            const field = fieldById.get(applied.targetFieldId);
+            const effect =
+                effectMap[applied.triggerId]?.[applied.targetFieldId];
+            appliedValueEffectsRef.current.delete(key);
+            if (!field || effect?.clearOnDeactivate !== true) continue;
+
+            const hasActiveOwner = activeTriggers.some(
+                (triggerId) =>
+                    triggerId !== applied.triggerId &&
+                    effectMap[triggerId]?.[applied.targetFieldId],
+            );
+            if (hasActiveOwner) continue;
+
+            if (!sameValue(currentValueForField(field), applied.appliedValue)) {
+                continue;
+            }
+
+            if (writeValue(field, undefined)) changed = true;
+        }
+
+        for (let pass = 0; pass < MAX_VALUE_EFFECT_PASSES; pass += 1) {
+            let passChanged = false;
+            const selectedButtons = selection.selectedButtons();
+            const orderedTriggers = [activeTagId, ...selectedButtons].filter(
+                Boolean,
+            );
+            visibility = builder.resolveVisibility(
+                activeTagId,
+                selectedButtons,
+            );
+            visibleFieldIds.clear();
+            for (const fieldId of visibility.fieldIds)
+                visibleFieldIds.add(fieldId);
+
+            for (const triggerId of orderedTriggers) {
+                const targets = effectMap[triggerId];
+                if (!targets) continue;
+
+                for (const [targetFieldId, effect] of Object.entries(targets)) {
+                    if (!visibleFieldIds.has(targetFieldId)) continue;
+                    const field = fieldById.get(targetFieldId);
+                    if (!field) continue;
+
+                    const nextValue = normalizeForTarget(field, effect);
+                    if (nextValue === undefined) continue;
+
+                    const current = currentValueForField(field);
+                    if (
+                        (effect.mode ?? "always") === "if_empty" &&
+                        !isEmpty(current)
+                    ) {
+                        continue;
+                    }
+
+                    if (!writeValue(field, nextValue)) continue;
+
+                    appliedValueEffectsRef.current.set(
+                        `${triggerId}\u0000${targetFieldId}`,
+                        {
+                            triggerId,
+                            targetFieldId,
+                            appliedValue: nextValue,
+                        },
+                    );
+                    passChanged = true;
+                }
+            }
+
+            if (!passChanged) break;
+            changed = true;
+        }
+
+        if (changed) {
+            setSelTick((tick) => tick + 1);
+        }
+    }, [
+        activeTagId,
+        ctx,
+        formTick,
+        ready,
+        selTick,
+        setFieldOptions,
+        visibleOptionsByFieldId,
+    ]);
 
     const setValue = useCallback(
         (fieldId: string, value: Scalar | Scalar[]) => {

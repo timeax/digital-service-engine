@@ -295,9 +295,24 @@ describe("validate()", () => {
                     label: "Spread",
                     type: "multiselect",
                     options: [
-                        { id: "o40a", label: "40a", service_id: 40, pricing_role: "base" },
-                        { id: "o40b", label: "40b", service_id: 41, pricing_role: "base" },
-                        { id: "o100", label: "100", service_id: 100, pricing_role: "base" },
+                        {
+                            id: "o40a",
+                            label: "40a",
+                            service_id: 40,
+                            pricing_role: "base",
+                        },
+                        {
+                            id: "o40b",
+                            label: "40b",
+                            service_id: 41,
+                            pricing_role: "base",
+                        },
+                        {
+                            id: "o100",
+                            label: "100",
+                            service_id: 100,
+                            pricing_role: "base",
+                        },
                     ],
                 },
             ],
@@ -315,7 +330,8 @@ describe("validate()", () => {
 
         const err = out.find(
             (e) =>
-                e.code === "rate_mismatch_across_base" && e.nodeId === "f_spread",
+                e.code === "rate_mismatch_across_base" &&
+                e.nodeId === "f_spread",
         );
         expect(err).toBeTruthy();
         expect(err?.details?.offenderOptionIds).toEqual(["o40a", "o40b"]);
@@ -330,8 +346,18 @@ describe("validate()", () => {
                     label: "Near",
                     type: "multiselect",
                     options: [
-                        { id: "o95", label: "95", service_id: "svc-95", pricing_role: "base" },
-                        { id: "o100", label: "100", service_id: "svc-100", pricing_role: "base" },
+                        {
+                            id: "o95",
+                            label: "95",
+                            service_id: "svc-95",
+                            pricing_role: "base",
+                        },
+                        {
+                            id: "o100",
+                            label: "100",
+                            service_id: "svc-100",
+                            pricing_role: "base",
+                        },
                     ],
                 },
             ],
@@ -349,7 +375,8 @@ describe("validate()", () => {
         expect(
             out.some(
                 (e) =>
-                    e.code === "rate_mismatch_across_base" && e.nodeId === "f_near",
+                    e.code === "rate_mismatch_across_base" &&
+                    e.nodeId === "f_near",
             ),
         ).toBe(false);
     });
@@ -386,81 +413,6 @@ describe("validate()", () => {
             (e) => e.code === "utility_without_base" && e.nodeId === "root",
         );
         expect(err?.details?.utilityOptionIds).toContain("oU");
-    });
-
-    it("flags multiple_order_kinds_selected when selected triggers resolve to different order kinds", () => {
-        const props: ServiceProps = {
-            filters: [{ id: "t:root", label: "Root" }],
-            fields: [
-                {
-                    id: "f:instant-order",
-                    label: "Instant Order",
-                    type: "checkbox",
-                    bind_id: "t:root",
-                    name: "instantOrder",
-                    button: true,
-                },
-                {
-                    id: "f:plan",
-                    label: "Plan",
-                    type: "select",
-                    bind_id: "t:root",
-                    name: "plan",
-                    options: [
-                        { id: "o:contract", label: "Contract" },
-                        { id: "o:quote", label: "Quote" },
-                    ],
-                },
-            ],
-            orderKinds: {
-                "f:instant-order": "contract",
-                "o:quote": "quote",
-            },
-        };
-
-        const out = validate(normalise(props), {
-            selectedOptionKeys: ["f:instant-order", "o:quote"],
-        });
-
-        expect(
-            out.some((e) => e.code === "multiple_order_kinds_selected"),
-        ).toBe(true);
-    });
-
-    it("does not flag order kind ambiguity when selected triggers resolve to the same order kind", () => {
-        const props: ServiceProps = {
-            filters: [{ id: "t:root", label: "Root" }],
-            fields: [
-                {
-                    id: "f:instant-order",
-                    label: "Instant Order",
-                    type: "checkbox",
-                    bind_id: "t:root",
-                    name: "instantOrder",
-                    button: true,
-                },
-                {
-                    id: "f:plan",
-                    label: "Plan",
-                    type: "select",
-                    bind_id: "t:root",
-                    name: "plan",
-                    options: [{ id: "o:contract", label: "Contract" }],
-                },
-            ],
-            orderKinds: {
-                "f:instant-order": "contract",
-                "o:contract": "contract",
-            },
-        };
-
-        const out = validate(normalise(props), {
-            selectedOptionKeys: ["f:instant-order", "o:contract"],
-        });
-
-        expect(
-            out.some((e) => e.code === "multiple_order_kinds_selected"),
-        ).toBe(false);
     });
 
     it("constraints: descendant cannot contradict ancestor; tag promises must be supported by service", () => {
@@ -598,7 +550,8 @@ describe("validate()", () => {
         expect(
             out.some(
                 (e) =>
-                    e.code === "rate_coherence_violation" && e.nodeId === "o_basic",
+                    e.code === "rate_coherence_violation" &&
+                    e.nodeId === "o_basic",
             ),
         ).toBe(true);
     });
@@ -1071,5 +1024,123 @@ describe("validate option_effects_for_buttons", () => {
                 "bad_option_effect_option",
             ]),
         );
+    });
+});
+
+describe("validate value_effects_for_triggers", () => {
+    const props: ServiceProps = {
+        schema_version: "1.0",
+        filters: [
+            { id: "t:root", label: "Root" },
+            { id: "t:child", label: "Child", bind_id: "t:root" },
+        ],
+        fields: [
+            {
+                id: "f:trigger",
+                label: "Trigger",
+                type: "select",
+                bind_id: "t:root",
+                options: [{ id: "o:premium", label: "Premium" }],
+            },
+            {
+                id: "f:target",
+                label: "Target",
+                type: "select",
+                bind_id: "t:root",
+                options: [
+                    { id: "o:low", label: "Low" },
+                    { id: "o:high", label: "High" },
+                ],
+            },
+            {
+                id: "f:hidden",
+                label: "Hidden",
+                type: "text",
+                bind_id: "t:child",
+            },
+        ],
+    };
+
+    it("accepts tag, button-field, and option triggers with valid targets", () => {
+        const out = validate({
+            ...props,
+            fields: [
+                ...props.fields,
+                {
+                    id: "f:button",
+                    label: "Button",
+                    type: "toggle",
+                    bind_id: "t:root",
+                    button: true,
+                },
+            ],
+            value_effects_for_triggers: {
+                "t:root": { "f:target": { value: "o:low" } },
+                "f:button": { "f:target": { value: "o:high" } },
+                "o:premium": { "f:target": { value: "o:high" } },
+            },
+        });
+
+        expect(out.map((error) => error.code)).not.toContain(
+            "value_effect_trigger_missing",
+        );
+        expect(out.map((error) => error.code)).not.toContain(
+            "value_effect_invalid_option",
+        );
+    });
+
+    it("reports invalid triggers, targets, options, multi-value misuse, and invisible targets", () => {
+        const out = validate({
+            ...props,
+            value_effects_for_triggers: {
+                ghost: {
+                    "f:missing": { value: "x" },
+                    "f:target": { value: "o:ghost" },
+                },
+                "o:premium": {
+                    "f:target": { value: ["o:low", "o:high"] },
+                    "f:hidden": { value: "x" },
+                },
+            },
+        });
+
+        expect(out.map((error) => error.code)).toEqual(
+            expect.arrayContaining([
+                "value_effect_trigger_missing",
+                "value_effect_target_missing",
+                "value_effect_invalid_option",
+                "value_effect_multiple_values_for_single_field",
+                "value_effect_target_never_visible",
+            ]),
+        );
+    });
+
+    it("reports option-trigger cycles created by assigned option values", () => {
+        const out = validate({
+            schema_version: "1.0",
+            filters: [{ id: "t:root", label: "Root" }],
+            fields: [
+                {
+                    id: "f:a",
+                    label: "A",
+                    type: "select",
+                    bind_id: "t:root",
+                    options: [{ id: "o:a", label: "A" }],
+                },
+                {
+                    id: "f:b",
+                    label: "B",
+                    type: "select",
+                    bind_id: "t:root",
+                    options: [{ id: "o:b", label: "B" }],
+                },
+            ],
+            value_effects_for_triggers: {
+                "o:a": { "f:b": { value: "o:b" } },
+                "o:b": { "f:a": { value: "o:a" } },
+            },
+        });
+
+        expect(out.map((error) => error.code)).toContain("value_effect_cycle");
     });
 });
